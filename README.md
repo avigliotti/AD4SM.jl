@@ -1,4 +1,4 @@
-# AD4SM
+# AD4SM.jl
 Automatic Differentiation for Solid Mechanics in Julia
 
 
