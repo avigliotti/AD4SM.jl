@@ -2,7 +2,7 @@ __precompile__()
 
 module Elements
 
-using LinearAlgebra, Printf, IterativeSolvers
+using LinearAlgebra, Printf#, IterativeSolvers
 using PyPlot, PyCall, ProgressMeter, Dates, StatsBase
 using Distributed
 
@@ -353,6 +353,7 @@ function getF(elem::CAS, u::Array{N} where N<:Real, ii::Int64)
    my0  my0   w0z] + I
 end
 getF(elem::CElems,u::Array{N} where N<:Real) = mean([getF(elem, u, ii) for ii in 1:length(elem.wgt)])
+getJ(elem::CElems,u::Array{N} where N<:Real) = mean([getJ(getF(elem, u, ii)) for ii in 1:length(elem.wgt)])
 function getJ(F)
   length(F) == 9 ?
     F[1]F[5]F[9]-F[1]F[6]F[8]-F[2]F[4]F[9]+F[2]F[6]F[7]+F[3]F[4]F[8]-F[3]F[5]F[7] :
@@ -512,8 +513,8 @@ function solve(elems, u;
     end
     becho && flush(stdout)
   end
-  becho && @printf("completed in %s\n",(Base.time_ns()-t0)|>
-                   Dates.Nanosecond|>Dates.CompoundPeriod|>Dates.canonicalize)
+  becho && @printf("completed in %s\n",(Base.time_ns()-t0)÷1e9|>
+                   Dates.Second|>Dates.CompoundPeriod|>Dates.canonicalize)
   becho && flush(stdout)
 
   ballus ? allu : unew
@@ -523,6 +524,7 @@ function solvestep!(elems, u, bfreeu;
                     eqns      = [],
                     λ         = zeros(length(eqns)),
                     dTol      = 1e-6,
+                    dNoise    = 1e-12,
                     maxiter   = 6,
                     becho     = false,
                     bprogress = false)
@@ -531,14 +533,15 @@ function solvestep!(elems, u, bfreeu;
     p = ProgressMeter.ProgressThresh(dTol)
   end
 
-  nuDoFs    = length(u)
-  nEqs      = length(eqns)
-  nDoFs     = nuDoFs + nEqs
 
   ifreeu    = findall(bfreeu[:])
   icnstu    = findall(.!bfreeu[:])
 
+  nEqs      = length(eqns)
   nfreeu    = length(ifreeu)
+  ncnstu    = length(icnstu)
+  nDoFs     = nfreeu + nEqs
+  ncDoFs    = ncnstu + nEqs
   iius      = 1:nfreeu
   iieqs     = nfreeu .+ (1:nEqs)
 
@@ -549,6 +552,7 @@ function solvestep!(elems, u, bfreeu;
   if nEqs !=0
     Ntot = nfreeu+nEqs
     H    = spzeros(Ntot, Ntot)
+    updt = zeros(Ntot)
   end
 
   becho && println() 
@@ -558,16 +562,19 @@ function solvestep!(elems, u, bfreeu;
     (Φ, fi, Kt) = getϕ(elems, u)
     if nEqs == 0
       res   = fi[ifreeu]-fe[ifreeu]
-      norm0 = norm(fi[icnstu])
+      norm0 = norm(fi[icnstu])/ncnstu
     else
       (vEqs,rEqs,KEqs) = getϕ(eqns, u, λ)
       resu  = fi[ifreeu]-fe[ifreeu]-rEqs[ifreeu,:]*λ
       rese  = -vEqs
       res   = vcat(resu, rese)
-      norm0 = norm(fi[icnstu])
+      norm0 = (norm(fi[icnstu])+norm(λ))/ncDoFs
     end
 
-    normr = norm0 > 0 ? norm(res)/norm0 : norm(res)/nDoFs
+    #normres = norm(res)/nDoFs
+    normupdt = 0
+    normres  = maximum(abs.(res))
+    normr    = norm0 > 0 ? normres/norm0 : normres
     if normr<dTol
       bdone   = true
       fe[:]   = nEqs==0 ? fi[:] : fi[:]-rEqs*λ
@@ -576,25 +583,34 @@ function solvestep!(elems, u, bfreeu;
         updt      = Kt[ifreeu,ifreeu]\res
         u[ifreeu] .-= updt
       else
-        H[iius,iius]  = Kt[ifreeu,ifreeu]-KEqs[ifreeu,ifreeu]
-        H[iius,iieqs] = -rEqs[ifreeu,:]
-        H[iieqs,iius] = transpose(H[iius,iieqs])
-        updt          = minres(H, res)
+        H[iius,iius]   = Kt[ifreeu,ifreeu]-KEqs[ifreeu,ifreeu]
+        H[iius,iieqs]  = -rEqs[ifreeu,:]
+        H[iieqs,iius]  = transpose(H[iius,iieqs])
+        H[iieqs,iieqs] = spdiagm(0=>dNoise*randn(nEqs))
+        # H[iieqs,iieqs] = spdiagm(0=>dNoise*ones(nEqs))
+        # updt           = H\res
+        updt          = qr(H)\res
+        # updt          = lu(H)\res
+        # minres!(updt,H,res)
+        # updt = minres(H,res)
         u[ifreeu]     .-= updt[iius]
         λ             .-= updt[iieqs]
+        normupdt = maximum(abs.(updt))
       end              
     else
       bfailed = true
     end    
     iter  += 1
     bprogress && ProgressMeter.update!(p, normr)
-    becho && @printf("iter: %2i, norm0: %.2e, normr/dTol: %.2e, eltime: %.2f sec. \n", 
-                     iter, norm0, normr/dTol, Int64(Base.time_ns()-tic)/1e9)
+    becho && @printf("iter: %2i, norm0: %.2e, normres: %.2e, normr/dTol: %.2e, normupdt: %.2e, eltime: %.2f sec. \n", 
+                     iter, norm0, normres, normr/dTol, 
+                     normupdt, Int64(Base.time_ns()-tic)/1e9)
     becho && flush(stdout)
   end
 
   (bfailed, normr, iter)
 end
+;
 # helper functions
 function lgwt(N::Integer; a=0, b=1)
 
@@ -648,6 +664,16 @@ function split(N::Int64, p::Int64)
   slice = [ range(sum(nEls[1:ii-1])+1, length=nEls[ii])
            for ii in 1:p]
 end
+# function split(N::Int64, p::Int64)
+#   nEls = Int64(ceil(N/p))
+#   if mod(N,nEls)==0
+#     y = [collect(1:nEls).+ii*nEls for ii in 0:p-1]
+#   else
+#     y = vcat([collect(1:nEls).+ii*nEls for ii in 0:p-2], 
+#              [collect(nEls*(p-1)+1:N)])
+#   end
+#   tuple(y...)
+# end
 # plotting functions (Quad and Tria only)
 patch = pyimport("matplotlib.patches")
 coll  = pyimport("matplotlib.collections")  
@@ -661,13 +687,13 @@ function plot_model(elems, nodes;
                     cmap      = :hsv,
                     clim      = [],
                     dTol      = 1e-6,
-                    cfig      = figure())
+                    cfig      = figure(),
+                    ax        = cfig.add_subplot(1,1,1))
 
   nodes     = [node + u[:,ii] for (ii,node) in enumerate(nodes)]
   patchcoll = coll.PatchCollection([patch.Polygon(nodes[elem.nodes]) 
                                     for elem ∈ elems], cmap=cmap)
-  ax = cfig.add_subplot(1,1,1)
-  if !isempty(Φ)
+    if !isempty(Φ)
     patchcoll.set_array(Φ)
     cfig.colorbar.(patchcoll, ax=ax)
 
