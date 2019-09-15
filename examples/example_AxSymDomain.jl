@@ -164,10 +164,12 @@ bifree[idxu[:,id_btm]] .= false
 bifree[idxu[2,id_top]] .= false
 
 println("doing the 0-th step, finding initial hydrostatic stress")
-@time Elements.solvestep!(elems, 
-                          u0, bifree, λ=λ, bprogress=true, becho=false, dTol=dTol, eqns=eqns)
+@time Elements.solvestep!(elems, u0, bifree, λ=λ, bprogress=true,
+                          becho=false, dTol=dTol, eqns=eqns)
 plot_model(elems, nodes, u = u0, Φ=λ)
+PyPlot.plot(pos0[1,:]+u0[1,id_srtd], pos0[2,:]+u0[2,id_srtd], color=:b) 
 
+println("start the model with internal volume constraint")
 u           = copy(u0)
 u[:,id_btm] .= 0
 u[2,id_top] .= -Δu
@@ -193,10 +195,12 @@ bifree[idxu[:,id_btm]] .= false
 bifree[idxu[2,id_top]] .= false
 
 
-@time Elements.solvestep!(elems, 
-                          u0, bifree, λ=λ, bprogress=true, becho=false, maxiter = 21, dTol=dTol, eqns=eqns)
+println("doing the 0-th step, finding initial hydrostatic stress")
+@time Elements.solvestep!(elems, u0, bifree, λ=λ, bprogress=true,
+                          becho=false, maxiter = 21, dTol=dTol, eqns=eqns)
 
 
+println("start the model without internal volume constraint")
 u            = copy(u0)
 u[:,id_btm] .= 0
 u[2,id_top] .= -Δu
@@ -205,24 +209,21 @@ allus_e = Elements.solve(elems, u, ifree=bifree, λ=λ, eqns=eqns, LF=LF,
                          becho=true, bechoi=false, ballus=ballus, bprogress=false,
                          dTol=dTol, maxiter=21)
 
-"""
-plot_model(elems, nodes, u = allus_e[end][1], Φ=get_I1(elems, allus_e[end][1]))
-
-rf_tot_e = [sum(item[2][2, id_top])  for item in allus_e]
-Δu_tot_e = [mean(item[1][2,id_top])  for item in allus_e]
-
-PyPlot.figure()
-PyPlot.plot(Δu_tot_e, rf_tot_e)
-;
-"""
+# plot results
+#
 cfig = PyPlot.figure()
-ax1  = cfig.add_subplot(2,1,1)
-ax2  = cfig.add_subplot(2,1,2)
 
+ax1  = cfig.add_subplot(2,1,1)
 plot_model(elems, nodes, cfig=cfig, ax=ax1, 
            u=allus_d[end][1], Φ=get_I1(elems, allus_d[end][1]))
+PyPlot.plot(pos0[1,:]+allus_d[end][1][1,id_srtd],
+            pos0[2,:]+allus_d[end][1][2,id_srtd], color=:b)        
+
+ax2  = cfig.add_subplot(2,1,2)
 plot_model(elems, nodes, cfig=cfig, ax=ax2, 
            u=allus_e[end][1], Φ=get_I1(elems, allus_e[end][1]))
+PyPlot.plot(pos0[1,:]+allus_e[end][1][1,id_srtd],
+            pos0[2,:]+allus_e[end][1][2,id_srtd], color=:b)        
 
 ax1.set_xlim([15, 85]); ax1.set_ylim([-26, 10])
 ax1.set_title("with internal volume constraint, \$I_1-3\$")
@@ -252,13 +253,13 @@ if bsave
            "sMeshFile", sMeshFile)
   @printf("results written to %s.jld\n", sFileName); flush(stdout)
   MAT.matwrite(sFileName*"02.mat", Dict(
-                                         "nodes"=>points, "elems"=>el_nodes, "nNodes"=>nNodes,
-                                         "Ly"=>maximum(points[2,:])-minimum(points[2,:]),
-                                         "u0_d"=>allus_d[end][1], "u0_e"=>allus_e[end][1],
-                                         "I1_d"=>get_I1(elems, allus_d[end][1]),
-                                         "I1_e"=>get_I1(elems, allus_e[end][1]),
-                                         "id_btm"=>id_btm, "id_top"=>id_top, "id_bnd"=>id_bnd, 
-                                         "u_tot_d"=>Δu_tot_d, "u_tot_e"=>Δu_tot_e,
-                                         "rf_tot_d"=>rf_tot_d, "rf_tot_e"=>rf_tot_e))
+                                        "nodes"=>points, "elems"=>el_nodes, "nNodes"=>nNodes,
+                                        "Ly"=>maximum(points[2,:])-minimum(points[2,:]),
+                                        "u0_d"=>allus_d[end][1], "u0_e"=>allus_e[end][1],
+                                        "I1_d"=>get_I1(elems, allus_d[end][1]),
+                                        "I1_e"=>get_I1(elems, allus_e[end][1]),
+                                        "id_btm"=>id_btm, "id_top"=>id_top, "id_bnd"=>id_bnd, 
+                                        "u_tot_d"=>Δu_tot_d, "u_tot_e"=>Δu_tot_e,
+                                        "rf_tot_d"=>rf_tot_d, "rf_tot_e"=>rf_tot_e))
   @printf("results written to %s.mat\n", sFileName); flush(stdout)
 end 
