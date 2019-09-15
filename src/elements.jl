@@ -3,8 +3,8 @@ __precompile__()
 module Elements
 
 using LinearAlgebra, Printf#, IterativeSolvers
+using Distributed, SparseArrays
 using PyPlot, PyCall, ProgressMeter, Dates, StatsBase
-using Distributed
 
 using ..adiff, ..Materials
 import ..Materials.getϕ
