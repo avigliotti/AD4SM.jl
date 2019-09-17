@@ -295,7 +295,6 @@ function getϕ(elem::Beam, u::Array{T,2} where T<:Real)
   end
   return ϕ
 end
-#
 function getϕ(elem::T where T<:CElems, u::Array{T,2} where T<:Real)
   M = length(elem.wgt)
   if isa(u[1], adiff.D2) 
@@ -314,14 +313,8 @@ function cross(ϕ, F)
   h = sum([0.5ϕ.h[ii,jj]*(F[ii].g*F[jj].g+F[jj].g*F[ii].g) for jj=1:N for ii=1:N])
   adiff.D2(ϕ.v, g, h) 
 end
-#=
-function getϕ(elem::T where T<:Elements.CElems, u::Array{T,2} where T<:Real)
-  M = length(elem.wgt)
-  ϕ = sum([elem.wgt[ii]getϕ(getF(elem,u,ii), elem.mat) for ii in M])
-end
-=# 
 # methods for evaluating def. gradient
-function getF(elem::C3D, u::Array{N} where N<:Real, ii::Int64)
+function getF(elem::C3D, u::Array{N} where N, ii::Int64)
 
   Nx, Ny, Nz = elem.Nx[ii], elem.Ny[ii], elem.Nz[ii]
 
@@ -329,7 +322,7 @@ function getF(elem::C3D, u::Array{N} where N<:Real, ii::Int64)
    Nx⋅u[2:3:end] Ny⋅u[2:3:end] Nz⋅u[2:3:end];
    Nx⋅u[3:3:end] Ny⋅u[3:3:end] Nz⋅u[3:3:end] ] + I
 end
-function getF(elem::C2D, u::Array{N} where N<:Real, ii::Int64) 
+function getF(elem::C2D, u::Array{N} where N, ii::Int64) 
 
   Nx, Ny = elem.Nx[ii], elem.Ny[ii]
   my0    = zero(u[1])
@@ -340,7 +333,7 @@ function getF(elem::C2D, u::Array{N} where N<:Real, ii::Int64)
   [Nx⋅u[1:2:end] Ny⋅u[1:2:end];
    Nx⋅u[2:2:end] Ny⋅u[2:2:end]] + I
 end
-function getF(elem::CAS, u::Array{N} where N<:Real, ii::Int64) 
+function getF(elem::CAS, u::Array{N} where N, ii::Int64) 
   Nx,  Ny   = elem.Nx[ii],   elem.Ny[ii]
   N0,  X0   = elem.N0[ii],   elem.X0[ii]
   u0x, u0y  = Nx⋅u[1:2:end], Ny⋅u[1:2:end]
@@ -352,12 +345,14 @@ function getF(elem::CAS, u::Array{N} where N<:Real, ii::Int64)
    v0x  v0y   my0;
    my0  my0   w0z] + I
 end
-getF(elem::CElems,u::Array{N} where N<:Real) = mean([getF(elem, u, ii) for ii in 1:length(elem.wgt)])
-getJ(elem::CElems,u::Array{N} where N<:Real) = mean([getJ(getF(elem, u, ii)) for ii in 1:length(elem.wgt)])
+# getF(elem::CElems,u::Array{N} where N) = mean([getF(elem, u, ii) for ii in 1:length(elem.wgt)])
+getJ(elem::CElems,u::Array{N} where N) = sum([elem.wgt[ii]getJ(getF(elem, u, ii))
+                                              for ii in 1:length(elem.wgt)])/elem.V
+# getJ(elem::CElems,u::Array{N} where N) = mean([getJ(getF(elem, u, ii)) for ii in 1:length(elem.wgt)])
 function getJ(F)
   length(F) == 9 ?
-    F[1]F[5]F[9]-F[1]F[6]F[8]-F[2]F[4]F[9]+F[2]F[6]F[7]+F[3]F[4]F[8]-F[3]F[5]F[7] :
-    F[1]F[4]-F[2]F[3]
+  F[1]F[5]F[9]-F[1]F[6]F[8]-F[2]F[4]F[9]+F[2]F[6]F[7]+F[3]F[4]F[8]-F[3]F[5]F[7] :
+  F[1]F[4]-F[2]F[3]
 end
 # elastic energy evaluation functions for models (lists of elements)
 function getϕ(elems::Array, u)
@@ -445,9 +440,9 @@ function getϕ(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64}, chun
   (veqs, reqs, Keqs)  
 end
 function getinfo(elem::Elems, u::Array{T,2} where T<:Real; info=:detF)
-    M = length(elem.Nx)
-    F = sum([getF(elem, u, ii) for ii in 1:M])/M
-    Materials.getinfo(F, elem.mat, info=info)
+  M = length(elem.Nx)
+  F = sum([getF(elem, u, ii) for ii in 1:M])/M
+  Materials.getinfo(F, elem.mat, info=info)
 end
 getinfo(elems::Array, u; info=:detF) =  [getinfo(elem, u[:,elem.nodes], info=info) for elem in elems]
 # solver 
@@ -610,7 +605,6 @@ function solvestep!(elems, u, bfreeu;
 
   (bfailed, normr, iter)
 end
-;
 # helper functions
 function lgwt(N::Integer; a=0, b=1)
 
@@ -664,17 +658,6 @@ function split(N::Int64, p::Int64)
   slice = [ range(sum(nEls[1:ii-1])+1, length=nEls[ii])
            for ii in 1:p]
 end
-# function split(N::Int64, p::Int64)
-#   nEls = Int64(ceil(N/p))
-#   if mod(N,nEls)==0
-#     y = [collect(1:nEls).+ii*nEls for ii in 0:p-1]
-#   else
-#     y = vcat([collect(1:nEls).+ii*nEls for ii in 0:p-2], 
-#              [collect(nEls*(p-1)+1:N)])
-#   end
-#   tuple(y...)
-# end
-# plotting functions (Quad and Tria only)
 patch = pyimport("matplotlib.patches")
 coll  = pyimport("matplotlib.collections")  
 function plot_model(elems, nodes; 
@@ -693,7 +676,7 @@ function plot_model(elems, nodes;
   nodes     = [node + u[:,ii] for (ii,node) in enumerate(nodes)]
   patchcoll = coll.PatchCollection([patch.Polygon(nodes[elem.nodes]) 
                                     for elem ∈ elems], cmap=cmap)
-    if !isempty(Φ)
+  if !isempty(Φ)
     patchcoll.set_array(Φ)
     cfig.colorbar.(patchcoll, ax=ax)
 
