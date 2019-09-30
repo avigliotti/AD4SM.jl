@@ -141,7 +141,7 @@ S = Union{Int64, Float64}
 @inline D2eval(f::F, x::T) where {F,T} = f(D2(x))
 @inline Real(x::D2)                    = x.v
 @inline val(x::D2)                     = x.v
-# @inline grad(x::Real)                  = 0  
+@inline grad(x::Real)                  = 0  
 @inline grad(x::D2{N,M})   where{N,M}  = [x.g[i]   for i in 1:N]
 @inline hess(x::D2{N,M})   where{N,M}  = [x.h[i,j] for i in 1:N, j in 1:N]
 end

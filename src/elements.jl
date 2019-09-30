@@ -15,7 +15,7 @@ function setp(x)
 end
 # continous elements 
 struct C2D{M}
-  nodes::Vector{Integer}
+  nodes::Vector{<:Integer}
   Nx::NTuple{M,Array{Float64,1}}
   Ny::NTuple{M,Array{Float64,1}}
   wgt::NTuple{M,Float64}
@@ -23,7 +23,7 @@ struct C2D{M}
   mat::Materials.Material
 end
 struct C3D{M}
-  nodes::Vector{Integer}
+  nodes::Vector{<:Integer}
   Nx::NTuple{M,Array{Float64,1}}
   Ny::NTuple{M,Array{Float64,1}}
   Nz::NTuple{M,Array{Float64,1}}
@@ -32,7 +32,7 @@ struct C3D{M}
   mat::Materials.Material
 end
 struct CAS{M} 
-  nodes::Vector{Integer}
+  nodes::Vector{<:Integer}
   N0::NTuple{M,Array{Float64,1}}
   Nx::NTuple{M,Array{Float64,1}}
   Ny::NTuple{M,Array{Float64,1}}
@@ -43,14 +43,14 @@ struct CAS{M}
 end
 #  structural elements
 struct Rod
-  nodes::Vector{Integer}         # node id
+  nodes::Vector{<:Integer}         # node id
   r0::Array{Float64}          # 
   l0::Float64
   A::Float64                  # area 
   mat::Materials.Material     # material properties
 end
 struct Beam
-  nodes::Vector{Integer}
+  nodes::Vector{<:Integer}
   r0::Array{Float64,1}
   L::Real
   t::Real
@@ -87,7 +87,7 @@ function Beam(nodes, p0, t, w; mat=Materials.Hooke(1, 0.3), Nx = 5, Ny = 3)
 
   Beam(nodes, r0, L, Float64(t), Float64(w), lgwx, lgwy, mat)
 end
-function Tria(nodes::Vector{Integer}, 
+function Tria(nodes::Vector{<:Integer}, 
               p0::Vector{Vector{T}} where T<:Real ;
               mat=Materials.Hooke())
   (Nx,Ny,wgt,A) = begin
@@ -102,7 +102,7 @@ function Tria(nodes::Vector{Integer},
 
   C2D(nodes,Nx,Ny,wgt,A,mat) 
 end
-function Quad(nodes::Vector{Integer}, 
+function Quad(nodes::Vector{<:Integer}, 
               p0::Vector{Vector{T}} where T<:Real;
               mat=Materials.Hooke())
 
@@ -131,7 +131,7 @@ function Quad(nodes::Vector{Integer},
 
   C2D(nodes,Nx,Ny,wgt,A,mat) 
 end
-function Tet04(nodes::Vector{Integer}, 
+function Tet04(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}} where T<:Real;
                mat=Materials.Hooke())
   (V, Nx, Ny, Nz) = begin
@@ -146,7 +146,7 @@ function Tet04(nodes::Vector{Integer},
   end
   C3D(nodes,Nx,Ny,Nz,(1.0,),V,mat) 
 end
-function Tet10(nodes::Vector{Integer}, 
+function Tet10(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}} where T<:Real;
                mat=Materials.Hooke())
 
@@ -177,7 +177,7 @@ function Tet10(nodes::Vector{Integer},
 
   C3D(nodes,Nx,Ny,Nz,V,mat) 
 end
-function Hex08(nodes::Vector{Integer}, 
+function Hex08(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}} where T<:Real;
                mat=Materials.Hooke())
   (V, Nx, Ny, Nz, wgt) = begin
@@ -206,7 +206,7 @@ function Hex08(nodes::Vector{Integer},
   end
   C3D(nodes,Nx,Ny,Nz,wgt,V,mat) 
 end
-function ASTria(nodes::Vector{Integer},
+function ASTria(nodes::Vector{<:Integer},
                 p0::Vector{Vector{T}} where T<:Real;
                 mat=Materials.Hooke())
   (N,Nx,Ny,X0,wgt,A) = begin 
@@ -224,7 +224,7 @@ function ASTria(nodes::Vector{Integer},
   end
   CAS(nodes,N,Nx,Ny,X0,wgt,A,mat) 
 end
-function ASQuad(nodes::Vector{Integer},
+function ASQuad(nodes::Vector{<:Integer},
                 p0::Vector{Vector{T}} where T<:Real;
                 mat=Materials.Hooke())
   (V,N0,Nx,Ny,X0,wgt) = begin
@@ -257,14 +257,14 @@ function ASQuad(nodes::Vector{Integer},
   CAS(nodes,N0,Nx,Ny,X0,wgt,V,mat) 
 end
 # elastic energy evaluation functions for elements
-function getϕ(elem::Rod,  u::Array{T,2} where T<:Real)
+function getϕ(elem::Rod,  u::Array{<:Real,2})
 
   l   = norm(elem.r0+u[:,2]-u[:,1])
   F11 = l/elem.l0
   elem.A*elem.l0*getϕ(F11, elem.mat)    
 
 end
-function getϕ(elem::Beam, u::Array{T,2} where T<:Real)
+function getϕ(elem::Beam, u::Array{<:Real,2})
 
   L, r0, t, w = elem.L, elem.r0, elem.t, elem.w
   T    = [r0[1] r0[2]; -r0[2] r0[1]]
@@ -295,7 +295,7 @@ function getϕ(elem::Beam, u::Array{T,2} where T<:Real)
   end
   return ϕ
 end
-function getϕ(elem::T where T<:CElems, u::Array{T,2} where T<:Real)
+function getϕ(elem::T where T<:CElems, u::Array{<:Real,2})
   M = length(elem.wgt)
   if isa(u[1], adiff.D2) 
     ϕ = sum([begin
@@ -304,7 +304,7 @@ function getϕ(elem::T where T<:CElems, u::Array{T,2} where T<:Real)
                elem.wgt[ii]cross(ϕ,F)
              end  for ii in 1:M])
   else
-    ϕ = sum([elem.wgt[ii]getϕ(getF(elem,u,ii), elem.mat) for ii in M])
+    ϕ = sum([elem.wgt[ii]getϕ(getF(elem,u,ii), elem.mat) for ii in 1:M])
   end 
 end
 function cross(ϕ, F)
@@ -345,15 +345,18 @@ function getF(elem::CAS, u::Array{N} where N, ii::Int64)
    v0x  v0y   my0;
    my0  my0   w0z] + I
 end
-# getF(elem::CElems,u::Array{N} where N) = mean([getF(elem, u, ii) for ii in 1:length(elem.wgt)])
-getJ(elem::CElems,u::Array{N} where N) = sum([elem.wgt[ii]getJ(getF(elem, u, ii))
-                                              for ii in 1:length(elem.wgt)])/elem.V
-# getJ(elem::CElems,u::Array{N} where N) = mean([getJ(getF(elem, u, ii)) for ii in 1:length(elem.wgt)])
 function getJ(F)
-  length(F) == 9 ?
-  F[1]F[5]F[9]-F[1]F[6]F[8]-F[2]F[4]F[9]+F[2]F[6]F[7]+F[3]F[4]F[8]-F[3]F[5]F[7] :
-  F[1]F[4]-F[2]F[3]
+  if (length(F)==9)
+    F[1]F[5]F[9]-F[1]F[6]F[8]-F[2]F[4]F[9]+F[2]F[6]F[7]+F[3]F[4]F[8]-F[3]F[5]F[7]
+  else
+    F[1]F[4]-F[2]F[3]
+  end
 end
+getV(elem,u)     = sum([elem.wgt[ii]getJ(elem,u,ii) for ii in 1:length(elem.wgt)])
+getJ(elem,u,ii)  = getJ(getF(elem, u, ii))
+getJ(elem,u)     = getV(elem,u)/elem.V
+getI3(elem,u,ii) = getJ(getF(elem, u, ii))^2
+getI3(elem,u)    = sum([elem.wgt[ii]getI3(elem,u,ii) for ii in 1:length(elem.wgt)])/elem.V
 # elastic energy evaluation functions for models (lists of elements)
 function getϕ(elems::Array, u)
 
@@ -439,7 +442,7 @@ function getϕ(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64}, chun
   end
   (veqs, reqs, Keqs)  
 end
-function getinfo(elem::Elems, u::Array{T,2} where T<:Real; info=:detF)
+function getinfo(elem::Elems, u::Array{<:Real,2}; info=:detF)
   M = length(elem.Nx)
   F = sum([getF(elem, u, ii) for ii in 1:M])/M
   Materials.getinfo(F, elem.mat, info=info)
@@ -455,12 +458,16 @@ function solve(elems, u;
                fe         = zeros(size(u)),
                bprogress  = false,
                becho      = false,
-               dTol       = 1e-6,
+               dTol       = 1e-5,
+               dTolu      = dTol,
+               dTole      = 1e2dTol,
+               dNoise     = 1e-12,
                maxiter    = 11,
                bechoi     = false,
                bprogressi = false,
                ballus     = false)  
 
+  N     = length(LF)
   t0    = Base.time_ns()
   beqns = length(eqns)>0
   if bprogress; p    = ProgressMeter.Progress(length(LF)); end
@@ -483,7 +490,9 @@ function solve(elems, u;
                  eqns      = eqns,
                  λ         = λnew,
                  fe        = fnew, 
-                 dTol      = dTol,
+                 dTole     = dTole,
+                 dTolu     = dTolu,
+                 dNoise    = dNoise,
                  maxiter   = maxiter,
                  bprogress = bprogressi,
                  becho     = bechoi)
@@ -504,7 +513,8 @@ function solve(elems, u;
         end
       end
       bprogress && ProgressMeter.next!(p)
-      becho     && @printf("step %2i done in %2i iter, after %.2f sec.\n", ii, iter, T)
+      becho     && @printf("step %3i/%i, LF=%.3f, done in %2i iter, after %.2f sec.\n",
+                           ii,N,LF,iter,T)
     end
     becho && flush(stdout)
   end
@@ -518,16 +528,17 @@ function solvestep!(elems, u, bfreeu;
                     fe        = zeros(length(u)),
                     eqns      = [],
                     λ         = zeros(length(eqns)),
-                    dTol      = 1e-6,
+                    dTol      = 1e-5,
+                    dTolu     = dTol,
+                    dTole     = 1e2dTol,
                     dNoise    = 1e-12,
-                    maxiter   = 6,
+                    maxiter   = 11,
                     becho     = false,
                     bprogress = false)
 
   if bprogress
-    p = ProgressMeter.ProgressThresh(dTol)
+    p = ProgressMeter.ProgressThresh(dTolu)
   end
-
 
   ifreeu    = findall(bfreeu[:])
   icnstu    = findall(.!bfreeu[:])
@@ -536,74 +547,77 @@ function solvestep!(elems, u, bfreeu;
   nfreeu    = length(ifreeu)
   ncnstu    = length(icnstu)
   nDoFs     = nfreeu + nEqs
-  ncDoFs    = ncnstu + nEqs
   iius      = 1:nfreeu
   iieqs     = nfreeu .+ (1:nEqs)
 
   bdone     = false
   bfailed   = false
   iter      = 0
+  normupdt  = 0
+  normre    = NaN
+  oldupdt   = zeros(nDoFs)
+  updt      = zeros(nDoFs)
 
   if nEqs !=0
-    Ntot = nfreeu+nEqs
-    H    = spzeros(Ntot, Ntot)
-    updt = zeros(Ntot)
+    H    = spzeros(nDoFs,nDoFs)
   end
 
   becho && println() 
   while !bdone & !bfailed 
-    global normr
-    tic = Base.time_ns()
-    (Φ, fi, Kt) = getϕ(elems, u)
+    global normru
+    iter  += 1
+    tic    = Base.time_ns()
+    (Φ,fi,Kt) = getϕ(elems, u)
     if nEqs == 0
-      res   = fi[ifreeu]-fe[ifreeu]
-      norm0 = norm(fi[icnstu])/ncnstu
+      res    = fi[ifreeu]-fe[ifreeu]      
+      norm0  = ncnstu > 0     ? norm(fi[icnstu])/ncnstu : 0
+      normru = norm0  > dTolu ? norm(res)/nfreeu/norm0  : norm(res)/nfreeu
+      bdone  = (normru<dTolu)
     else
       (vEqs,rEqs,KEqs) = getϕ(eqns, u, λ)
-      resu  = fi[ifreeu]-fe[ifreeu]-rEqs[ifreeu,:]*λ
-      rese  = -vEqs
-      res   = vcat(resu, rese)
-      norm0 = (norm(fi[icnstu])+norm(λ))/ncDoFs
+      resu   = fi[ifreeu]-fe[ifreeu]-rEqs[ifreeu,:]*λ
+      rese   = -vEqs
+      res    = vcat(resu, rese)
+      norm0  = ncnstu > 0     ? norm(fi[icnstu])/ncnstu : 0
+      normru = norm0  > dTolu ? norm(res)/nfreeu/norm0  : norm(res)/nfreeu
+      normre = maximum(abs.(rese))
+      bdone  = (normru<dTolu) && (normre<dTole)
     end
 
-    #normres = norm(res)/nDoFs
-    normupdt = 0
-    normres  = maximum(abs.(res))
-    normr    = norm0 > 0 ? normres/norm0 : normres
-    if normr<dTol
-      bdone   = true
+    if bdone
       fe[:]   = nEqs==0 ? fi[:] : fi[:]-rEqs*λ
     elseif iter < maxiter
       if nEqs == 0
-        updt      = Kt[ifreeu,ifreeu]\res
-        u[ifreeu] .-= updt
+        updt            = Kt[ifreeu,ifreeu]\res
+        u[ifreeu]     .-= updt
       else
-        H[iius,iius]   = Kt[ifreeu,ifreeu]-KEqs[ifreeu,ifreeu]
-        H[iius,iieqs]  = -rEqs[ifreeu,:]
-        H[iieqs,iius]  = transpose(H[iius,iieqs])
-        H[iieqs,iieqs] = spdiagm(0=>dNoise*randn(nEqs))
-        # H[iieqs,iieqs] = spdiagm(0=>dNoise*ones(nEqs))
-        # updt           = H\res
-        updt          = qr(H)\res
-        # updt          = lu(H)\res
-        # minres!(updt,H,res)
-        # updt = minres(H,res)
+        H[iius,iius]    = Kt[ifreeu,ifreeu]-KEqs[ifreeu,ifreeu]
+        H[iius,iieqs]   = -rEqs[ifreeu,:]
+        H[iieqs,iius]   = transpose(H[iius,iieqs])
+        H[iieqs,iieqs]  = spdiagm(0=>dNoise*randn(nEqs))
+        updt            = qr(H)\res
         u[ifreeu]     .-= updt[iius]
         λ             .-= updt[iieqs]
-        normupdt = maximum(abs.(updt))
       end              
     else
       bfailed = true
     end    
-    iter  += 1
-    bprogress && ProgressMeter.update!(p, normr)
-    becho && @printf("iter: %2i, norm0: %.2e, normres: %.2e, normr/dTol: %.2e, normupdt: %.2e, eltime: %.2f sec. \n", 
-                     iter, norm0, normres, normr/dTol, 
-                     normupdt, Int64(Base.time_ns()-tic)/1e9)
-    becho && flush(stdout)
+    bprogress && ProgressMeter.update!(p, normru)
+    if becho 
+      if (bdone | bfailed) 
+        @printf("iter: %2i, norm0: %.2e, normru: %.2e, normre: %.2e, eltime: %.2f sec.\n", 
+                iter, norm0, normru, normre, Int64(Base.time_ns()-tic)/1e9)
+      else
+        @printf("iter: %2i, norm0: %.2e, normru: %.2e, normre: %.2e, normupdt: %.2e, α: %6.3f, eltime: %.2f sec.\n", 
+                iter, norm0, normru, normre, maximum(abs.(updt)), 
+                oldupdt⋅updt/norm(updt)/norm(oldupdt), Int64(Base.time_ns()-tic)/1e9)
+      end
+      flush(stdout)
+      oldupdt = copy(updt)
+    end
   end
 
-  (bfailed, normr, iter)
+  (bfailed, normru, iter)
 end
 # helper functions
 function lgwt(N::Integer; a=0, b=1)
@@ -657,48 +671,6 @@ function split(N::Int64, p::Int64)
 
   slice = [ range(sum(nEls[1:ii-1])+1, length=nEls[ii])
            for ii in 1:p]
-end
-patch = pyimport("matplotlib.patches")
-coll  = pyimport("matplotlib.collections")  
-function plot_model(elems, nodes; 
-                    u = zeros(length(nodes[1]), length(nodes)),
-                    Φ = [],
-                    linewidth = 0.25,
-                    facecolor = :c,
-                    edgecolor = :b, 
-                    alpha     = 1,
-                    cmap      = :hsv,
-                    clim      = [],
-                    dTol      = 1e-6,
-                    cfig      = figure(),
-                    ax        = cfig.add_subplot(1,1,1))
-
-  nodes     = [node + u[:,ii] for (ii,node) in enumerate(nodes)]
-  patchcoll = coll.PatchCollection([patch.Polygon(nodes[elem.nodes]) 
-                                    for elem ∈ elems], cmap=cmap)
-  if !isempty(Φ)
-    patchcoll.set_array(Φ)
-    cfig.colorbar.(patchcoll, ax=ax)
-
-    if isempty(clim)
-      clim = patchcoll.get_clim()
-      if abs(clim[2]-clim[1]) < dTol
-        clim  = sum(clim)/2*[0.9, 1.1]
-      end
-    end
-    patchcoll.set_clim(clim)
-  else
-    patchcoll.set_color(facecolor)
-  end
-
-  patchcoll.set_edgecolor(edgecolor)
-  patchcoll.set_alpha(alpha)
-  patchcoll.set_linewidth(linewidth)
-
-  ax.set_aspect("equal")
-  ax.add_collection(patchcoll)
-  ax.autoscale()
-  (cfig, ax, patchcoll)
 end
 
 end

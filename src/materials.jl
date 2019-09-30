@@ -141,7 +141,6 @@ function getϕ(F11::N, mat::M; binc=true) where {N<:Number, M<:HyperEla}
   L3  = binc ? getL3(L3->getϕ(L1,L3,L3,mat), L1) : 
   getL3(L3->getϕ(L1,L3,L3,mat), √L1)
 
-
   if isa(C11, adiff.D2)
     ϕ1    = getϕ(adiff.D2([L1, L3, L3])..., mat)
     dL21  = -ϕ1.h[2]/(ϕ1.h[3]+ϕ1.h[5])
