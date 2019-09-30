@@ -465,7 +465,7 @@ function solve(elems, u;
                maxiter    = 11,
                bechoi     = false,
                bprogressi = false,
-               ballus     = false)  
+               ballus     = true)  
 
   N     = length(LF)
   t0    = Base.time_ns()
