@@ -104,7 +104,7 @@ allus = Elements.solve(elems, u, N=20, bprogress=false, becho=true, ballus=true)
 idd = LinearIndices(u)[2,idtop]
 
 RY  = [sum(u[2][idd]) for u in allus]
-u2  = [mean(u[1][idd]) for u in allus]/LY
+u2  = [mean(u[1][idd]) for u in allus]
 
 PyPlot.plot(u2/LY, RY)
 ;
