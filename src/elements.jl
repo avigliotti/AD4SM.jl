@@ -585,7 +585,8 @@ function solvestep!(elems, u, bfreeu;
     end
 
     if bdone
-      fe[:]   = nEqs==0 ? fi[:] : fi[:]-rEqs*λ
+      # fe[:]   = nEqs==0 ? fi[:] : fi[:]-rEqs*λ
+      fe[:]   = fi[:]
     elseif iter < maxiter
       if nEqs == 0
         updt            = Kt[ifreeu,ifreeu]\res
