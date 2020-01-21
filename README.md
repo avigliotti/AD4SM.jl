@@ -10,3 +10,6 @@ This repository contains modules implementing an automatic differentiation syste
 
 Details on the implementation of AD4SM.jl can be found in: 
 Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y
+
+
+the implementation of the forward differentiation with dual number of this package was inspired by the ForwardDiff.jl package (https://github.com/JuliaDiff/ForwardDiff.jl)
