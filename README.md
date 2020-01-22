@@ -9,7 +9,7 @@ This repository contains modules implementing an automatic differentiation syste
 - elements.jl    is the module implementing the energy evalaution functions for the single elements and for the model and the functions for solving a finite element problem
 
 Details on the implementation of AD4SM.jl can be found in: 
-Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y
+[Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y](https://rdcu.be/b0yx2)
 
 
-the implementation of the forward differentiation with dual number of this package was inspired by the ForwardDiff.jl package (https://github.com/JuliaDiff/ForwardDiff.jl)
+The implementation of the forward mode automatic differentiation of this package is based on the [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) package, more detail can by found in [this paper](https://arxiv.org/abs/1607.07892)
