@@ -22,7 +22,6 @@ In order to run the exmaples you will need the following packages installed
   - PyCall
   - MAT
   - SparseArrays
-  - PyCall
   - ProgressMeter
   - Dates
   - StatsBase
