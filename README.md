@@ -33,7 +33,7 @@ Packages can be installed as follows:
 ```Julia
 
 using Pkg
-Pkg.add("https://github.com/avigliotti/AD4SM.jl")
+Pkg.add(PackageSpec(url="https://github.com/avigliotti/AD4SM.jl"))
 Pkg.add("IJulia")
 Pkg.add("BenchmarkTools")
 Pkg.add("Statistics")
