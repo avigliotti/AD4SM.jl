@@ -28,3 +28,23 @@ In order to run the exmaples you will need the following packages installed
   - AbaqusReader
   - JLD
   - WriteVTK
+
+Packages can be installed as follows:
+```Julia
+
+using Pkg
+Pkg.add("https://github.com/avigliotti/AD4SM.jl")
+Pkg.add("IJulia")
+Pkg.add("BenchmarkTools")
+Pkg.add("Statistics")
+Pkg.add("PyPlot")
+Pkg.add("MAT")
+Pkg.add("SparseArrays")
+Pkg.add("ProgressMeter")
+Pkg.add("Dates")
+Pkg.add("StatsBase")
+Pkg.add("AbaqusReader")
+Pkg.add("JLD")
+Pkg.add("WriteVTK")
+
+```
