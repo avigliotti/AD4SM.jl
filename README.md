@@ -22,7 +22,7 @@ cite as
 }
 ```
 
-The implementation of the forward mode automatic differentiation of this package is based on the [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) package, more detail can by found in [this paper](https://arxiv.org/abs/1607.07892)
+The implementation of the forward mode automatic differentiation of this package is based on the [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) package.
 
 In order to run the exmaples you will need the following packages installed
 
