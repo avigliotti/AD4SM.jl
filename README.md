@@ -10,6 +10,17 @@ This repository contains modules implementing an automatic differentiation syste
 Details on the implementation of AD4SM.jl can be found in: 
 [Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y](https://rdcu.be/b0yx2)
 
+cite as
+```
+@article{AD4SM,
+    title = {Automatic differentiation for solid mechanics},
+   author = {{Vigliotti}, A. and {Auricchio}, F.},
+  journal = {Archives of Computational Methods in Engineering},
+     year = {2020},
+     url  = {https://doi.org/10.1007/s11831-019-09396-y},
+     doi  = {10.1007/s11831-019-09396-y}
+}
+```
 
 The implementation of the forward mode automatic differentiation of this package is based on the [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) package, more detail can by found in [this paper](https://arxiv.org/abs/1607.07892)
 
@@ -29,7 +40,7 @@ In order to run the exmaples you will need the following packages installed
   - JLD
   - WriteVTK
 
-Packages can be installed as follows:
+Packages can be installed from the Julia prompt as follows:
 ```Julia
 
 using Pkg
