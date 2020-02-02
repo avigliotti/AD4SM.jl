@@ -1,7 +1,7 @@
 # AD4SM.jl
 Automatic Differentiation for Solid Mechanics in Julia
 
-This repository contains modules implementing an automatic differentiation systems for the solution of solid mechanics problems in [Julia](https://github.com/JuliaLang/julia).
+This repository contains modules implementing an automatic differentiation system for the solution of solid mechanics problems in [Julia](https://github.com/JuliaLang/julia).
 
 - adiff.jl			 is the module implementing the automatic differentitation system in Julia
 - materials.jl   is the module implementing the strain energy evalaution functions for the materials
@@ -10,8 +10,19 @@ This repository contains modules implementing an automatic differentiation syste
 Details on the implementation of AD4SM.jl can be found in: 
 [Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y](https://rdcu.be/b0yx2)
 
+cite as
+```
+@article{AD4SM,
+    title = {Automatic differentiation for solid mechanics},
+   author = {{Vigliotti}, A. and {Auricchio}, F.},
+  journal = {Archives of Computational Methods in Engineering},
+     year = {2020},
+     url  = {https://doi.org/10.1007/s11831-019-09396-y},
+     doi  = {10.1007/s11831-019-09396-y}
+}
+```
 
-The implementation of the forward mode automatic differentiation of this package is based on the [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) package, more detail can by found in [this paper](https://arxiv.org/abs/1607.07892)
+The implementation of the forward mode automatic differentiation of this package is based on the [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) package.
 
 In order to run the exmaples you will need the following packages installed
 
@@ -28,3 +39,23 @@ In order to run the exmaples you will need the following packages installed
   - AbaqusReader
   - JLD
   - WriteVTK
+
+Packages can be installed from the Julia prompt as follows:
+```Julia
+
+using Pkg
+Pkg.add(PackageSpec(url="https://github.com/avigliotti/AD4SM.jl"))
+Pkg.add("IJulia")
+Pkg.add("BenchmarkTools")
+Pkg.add("Statistics")
+Pkg.add("PyPlot")
+Pkg.add("MAT")
+Pkg.add("SparseArrays")
+Pkg.add("ProgressMeter")
+Pkg.add("Dates")
+Pkg.add("StatsBase")
+Pkg.add("AbaqusReader")
+Pkg.add("JLD")
+Pkg.add("WriteVTK")
+
+```
