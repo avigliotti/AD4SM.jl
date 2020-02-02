@@ -7,7 +7,7 @@ import Base: length, getindex, copy
 import Base: +, -, *, /, ^, abs, sqrt, log, zero, sin, cos
 import LinearAlgebra: norm, dot, svd
 
-# macros 
+#  macros 
 macro swap(x,y)
   quote
     local tmp = $(esc(x))
