@@ -465,7 +465,8 @@ function solve(elems, u;
                maxiter    = 11,
                bechoi     = false,
                bprogressi = false,
-               ballus     = true)  
+               ballus     = true,
+               bpredict   = true)
 
   N     = length(LF)
   t0    = Base.time_ns()
@@ -476,7 +477,8 @@ function solve(elems, u;
   fnew  = copy(fe)
   icnst = .!ifree
   unew  = copy(u)
-  unew[isnan.(unew)] .= 0
+  unew[ifree] .= 0
+  uold  = zeros(size(unew))
   λnew  = copy(λ)
 
   for (ii,LF) in enumerate(LF)
@@ -486,7 +488,7 @@ function solve(elems, u;
     lastλ       = copy(λnew)
     T           = @elapsed (bfailed, normr, iter) = 
     try 
-      solvestep!(elems, unew, ifree, 
+      solvestep!(elems, uold, unew, ifree, 
                  eqns      = eqns,
                  λ         = λnew,
                  fe        = fnew, 
@@ -495,7 +497,8 @@ function solve(elems, u;
                  dNoise    = dNoise,
                  maxiter   = maxiter,
                  bprogress = bprogressi,
-                 becho     = bechoi)
+                 becho     = bechoi,
+                 bpredict  = bpredict)
     catch
       (true, Inf, 0)
     end
@@ -505,6 +508,7 @@ function solve(elems, u;
       λnew = lastλ
       break
     else
+      uold[:] .= unew[:]
       if ballus
         if beqns
           push!(allu, (copy(unew), copy(fnew), copy(λnew)))
@@ -524,8 +528,8 @@ function solve(elems, u;
 
   ballus ? allu : unew
 end  
-function solvestep!(elems, u, bfreeu;
-                    fe        = zeros(length(u)),
+function solvestep!(elems, uold, unew, bfreeu;
+                    fe        = zeros(length(unew)),
                     eqns      = [],
                     λ         = zeros(length(eqns)),
                     dTol      = 1e-5,
@@ -534,7 +538,8 @@ function solvestep!(elems, u, bfreeu;
                     dNoise    = 1e-12,
                     maxiter   = 11,
                     becho     = false,
-                    bprogress = false)
+                    bprogress = false,
+                    bpredict  = true)
 
   if bprogress
     p = ProgressMeter.ProgressThresh(dTolu)
@@ -557,27 +562,57 @@ function solvestep!(elems, u, bfreeu;
   normre    = NaN
   oldupdt   = zeros(nDoFs)
   updt      = zeros(nDoFs)
-
-  if nEqs !=0
-    H    = spzeros(nDoFs,nDoFs)
+  if nEqs != 0 
+    H       = spzeros(nDoFs,nDoFs)
   end
 
-  becho && println() 
+  # predictor step
+  if bpredict
+    deltat = @elapsed begin
+      Δucnst    = unew[icnstu]-uold[icnstu]
+      (Φ,fi,Kt) = getϕ(elems, uold)
+      if nEqs == 0
+        res              = fi[ifreeu]-fe[ifreeu]
+        res[:]         .-= Kt[ifreeu,icnstu]*Δucnst
+        updt[:]          = Kt[ifreeu,ifreeu]\res
+        unew[ifreeu]    .= uold[ifreeu] .+ updt 
+      else
+        (vEqs,rEqs,KEqs) = getϕ(eqns, uold, λ)
+        resu             = fi[ifreeu]-fe[ifreeu]-rEqs[ifreeu,:]*λ
+        resu[:]        .-= (Kt[ifreeu,icnstu]-KEqs[ifreeu,icnstu])*Δucnst
+        rese             = -vEqs
+        res              = vcat(resu, rese)
+
+        H[iius,iius]     = Kt[ifreeu,ifreeu]-KEqs[ifreeu,ifreeu]
+        H[iius,iieqs]    = -rEqs[ifreeu,:]
+        H[iieqs,iius]    = transpose(H[iius,iieqs])
+        H[iieqs,iieqs]   = spdiagm(0=>dNoise*randn(nEqs))
+        updt[:]          = qr(H)\res
+        unew[ifreeu]    .= uold[ifreeu] .+ updt[iius]
+        λ              .-= updt[iieqs]
+      end
+    end
+    becho && @printf("\npredictor step done in %.2f sec., starting corrector loop\n", deltat); flush(stdout)
+  else
+    unew[ifreeu] .= uold[ifreeu]
+  end
+  # corrector loop
   while !bdone & !bfailed 
     global normru
-    iter  += 1
+    oldupdt = copy(updt)
     tic    = Base.time_ns()
-    (Φ,fi,Kt) = getϕ(elems, u)
+    (Φ,fi,Kt) = getϕ(elems, unew)
+
     if nEqs == 0
-      res    = fi[ifreeu]-fe[ifreeu]      
+      res    = fe[ifreeu]-fi[ifreeu]      
       norm0  = ncnstu > 0     ? norm(fi[icnstu])/ncnstu : 0
       normru = norm0  > dTolu ? norm(res)/nfreeu/norm0  : norm(res)/nfreeu
       bdone  = (normru<dTolu)
     else
-      (vEqs,rEqs,KEqs) = getϕ(eqns, u, λ)
+      (vEqs,rEqs,KEqs) = getϕ(eqns, unew, λ)
       resu   = fi[ifreeu]-fe[ifreeu]-rEqs[ifreeu,:]*λ
       rese   = -vEqs
-      res    = vcat(resu, rese)
+      res    = -vcat(resu, rese)
       norm0  = ncnstu > 0     ? norm(fi[icnstu])/ncnstu : 0
       normru = norm0  > dTolu ? norm(res)/nfreeu/norm0  : norm(res)/nfreeu
       normre = maximum(abs.(rese))
@@ -585,20 +620,19 @@ function solvestep!(elems, u, bfreeu;
     end
 
     if bdone
-      # fe[:]   = nEqs==0 ? fi[:] : fi[:]-rEqs*λ
-      fe[:]   = fi[:]
+      fe[:]   = nEqs==0 ? fi[:] : fi[:]-rEqs*λ
     elseif iter < maxiter
       if nEqs == 0
-        updt            = Kt[ifreeu,ifreeu]\res
-        u[ifreeu]     .-= updt
+        updt[:]         = Kt[ifreeu,ifreeu]\res
+        unew[ifreeu]  .+= updt
       else
         H[iius,iius]    = Kt[ifreeu,ifreeu]-KEqs[ifreeu,ifreeu]
         H[iius,iieqs]   = -rEqs[ifreeu,:]
         H[iieqs,iius]   = transpose(H[iius,iieqs])
         H[iieqs,iieqs]  = spdiagm(0=>dNoise*randn(nEqs))
-        updt            = qr(H)\res
-        u[ifreeu]     .-= updt[iius]
-        λ             .-= updt[iieqs]
+        updt[:]         = qr(H)\res
+        unew[ifreeu]  .+= updt[iius]
+        λ             .+= updt[iieqs]
       end              
     else
       bfailed = true
@@ -614,8 +648,8 @@ function solvestep!(elems, u, bfreeu;
                 oldupdt⋅updt/norm(updt)/norm(oldupdt), Int64(Base.time_ns()-tic)/1e9)
       end
       flush(stdout)
-      oldupdt = copy(updt)
     end
+    iter  += 1
   end
 
   (bfailed, normru, iter)

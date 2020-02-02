@@ -2,7 +2,9 @@
 using PyPlot, MAT
 ;
 
-using AD4SM
+include("adiff.jl")
+include("materials.jl")
+include("elements.jl")
 ;
 
 mean(x) = sum(x)/length(x)
@@ -98,15 +100,15 @@ u[:,idtop] .= 0.0
 u[2,idtop] .= ΔY
 ;
 
-allus = Elements.solve(elems, u, N=20, bprogress=false, becho=true, ballus=true)
+bfreeu = isnan.(u)
+uold   = zeros(size(u))
+unew   = zeros(size(u))
+unew[.!bfreeu] .= u[.!bfreeu]*1e-4
+
+fe    = zeros(length(unew))
 ;
 
-idd = LinearIndices(u)[2,idtop]
-
-RY  = [sum(u[2][idd]) for u in allus];
-Δu  = [mean(u[1][idd]) for u in allus]
-
-PyPlot.plot(Δu/LY, RY/Es/A)
+allus = Elements.solve(elems, u, N=20, bprogress=false, bechoi=false, becho=true, ballus=true)
 ;
 
 unew = allus[end][1]
@@ -128,6 +130,14 @@ for beam in beams
 end
 getproperty(ax, :set_aspect)("equal")
 title("deformed  model")
+;
+
+idd = LinearIndices(u)[2,idtop]
+
+RY  = [sum(u[2][idd]) for u in allus];
+Δu  = [mean(u[1][idd]) for u in allus]
+
+PyPlot.plot(Δu/LY, RY/Es/A)
 ;
 
 matwrite("HexaLattice.mat", Dict(

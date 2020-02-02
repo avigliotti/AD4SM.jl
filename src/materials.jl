@@ -101,7 +101,7 @@ end
 # status retrieving functions
 function getP(F::Array{Float64,2}, mat) # 1st PK tensor from F
   ϕ = getϕ(adiff.D2(F), mat)               
-  reshape(adiff.grad(ϕ), size(F))
+  reshape(adiff.grad(ϕ), (3,3))
 end
 function getσ(F::Array{Float64,2}, mat) # Cauchy stress 
   J = det(F)
