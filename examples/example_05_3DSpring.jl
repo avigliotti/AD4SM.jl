@@ -76,7 +76,7 @@ for (ii,LF) in enumerate(LF)
   lastλ = copy(λnew)
   fnew  = zeros(3, nNodes)
   T     = @elapsed (bfailed, normr, iter) = 
-  Elements.solvestep!(elems, unew, ifree, 
+  Elements.solvestep!(elems, lastu, unew, ifree, 
                       eqns      = eqns,
                       λ         = λnew,
                       fe        = fnew, 
@@ -84,6 +84,7 @@ for (ii,LF) in enumerate(LF)
                       dTole     = 1e-3,
                       dNoise    = 1e-9,
                       bprogress = false,
+                      bpredict  = false,
                       becho     = true)
   if bfailed 
     @printf("!! failed at LF: %.3f, with normr: %.3e\n\n", LF, normr)
