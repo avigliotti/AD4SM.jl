@@ -4,10 +4,10 @@ using Statistics, LinearAlgebra
 using Printf, WriteVTK, AbaqusReader
 using PyCall, PyPlot, JLD, ProgressMeter
 
-# using AD4SM
-include("adiff.jl")
-include("materials.jl")
-include("elements.jl")
+using AD4SM
+# include("adiff.jl")
+# include("materials.jl")
+# include("elements.jl")
 ;
 
 @show Elements.setp(8)

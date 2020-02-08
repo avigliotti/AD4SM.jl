@@ -2,9 +2,10 @@
 using PyPlot, MAT
 ;
 
-include("adiff.jl")
-include("materials.jl")
-include("elements.jl")
+using AD4SM
+# include("adiff.jl")
+# include("materials.jl")
+# include("elements.jl")
 ;
 
 mean(x) = sum(x)/length(x)
@@ -137,7 +138,10 @@ idd = LinearIndices(u)[2,idtop]
 RY  = [sum(u[2][idd]) for u in allus];
 Δu  = [mean(u[1][idd]) for u in allus]
 
+PyPlot.figure()
 PyPlot.plot(Δu/LY, RY/Es/A)
+xlabel("normalized displacement")
+ylabel("normalized force")
 ;
 
 matwrite("HexaLattice.mat", Dict(
