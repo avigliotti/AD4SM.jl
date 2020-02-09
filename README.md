@@ -1,5 +1,5 @@
 # AD4SM.jl
-Automatic Differentiation for Solid Mechanics in Julia
+_Automatic Differentiation for Solid Mechanics in Julia_
 
 This repository contains modules implementing an automatic differentiation system for the solution of solid mechanics problems in [Julia](https://github.com/JuliaLang/julia).
 
