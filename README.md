@@ -59,3 +59,10 @@ Pkg.add("JLD")
 Pkg.add("WriteVTK")
 
 ```
+
+The example folder contains the following examples:
+- Non linear truss
+- Euler beam lattice under large displacements
+- Plane stress with rigid inclusions
+- Axi-symmetric problem with intrnal volume constraint
+- 3D non linear spring
