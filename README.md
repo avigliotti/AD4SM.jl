@@ -1,5 +1,5 @@
 # AD4SM.jl
-Automatic Differentiation for Solid Mechanics in Julia
+_Automatic Differentiation for Solid Mechanics in Julia_
 
 This repository contains modules implementing an automatic differentiation system for the solution of solid mechanics problems in [Julia](https://github.com/JuliaLang/julia).
 
@@ -59,3 +59,10 @@ Pkg.add("JLD")
 Pkg.add("WriteVTK")
 
 ```
+
+The example folder contains the following examples:
+- Non linear truss
+- Euler beam lattice under large displacements
+- Plane stress with rigid inclusions
+- Axi-symmetric problem with intrnal volume constraint
+- 3D non linear spring
