@@ -466,7 +466,8 @@ function solve(elems, u;
                bechoi     = false,
                bprogressi = false,
                ballus     = true,
-               bpredict   = true)
+               bpredict   = true,
+               maxupdt    = NaN)
 
   N     = length(LF)
   t0    = Base.time_ns()
@@ -498,7 +499,8 @@ function solve(elems, u;
                  maxiter   = maxiter,
                  bprogress = bprogressi,
                  becho     = bechoi,
-                 bpredict  = bpredict)
+                 bpredict  = bpredict,
+                 maxupdt   = maxupdt)
     catch
       (true, Inf, 0)
     end
@@ -539,7 +541,8 @@ function solvestep!(elems, uold, unew, bfreeu;
                     maxiter   = 11,
                     becho     = false,
                     bprogress = false,
-                    bpredict  = true)
+                    bpredict  = true,
+                    maxupdt   = NaN)
 
   if bprogress
     p = ProgressMeter.ProgressThresh(dTolu)
@@ -576,6 +579,7 @@ function solvestep!(elems, uold, unew, bfreeu;
         res[:]         .-= Kt[ifreeu,icnstu]*Δucnst
         updt[:]          = Kt[ifreeu,ifreeu]\res
         unew[ifreeu]    .= uold[ifreeu] .+ updt 
+        normupdt         = maximum(abs.(updt))
       else
         (vEqs,rEqs,KEqs) = getϕ(eqns, uold, λ)
         resu             = fi[ifreeu]-fe[ifreeu]-rEqs[ifreeu,:]*λ
@@ -590,9 +594,11 @@ function solvestep!(elems, uold, unew, bfreeu;
         updt[:]          = qr(H)\res
         unew[ifreeu]    .= uold[ifreeu] .+ updt[iius]
         λ              .-= updt[iieqs]
+        normupdt         = maximum(abs.(updt[iius]))
       end
     end
-    becho && @printf("\npredictor step done in %.2f sec., starting corrector loop\n", deltat); flush(stdout)
+    becho && @printf("\npredictor step done in %.2f sec., ", deltat)
+    becho && @printf("with normupdt: %.2e, starting corrector loop\n", normupdt); flush(stdout)
   else
     unew[ifreeu] .= uold[ifreeu]
   end
@@ -600,7 +606,7 @@ function solvestep!(elems, uold, unew, bfreeu;
   while !bdone & !bfailed 
     global normru
     oldupdt = copy(updt)
-    tic    = Base.time_ns()
+    tic     = Base.time_ns()
     (Φ,fi,Kt) = getϕ(elems, unew)
 
     if nEqs == 0
@@ -624,6 +630,13 @@ function solvestep!(elems, uold, unew, bfreeu;
     elseif iter < maxiter
       if nEqs == 0
         updt[:]         = Kt[ifreeu,ifreeu]\res
+        normupdt        = maximum(abs.(updt))
+        if !isnan(maxupdt)
+          if normupdt > maxupdt  
+            updt      .*= (maxupdt/normupdt)
+            normupdt    = maximum(abs.(updt))
+          end
+        end
         unew[ifreeu]  .+= updt
       else
         H[iius,iius]    = Kt[ifreeu,ifreeu]-KEqs[ifreeu,ifreeu]
@@ -631,6 +644,13 @@ function solvestep!(elems, uold, unew, bfreeu;
         H[iieqs,iius]   = transpose(H[iius,iieqs])
         H[iieqs,iieqs]  = spdiagm(0=>dNoise*randn(nEqs))
         updt[:]         = qr(H)\res
+        normupdt        = maximum(abs.(updt[iius]))
+        if !isnan(maxupdt)
+          if normupdt > maxupdt  
+            updt      .*= (maxupdt/normupdt)
+            normupdt    = maximum(abs.(updt[iius]))
+          end
+        end
         unew[ifreeu]  .+= updt[iius]
         λ             .+= updt[iieqs]
       end              
@@ -644,7 +664,7 @@ function solvestep!(elems, uold, unew, bfreeu;
                 iter, norm0, normru, normre, Int64(Base.time_ns()-tic)/1e9)
       else
         @printf("iter: %2i, norm0: %.2e, normru: %.2e, normre: %.2e, normupdt: %.2e, α: %6.3f, eltime: %.2f sec.\n", 
-                iter, norm0, normru, normre, maximum(abs.(updt)), 
+                iter, norm0, normru, normre, normupdt, 
                 oldupdt⋅updt/norm(updt)/norm(oldupdt), Int64(Base.time_ns()-tic)/1e9)
       end
       flush(stdout)
@@ -655,6 +675,7 @@ function solvestep!(elems, uold, unew, bfreeu;
   (bfailed, normru, iter)
 end
 # helper functions
+# find the Gauss-Legendre quadrature points and weights
 function lgwt(N::Integer; a=0, b=1)
 
   N, N1, N2 = N-1, N, N+1

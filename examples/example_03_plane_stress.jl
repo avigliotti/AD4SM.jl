@@ -5,12 +5,8 @@ using Printf, WriteVTK, AbaqusReader
 using PyCall, PyPlot, JLD, ProgressMeter
 
 using AD4SM
-# include("adiff.jl")
-# include("materials.jl")
-# include("elements.jl")
-;
 
-@show Elements.setp(8)
+@show Elements.setp(4)
 ;
 
 # this function is the constraint equation for the internal holes
@@ -244,14 +240,13 @@ unew       = copy(u0)
 u[ifree] .= unew[ifree]
 ;
 
-N       = 15
-LF_c    = vcat(range(0.0, 0.9, length=2N÷3),
-               range(0.9, 1.0, length=N÷3+1))
+N       = 24
+LF_c    = vcat(range(0.0, 0.9, length=2N÷8),
+               range(0.9, 1.0, length=6N÷8))
 
-allus_c = Elements.solve(elems, u, LF=LF_c, ifree=ifree, eqns=eqns,
+allus_c = Elements.solve(elems, u, LF=LF_c, ifree=ifree, eqns=eqns, maxiter=15,
                           bprogress=false, becho=true, bechoi=true)
 ;
-
 
 rf_tot_c = [sum(item[2][2,nid_bndt])   for item in allus_c]
 Δu_tot_c = [mean(item[1][2,nid_bndt])  for item in allus_c]
