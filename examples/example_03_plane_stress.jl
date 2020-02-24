@@ -244,7 +244,7 @@ N       = 24
 LF_c    = vcat(range(0.0, 0.9, length=2N÷8),
                range(0.9, 1.0, length=6N÷8))
 
-allus_c = Elements.solve(elems, u, LF=LF_c, ifree=ifree, eqns=eqns, maxiter=15,
+allus_c = Elements.solve(elems, u, LF=LF_c, ifree=ifree, eqns=eqn,
                           bprogress=false, becho=true, bechoi=true)
 ;
 
@@ -349,5 +349,5 @@ PyPlot.figure()
 PyPlot.plot(Δu_tot_c, rf_tot_c, Δu_tot_t, rf_tot_t)
 PyPlot.xlabel("Δu_tot_")
 PyPlot.ylabel("rf_tot_c")
-PyPlot.title("force-displacement, tensile branch")
+PyPlot.title("force-displacement, total")
 ;

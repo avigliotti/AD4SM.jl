@@ -6,10 +6,7 @@ using MAT
 ;
 
 using AD4SM
-# include("adiff.jl")
-# include("materials.jl")
-# include("elements.jl")
-
+;
 
 function replicateRVE(nodes_RVE, beams_RVE, 
     a1, a2, a3, N1, N2, N3)
