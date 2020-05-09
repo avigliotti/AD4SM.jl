@@ -2,7 +2,7 @@ __precompile__()
 
 module Elements
 
-using LinearAlgebra, Printf#, IterativeSolvers
+using LinearAlgebra, Printf
 using Distributed, SparseArrays
 using PyPlot, PyCall, ProgressMeter, Dates, StatsBase
 

@@ -1,6 +1,6 @@
 
 using Printf, LinearAlgebra
-using IterativeSolvers, BenchmarkTools, Statistics
+using BenchmarkTools, Statistics
 using PyPlot, PyCall
 using MAT
 ;
