@@ -24,39 +24,11 @@ cite as
 
 The implementation of the forward mode automatic differentiation of this package is based on the [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) package.
 
-In order to run the exmaples you will need the following packages installed
-
-  - IJulia
-  - BenchmarkTools
-  - Statistics
-  - PyPlot
-  - PyCall
-  - MAT
-  - SparseArrays
-  - ProgressMeter
-  - Dates
-  - StatsBase
-  - AbaqusReader
-  - JLD
-  - WriteVTK
-
-Packages can be installed from the Julia prompt as follows:
+The package can be installed from the Julia prompt as follows:
 ```Julia
 
 using Pkg
-Pkg.add(PackageSpec(url="https://github.com/avigliotti/AD4SM.jl"))
-Pkg.add("IJulia")
-Pkg.add("BenchmarkTools")
-Pkg.add("Statistics")
-Pkg.add("PyPlot")
-Pkg.add("MAT")
-Pkg.add("SparseArrays")
-Pkg.add("ProgressMeter")
-Pkg.add("Dates")
-Pkg.add("StatsBase")
-Pkg.add("AbaqusReader")
-Pkg.add("JLD")
-Pkg.add("WriteVTK")
+Pkg.add("AD4SM")
 
 ```
 
