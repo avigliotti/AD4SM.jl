@@ -8,9 +8,9 @@ This repository contains modules implementing an automatic differentiation syste
 - elements.jl    is the module implementing the energy evalaution functions for the single elements and for the model and the functions for solving a finite element problem
 
 Details on the implementation of AD4SM.jl can be found in: 
-[Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y](https://rdcu.be/b0yx2)
-
-cite as
+[Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y](https://rdcu.be/b0yx2).
+Preprint available [here](https://arxiv.org/pdf/2001.07366).
+Cite as
 ```
 @article{AD4SM,
     title = {Automatic differentiation for solid mechanics},
