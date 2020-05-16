@@ -22,7 +22,7 @@ Cite as
 }
 ```
 
-The implementation of the forward mode automatic differentiation of this package is based on the [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) package.
+The implementation of the forward mode automatic differentiation of this package is based on the [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) package. The essential difference in the implementation developed here is that the calculation of the entries of the Hessian is explicitly addressed taking advantage of its simmetry, with the consequent improvement in calculation time.
 
 The package can be installed from the Julia prompt as follows:
 ```Julia
@@ -31,7 +31,13 @@ using Pkg
 Pkg.add("AD4SM")
 
 ```
+### Tutorial
+[Here](https://github.com/avigliotti/AD4SM.jl/blob/master/AD4SM_talk.pdf) are the slides of a presetantion given on the rationale of automatic differentiation and the advantages of its use for solid mechanics.
 
+[Here](https://github.com/avigliotti/AD4SM.jl/blob/master/tutorial/handson_AD4SM_intro.ipynb) is a tutorial illustrating the implementation of an automatic differentiation system, with particular focus on solid mechanics in Julia, along with an example focussing on the solution of a non-linear truss structue.
+
+
+### Examples
 The example folder contains the following examples:
 1. [Non linear truss](https://github.com/avigliotti/AD4SM.jl/blob/master/examples/example_01_non_linear_truss.ipynb)
 1. [Euler beam lattice under large displacements](https://github.com/avigliotti/AD4SM.jl/blob/master/examples/example_02_Euler_beams.ipynb)
