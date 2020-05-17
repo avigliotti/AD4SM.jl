@@ -1,6 +1,10 @@
 # AD4SM.jl
 _Automatic Differentiation for Solid Mechanics in Julia_
 
+<img src=/images/SpringFineMeshNHb.png height=280> <img src=/images/3DSpringFineMeshNHb.png height=300>
+
+
+
 This repository contains modules implementing an automatic differentiation system for the solution of solid mechanics problems in [Julia](https://github.com/JuliaLang/julia).
 
 - adiff.jl			 is the module implementing the automatic differentitation system in Julia
