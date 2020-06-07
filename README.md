@@ -41,7 +41,7 @@ Cite as
 ```
 
 ## Tutorial
-[Here](https://github.com/avigliotti/AD4SM.jl/blob/master/AD4SM_talk.pdf) are the slides of a presetantion given on the rationale of automatic differentiation and the advantages of its use for solid mechanics.
+[Here](https://github.com/avigliotti/AD4SM.jl/blob/master/AD4SM_talk.pdf) are the slides of a presetantion on the rationale of automatic differentiation and the advantages of its use for solid mechanics.
 
 [Here](https://github.com/avigliotti/AD4SM.jl/blob/master/tutorial/handson_AD4SM_intro.ipynb) is a tutorial illustrating the implementation of an automatic differentiation system, with particular focus on solid mechanics in Julia, along with an example focussing on the solution of a non-linear truss structue.
 
