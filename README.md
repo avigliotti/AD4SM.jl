@@ -1,15 +1,33 @@
 # AD4SM.jl
 _Automatic Differentiation for Solid Mechanics in Julia_
 
-This repository contains modules implementing an automatic differentiation system for the solution of solid mechanics problems in [Julia](https://github.com/JuliaLang/julia).
+<img src=/images/SpringFineMeshNHb.png height=280> <img src=/images/3DSpringFineMeshNHb.png height=300>
 
-- adiff.jl			 is the module implementing the automatic differentitation system in Julia
-- materials.jl   is the module implementing the strain energy evalaution functions for the materials
-- elements.jl    is the module implementing the energy evalaution functions for the single elements and for the model, and the functions for solving a finite element problem
+This repository contains the following modules implementing an automatic differentiation system for the solution of solid mechanics problems in [Julia](https://github.com/JuliaLang/julia):
+
+- adiff.jl		is the module implementing the automatic differentitation system in Julia
+- materials.jl  is the module implementing the strain energy evaluation functions for the materials
+- elements.jl   is the module implementing the energy evaluation functions for the single elements and for the model, and the functions for solving a finite element problem
+
+The implementation of the forward mode automatic differentiation of this package is based on the [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) package. The essential difference in the implementation developed here is that the calculation of the entries of the Hessian is explicitly addressed taking advantage of its simmetry, with the consequent improvement in calculation time.
+
+The package can be installed from the Julia prompt as follows:
+```Julia
+
+using Pkg
+Pkg.add("AD4SM")
+```
 
 Details on the implementation of AD4SM.jl can be found in: 
 [Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y](https://rdcu.be/b0yx2).
 Preprint available [here](https://arxiv.org/pdf/2001.07366).
+#### Abstract
+Automatic differentiation (AD) is an ensemble of techniques that allow to evaluate  accurate numerical derivatives of a mathematical function expressed in a computer programming language.
+In this study we use AD for stating and solving solid mechanics problems.
+Given a finite element discretization of the domain, we evaluate the free energy of the solid  as the integral of its strain energy density, and we make use of AD for directly obtaining the residual force vector and the tangent stiffness matrix of the problem, as the gradient and the Hessian of the free energy respectively.
+The result is a remarkable simplification in the statement and the solution of complex problems involving non trivial constraints systems and both geometrical and material non linearities.
+Together with the continuum mechanics theoretical basis, and with a description of the specific AD technique adopted, the paper illustrates the solution of a number of solid mechanics problems, with the aim of presenting a convenient numerical implementation approach, made easily available by recent programming languages, to the solid mechanics community.
+
 Cite as
 ```
 @article{AD4SM,
@@ -22,25 +40,16 @@ Cite as
 }
 ```
 
-The implementation of the forward mode automatic differentiation of this package is based on the [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) package. The essential difference in the implementation developed here is that the calculation of the entries of the Hessian is explicitly addressed taking advantage of its simmetry, with the consequent improvement in calculation time.
+## Tutorial
+[Here](https://github.com/avigliotti/AD4SM.jl/blob/master/AD4SM_talk.pdf) are the slides of a presentantion on the rationale of automatic differentiation and the advantages of its use for solid mechanics.
 
-The package can be installed from the Julia prompt as follows:
-```Julia
-
-using Pkg
-Pkg.add("AD4SM")
-
-```
-### Tutorial
-[Here](https://github.com/avigliotti/AD4SM.jl/blob/master/AD4SM_talk.pdf) are the slides of a presetantion given on the rationale of automatic differentiation and the advantages of its use for solid mechanics.
-
-[Here](https://github.com/avigliotti/AD4SM.jl/blob/master/tutorial/handson_AD4SM_intro.ipynb) is a tutorial illustrating the implementation of an automatic differentiation system, with particular focus on solid mechanics in Julia, along with an example focussing on the solution of a non-linear truss structue.
+[Here](https://github.com/avigliotti/AD4SM.jl/blob/master/tutorial/handson_AD4SM_intro.ipynb) is a tutorial illustrating the implementation of an automatic differentiation system, with particular focus on solid mechanics in Julia, along with an example focussing on the solution of a non-linear truss structure.
 
 
-### Examples
+## Examples
 The example folder contains the following examples:
 1. [Non linear truss](https://github.com/avigliotti/AD4SM.jl/blob/master/examples/example_01_non_linear_truss.ipynb)
 1. [Euler beam lattice under large displacements](https://github.com/avigliotti/AD4SM.jl/blob/master/examples/example_02_Euler_beams.ipynb)
 1. [Plane stress with rigid inclusions](https://github.com/avigliotti/AD4SM.jl/blob/master/examples/example_03_plane_stress.ipynb)
-1. [Axi-symmetric problem with intrnal volume constraint](https://github.com/avigliotti/AD4SM.jl/blob/master/examples/example_04_AxSymDomain.ipynb)
+1. [Axi-symmetric problem with internal volume constraint](https://github.com/avigliotti/AD4SM.jl/blob/master/examples/example_04_AxSymDomain.ipynb)
 1. 3D non linear spring
