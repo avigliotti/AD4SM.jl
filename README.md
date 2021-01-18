@@ -22,7 +22,7 @@ Details on the implementation of AD4SM.jl can be found in:
 [Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y](https://rdcu.be/b0yx2).
 Preprint available [here](https://arxiv.org/pdf/2001.07366).
 #### Abstract
-Automatic differentiation (AD) is an ensemble of techniques that allow to evaluate  accurate numerical derivatives of a mathematical function expressed in a computer programming language.
+Automatic differentiation (AD) is an ensemble of techniques that allow to evaluate accurate numerical derivatives of a mathematical function expressed in a computer programming language.
 In this study we use AD for stating and solving solid mechanics problems.
 Given a finite element discretization of the domain, we evaluate the free energy of the solid  as the integral of its strain energy density, and we make use of AD for directly obtaining the residual force vector and the tangent stiffness matrix of the problem, as the gradient and the Hessian of the free energy respectively.
 The result is a remarkable simplification in the statement and the solution of complex problems involving non trivial constraints systems and both geometrical and material non linearities.
