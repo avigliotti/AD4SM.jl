@@ -1,4 +1,5 @@
 __precompile__()
+
 module adiff
 
 using LinearAlgebra
