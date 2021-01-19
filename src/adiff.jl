@@ -1,3 +1,4 @@
+# newadiff
 __precompile__()
 
 module adiff
