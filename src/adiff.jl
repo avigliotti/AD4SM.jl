@@ -137,4 +137,54 @@ S = Union{Int64, Float64}
 @inline val(x::D2)                     = x.v
 @inline grad(x::D2{N,M})   where{N,M}  = [x.g[i]   for i in 1:N]
 @inline hess(x::D2{N,M})   where{N,M}  = [x.h[i,j] for i in 1:N, j in 1:N]
+
+@inline val(U::Array{D2{N,M}})   where {N,M} = [u.v for u in U]
+@inline grad(U::Array{D2{N,M}})  where {N,M} = [[u.g[ii] for u in U] for ii=1:N]
+@inline hess(U::Array{D2{N,M}})  where {N,M} = [[u.h[ii] for u in U] for ii=1:M]
+
+@inline val(A::Symmetric{D2{N,M}, Array{D2{N,M},2}})  where {N,M} = [u.v for u in A]
+@inline grad(U::Symmetric{D2{N,M}, Array{D2{N,M},2}}) where {N,M} = [[u.g[ii] for u in U] for ii=1:N]
+@inline hess(U::Symmetric{D2{N,M}, Array{D2{N,M},2}}) where {N,M} = [[u.h[ii] for u in U] for ii=1:M]
+
+function svdvals(B::Symmetric{D2{N,M},Array{D2{N,M},2}} where {N,M};
+                 ϵ=1e-9)
+  # svdB = svd(Symmetric(val.(B)))
+  svdB = svd(val(B))
+  U, S = svdB.U, svdB.S
+  N    = length(S)  
+
+  dσ(i,h,k) = U[h,i]U[k,i]
+  function d2σ(i,h,k,l,m)
+    y = 0
+    for j = 1:N
+      ΔS = S[i]-S[j]
+      (abs(ΔS)>ϵ) &&
+      (y += (dσ(i,k,m)dσ(j,h,l)+dσ(i,k,l)dσ(j,h,m))/ΔS)
+      # (y += U[k,i]*U[h,j]*(U[l,j]*U[m,i]+U[l,i]*U[m,j])/ΔS)
+    end
+    y
+  end
+
+  σv = S
+  σg = [ begin
+          x = zero(B[1].g)
+          for h=1:N, k=1:N
+            x += dσ(i,h,k)*B[h,k].g
+          end
+          x
+        end for i in 1:N]
+  σh = [ begin
+          x = zero(B[1].h)
+          for h=1:N, k=1:N
+            for l=1:N, m=1:N
+              x += d2σ(i,h,k,l,m)*(B[h,k].g*B[l,m].g)
+            end
+            x += dσ(i,h,k)*B[h,k].h
+          end
+          x
+        end for i in 1:N]
+
+  return [D2(σv[i], σg[i], σh[i]) for i in 1:N]
+end
+
 end
