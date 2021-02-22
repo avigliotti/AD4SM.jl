@@ -127,6 +127,7 @@ S = Union{Int64, Float64}
 @inline val(x::D2)                           = x.v
 @inline grad(x::D2{N,M})         where{N,M}  = [x.g[i]   for i in 1:N]
 @inline hess(x::D2{N,M})         where{N,M}  = [x.h[i,j] for i in 1:N, j in 1:N]
+
 @inline val(U::Array{D2{N,M}})   where {N,M} = [u.v for u in U]
 @inline grad(U::Array{D2{N,M}})  where {N,M} = [[u.g[ii] for u in U] for ii=1:N]
 @inline hess(U::Array{D2{N,M}})  where {N,M} = [[u.h[ii] for u in U] for ii=1:M]
@@ -135,7 +136,9 @@ S = Union{Int64, Float64}
 @inline grad(U::Symmetric{D2{N,M}, Array{D2{N,M},2}}) where {N,M} = [[u.g[ii] for u in U] for ii=1:N]
 @inline hess(U::Symmetric{D2{N,M}, Array{D2{N,M},2}}) where {N,M} = [[u.h[ii] for u in U] for ii=1:M]
 
-function svdvals(B::Symmetric{D2{N,M},Array{D2{N,M},2}} where {N,M};
+#function svdvals(B::Symmetric{D2{N,M},Array{D2{N,M},2}} where {N,M};
+#                 ϵ=1e-9)
+function svdvals(B::Array{D2{N,M},2} where {N,M};
                  ϵ=1e-9)
   # svdB = svd(Symmetric(val.(B)))
   svdB = svd(val(B))

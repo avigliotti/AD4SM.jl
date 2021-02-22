@@ -25,8 +25,15 @@ struct NeoHooke
   NeoHooke(C1)    = new(Float64(C1), NaN) 
   NeoHooke(C1, K) = new(Float64(C1), Float64(K))
 end
-Material = Union{Hooke,MooneyRivlin,NeoHooke} 
-HyperEla = Union{MooneyRivlin,NeoHooke} 
+struct Ogden  
+  α   ::Float64
+  μ   ::Float64
+  K   ::Float64
+  Ogden(α, μ)    = new(Float64(α), Float64(μ), NaN) 
+  Ogden(α, μ, K) = new(Float64(α), Float64(μ), Float64(K)) 
+end
+Material = Union{Hooke,MooneyRivlin,NeoHooke,Ogden} 
+HyperEla = Union{MooneyRivlin,NeoHooke,Ogden} 
 # default convergence tolerance for 2D stress
 dTol     = 1e-7
 maxiter  = 30
@@ -46,6 +53,26 @@ function getϕ(F::Array{N,2}, mat::M) where {N<:Number, M<:HyperEla}
     (I1,I2,I3) = getInvariants(C, L3)
   end
   Materials.getϕ(I1,I2,I3,mat)
+end
+function getϕ(F::Array{N,2}, mat::Ogden) where {N<:Number}
+
+  μ, α, K = mat.μ, mat.α, mat.K
+
+  if length(C) == 9
+    C = transpose(F)F
+  else
+    F33 = isnan(K) ? 1/(F[1]F[4]-F[2]F[3]) : one(F[1]) 
+    F3D = fill(zero(F[1]), (3,3))
+    F3D[1:2,1:2] = F
+    F3D[9] = F33
+    C   = transpose(F3D)*F3D
+  end
+
+  λ = svdvals(C)
+  ϕ = μ/α * (sum(λ.^α) - 3)
+  if !isnan(K)
+    ϕ += K*log(getI3(C))
+  end
 end
 function getϕ(I1, I2, I3, mat::MooneyRivlin)
 
@@ -180,11 +207,15 @@ function getInvariants(C, C33)
   
   (I1,I2,I3)
 end
-function getInvariants(C)
-  I1 = C[1]+C[5]+C[9]
-  I2 = C[1]C[5]+C[5]C[9]+C[1]C[9]-C[2]^2-C[3]^2-C[6]^2
-  I3 = C[1]C[5]C[9]+2C[2]C[3]C[6]-C[1]C[6]^2-C[5]C[3]^2-C[9]C[2]^2
-  
-  (I1,I2,I3)
-end
+getI1(C) = C[1]+C[5]+C[9]
+getI2(C) = C[1]C[5]+C[5]C[9]+C[1]C[9]-C[2]^2-C[3]^2-C[6]^2
+getI3(C) = C[1]C[5]C[9]+2C[2]C[3]C[6]-C[1]C[6]^2-C[5]C[3]^2-C[9]C[2]^2
+getInvariants(C) = (getI1(C),getI2(C),getI3(C))
+# function getInvariants(C)
+#   I1 = C[1]+C[5]+C[9]
+#   I2 = C[1]C[5]+C[5]C[9]+C[1]C[9]-C[2]^2-C[3]^2-C[6]^2
+#   I3 = C[1]C[5]C[9]+2C[2]C[3]C[6]-C[1]C[6]^2-C[5]C[3]^2-C[9]C[2]^2
+#   
+#   (I1,I2,I3)
+# end
 end
