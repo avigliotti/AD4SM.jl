@@ -244,7 +244,7 @@ N       = 24
 LF_c    = vcat(range(0.0, 0.9, length=2N÷8),
                range(0.9, 1.0, length=6N÷8))
 
-allus_c = Elements.solve(elems, u, LF=LF_c, ifree=ifree, eqns=eqn,
+allus_c = Elements.solve(elems, u, LF=LF_c, ifree=ifree, eqns=eqns,
                           bprogress=false, becho=true, bechoi=true)
 ;
 
