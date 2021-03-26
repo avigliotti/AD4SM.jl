@@ -52,13 +52,13 @@ function getϕ(F::Array{N,2}, mat::M) where {N<:Number, M<:HyperEla}
     L3 = isnan(mat.K) ? (F[1]F[4]-F[2]F[3])^-2 : 1
     (I1,I2,I3) = getInvariants(C, L3)
   end
-  Materials.getϕ(I1,I2,I3,mat)
+  getϕ(I1,I2,I3,mat)
 end
 function getϕ(F::Array{N,2}, mat::Ogden) where {N<:Number}
 
-  μ, α, K = mat.μ, mat.α, mat.K
+  α, μ, K = mat.α, mat.μ, mat.K
 
-  if length(C) == 9
+  if length(F) == 9
     C = transpose(F)F
   else
     F33 = isnan(K) ? 1/(F[1]F[4]-F[2]F[3]) : one(F[1]) 
@@ -68,11 +68,17 @@ function getϕ(F::Array{N,2}, mat::Ogden) where {N<:Number}
     C   = transpose(F3D)*F3D
   end
 
-  λ = svdvals(C)
-  ϕ = μ/α * (sum(λ.^α) - 3)
-  if !isnan(K)
-    ϕ += K*log(getI3(C))
+  λ = sqrt.(svdvals(C))
+    
+  if isnan(K)
+    ϕ = μ/α * (sum(λ.^α) - 3)
+  else
+    J = prod(λ)
+    # λ/J^(1/3) are the principal stretches of the deviatoric part
+    ϕ = μ/α *(sum(λ.^α)/J^(α/3) - 3) + K*(J-1)^2
   end
+
+  return ϕ
 end
 function getϕ(I1, I2, I3, mat::MooneyRivlin)
 

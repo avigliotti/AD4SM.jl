@@ -118,7 +118,7 @@ S = Union{Int64, Float64}
 @inline cos(x::D2)         = D2(cos(x.v), -sin(x.v)*x.g, -cos(x.v)*(x.g*x.g) - sin(x.v)*x.h) 
 @inline sqrt(x::D2)        = x^0.5
 @inline abs(x::D2)         = x.v ≥ 0 ? x : -x
-@inline dot(x::Array{D2}, y::Array{D2}) = sum(x.*y)
+@inline dot(x::Array{D2{N,M}}, y::Array{D2{N,M}}) where {N,M} = sum(x.*y)
 @inline norm(x::Array{D2{N,M}} where {N,M})  = sqrt(dot(x,x))
 #
 # data retrieving methods

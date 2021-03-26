@@ -4,7 +4,7 @@ module Elements
 
 using LinearAlgebra, Printf
 using Distributed, SparseArrays
-using PyPlot, PyCall, ProgressMeter, Dates, StatsBase
+using PyCall, ProgressMeter, Dates, StatsBase
 
 using ..adiff, ..Materials
 import ..Materials.getϕ
@@ -88,7 +88,7 @@ function Beam(nodes, p0, t, w; mat=Materials.Hooke(1, 0.3), Nx = 5, Ny = 3)
   Beam(nodes, r0, L, Float64(t), Float64(w), lgwx, lgwy, mat)
 end
 function Tria(nodes::Vector{<:Integer}, 
-              p0::Vector{Vector{T}} where T<:Real ;
+              p0::Vector{Vector{T}} where T<:Number ;
               mat=Materials.Hooke())
   (Nx,Ny,wgt,A) = begin
     (x1,x2,x3) = (p0[1][1],p0[2][1],p0[3][1])
@@ -103,7 +103,7 @@ function Tria(nodes::Vector{<:Integer},
   C2D(nodes,Nx,Ny,wgt,A,mat) 
 end
 function Quad(nodes::Vector{<:Integer}, 
-              p0::Vector{Vector{T}} where T<:Real;
+              p0::Vector{Vector{T}} where T<:Number;
               mat=Materials.Hooke())
 
   (A,Nx,Ny,wgt) = begin 
@@ -132,7 +132,7 @@ function Quad(nodes::Vector{<:Integer},
   C2D(nodes,Nx,Ny,wgt,A,mat) 
 end
 function Tet04(nodes::Vector{<:Integer}, 
-               p0::Vector{Vector{T}} where T<:Real;
+               p0::Vector{Vector{T}} where T<:Number;
                mat=Materials.Hooke())
   (V, Nx, Ny, Nz) = begin
     A        = ones(4,4)
@@ -147,7 +147,7 @@ function Tet04(nodes::Vector{<:Integer},
   C3D(nodes,Nx,Ny,Nz,(1.0,),V,mat) 
 end
 function Tet10(nodes::Vector{<:Integer}, 
-               p0::Vector{Vector{T}} where T<:Real;
+               p0::Vector{Vector{T}} where T<:Number;
                mat=Materials.Hooke())
 
   (V, Nx, Ny, Nz) = begin
@@ -178,7 +178,7 @@ function Tet10(nodes::Vector{<:Integer},
   C3D(nodes,Nx,Ny,Nz,V,mat) 
 end
 function Hex08(nodes::Vector{<:Integer}, 
-               p0::Vector{Vector{T}} where T<:Real;
+               p0::Vector{Vector{T}} where T<:Number;
                mat=Materials.Hooke())
   (V, Nx, Ny, Nz, wgt) = begin
     r        = [-1, 1]*0.577350269189626 # √3/3
@@ -207,7 +207,7 @@ function Hex08(nodes::Vector{<:Integer},
   C3D(nodes,Nx,Ny,Nz,wgt,V,mat) 
 end
 function ASTria(nodes::Vector{<:Integer},
-                p0::Vector{Vector{T}} where T<:Real;
+                p0::Vector{Vector{T}} where T<:Number;
                 mat=Materials.Hooke())
   (N,Nx,Ny,X0,wgt,A) = begin 
     (x1, x2, x3) = (p0[1][1], p0[2][1], p0[3][1])
@@ -225,7 +225,7 @@ function ASTria(nodes::Vector{<:Integer},
   CAS(nodes,N,Nx,Ny,X0,wgt,A,mat) 
 end
 function ASQuad(nodes::Vector{<:Integer},
-                p0::Vector{Vector{T}} where T<:Real;
+                p0::Vector{Vector{T}} where T<:Number;
                 mat=Materials.Hooke())
   (V,N0,Nx,Ny,X0,wgt) = begin
     r        = [-1, 1]*0.577350269189626 # √3/3
@@ -257,14 +257,14 @@ function ASQuad(nodes::Vector{<:Integer},
   CAS(nodes,N0,Nx,Ny,X0,wgt,V,mat) 
 end
 # elastic energy evaluation functions for elements
-function getϕ(elem::Rod,  u::Array{<:Real,2})
+function getϕ(elem::Rod,  u::Array{<:Number,2})
 
   l   = norm(elem.r0+u[:,2]-u[:,1])
   F11 = l/elem.l0
   elem.A*elem.l0*getϕ(F11, elem.mat)    
 
 end
-function getϕ(elem::Beam, u::Array{<:Real,2})
+function getϕ(elem::Beam, u::Array{<:Number,2})
 
   L, r0, t, w = elem.L, elem.r0, elem.t, elem.w
   T    = [r0[1] r0[2]; -r0[2] r0[1]]
@@ -295,7 +295,7 @@ function getϕ(elem::Beam, u::Array{<:Real,2})
   end
   return ϕ
 end
-function getϕ(elem::T where T<:CElems, u::Array{<:Real,2})
+function getϕ(elem::T where T<:CElems, u::Array{<:Number,2})
   M = length(elem.wgt)
   if isa(u[1], adiff.D2) 
     ϕ = sum([begin
@@ -442,7 +442,7 @@ function getϕ(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64}, chun
   end
   (veqs, reqs, Keqs)  
 end
-function getinfo(elem::Elems, u::Array{<:Real,2}; info=:detF)
+function getinfo(elem::Elems, u::Array{<:Number,2}; info=:detF)
   M = length(elem.Nx)
   F = sum([getF(elem, u, ii) for ii in 1:M])/M
   Materials.getinfo(F, elem.mat, info=info)
@@ -577,7 +577,8 @@ function solvestep!(elems, uold, unew, bfreeu;
       if nEqs == 0
         res              = fi[ifreeu]-fe[ifreeu]
         res[:]         .-= Kt[ifreeu,icnstu]*Δucnst
-        updt[:]          = Kt[ifreeu,ifreeu]\res
+        # updt[:]          = Kt[ifreeu,ifreeu]\res
+        updt[:]          = qr(Kt[ifreeu,ifreeu])\res
         unew[ifreeu]    .= uold[ifreeu] .+ updt 
         normupdt         = maximum(abs.(updt))
       else
@@ -629,7 +630,7 @@ function solvestep!(elems, uold, unew, bfreeu;
       fe[:]   = nEqs==0 ? fi[:] : fi[:]-rEqs*λ
     elseif iter < maxiter
       if nEqs == 0
-        updt[:]         = Kt[ifreeu,ifreeu]\res
+        updt[:]         = qr(Kt[ifreeu,ifreeu])\res
         normupdt        = maximum(abs.(updt))
         if !isnan(maxupdt)
           if normupdt > maxupdt  
