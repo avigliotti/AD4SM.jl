@@ -1,7 +1,7 @@
 name = "AD4SM"
 uuid = "7861f83d-ce22-4070-aa20-44578e274a9b"
 authors = ["andrea <andrea.vigliotti@gmail.com>"]
-version = "0.0.1"
+version = "0.0.1beta"
 
 [deps]
 AbaqusReader = "bc6b9049-e460-56d6-94b4-a597b2c0390d"
