@@ -8,6 +8,6 @@ include("elements.jl")
 # using .adiff, .Materials, .Elements 
 export adiff, Materials, Elements 
 
-VER = "0.0.2"
+export VER = "0.0.2"
 
 end # module
