@@ -38,9 +38,9 @@ Material = Union{Hooke,MooneyRivlin,NeoHooke,Ogden}
 HyperEla = Union{MooneyRivlin,NeoHooke,Ogden} 
 #
 copy(mat::Hooke)        = Hooke(mat.E, mat.ν, small=mat.small)  
-copy(mat::MooneyRivlin) = MooneyRivlin(mamt.C1, mat.C2, mat.K)
-copy(mat::NeoHooke)     = NeoHooke(mamt.C1, mat.K)
-copy(mat::Ogden)        = Ogden(mamt.α, mat.μ, mat.K)
+copy(mat::MooneyRivlin) = MooneyRivlin(mat.C1, mat.C2, mat.K)
+copy(mat::NeoHooke)     = NeoHooke(mat.C1, mat.K)
+copy(mat::Ogden)        = Ogden(mat.α, mat.μ, mat.K)
 # default convergence tolerance for 2D stress
 dTol     = 1e-7
 maxiter  = 30
