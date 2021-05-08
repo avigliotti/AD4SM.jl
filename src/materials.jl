@@ -37,7 +37,7 @@ end
 Material = Union{Hooke,MooneyRivlin,NeoHooke,Ogden} 
 HyperEla = Union{MooneyRivlin,NeoHooke,Ogden} 
 #
-copy(mat::Hooke)        = Hooke(mat.E, mat.ν, mat.small)  
+copy(mat::Hooke)        = Hooke(mat.E, mat.ν, small=mat.small)  
 copy(mat::MooneyRivlin) = MooneyRivlin(mamt.C1, mat.C2, mat.K)
 copy(mat::NeoHooke)     = NeoHooke(mamt.C1, mat.K)
 copy(mat::Ogden)        = Ogden(mamt.α, mat.μ, mat.K)
