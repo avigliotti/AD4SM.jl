@@ -8,6 +8,7 @@ using ProgressMeter, Dates, StatsBase
 
 using ..adiff, ..Materials
 import ..Materials.getϕ
+import Base.copy
 
 p = Int64(nworkers())
 function setp(x)
