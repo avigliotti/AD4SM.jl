@@ -63,6 +63,43 @@ end
 Elems   = Union{Rod, Beam, C2D, C3D, CAS}
 CElems  = Union{C2D, C3D, CAS}
 CartEls = Union{C2D, C3D}
+# copy
+copy(elem::C2D{M} where M) = C2D{M}(copy(elem.nodes), elem.Nx, elem.Ny, elem.wgt, elem.V, elem.mat)
+copy(elem::C3D{M} where M) = C3D{M}(copy(elem.nodes), elem.Nx, elem.Ny, elem.Nz, elem.wgt, elem.V, elem.mat)
+copy(elem::CAS{M} where M) = CAS{M}(copy(elem.nodes), elem.N0, elem.Nx, elem.Ny, elem.X0, elem.wgt, elem.V, elem.mat)
+copy(elem::Rod)            = Rod(copy(elem.nodes), elem.r0, elem.l0, elem.A, elem.mat)
+copy(elem::Beam)           = Beam(copy(elem.nodes), elem.r0, elem.L, elem.w, elem.lgwx, elem.lgwy, elem.mat)
+# clone
+function copy(elem::C2D{M} where M)
+  nodes = copy(elem.nodes)
+  Nx    = tuple([copy(x) for x in elem.Nx]...)
+  Ny    = tuple([copy(x) for x in elem.Ny]...)
+  wgt   = tuple([x for x in wgt]...)
+  mat   = copy(elem.mat)
+  
+  C2D{M}(nodes, Nx, Ny, wgt, V, mat)
+end
+function copy(elem::C3D{M} where M)
+  nodes = copy(elem.nodes)
+  Nx    = tuple([copy(x) for x in elem.Nx]...)
+  Ny    = tuple([copy(x) for x in elem.Ny]...)
+  Nz    = tuple([copy(x) for x in elem.Nz]...)
+  wgt   = tuple([x for x in wgt]...)
+  mat   = copy(elem.mat)
+  
+  C3D{M}(nodes, Nx, Ny, Nz, wgt, V, mat)
+end
+function copy(elem::CAS{M} where M)
+  nodes = copy(elem.nodes)
+  N0    = tuple([copy(x) for x in elem.N0]...)
+  Nx    = tuple([copy(x) for x in elem.Nx]...)
+  Ny    = tuple([copy(x) for x in elem.Ny]...)
+  X0    = tuple([x for x in X0 ]...)
+  wgt   = tuple([x for x in wgt]...)
+  mat   = copy(elem.mat)
+  
+  CAS{M}(nodes, N0, Nx, Ny, X0, wgt, V, mat)
+end
 # structure for constraint eqs
 struct ConstEq
   func
