@@ -70,7 +70,7 @@ copy(elem::CAS{M} where M) = CAS{M}(copy(elem.nodes), elem.N0, elem.Nx, elem.Ny,
 copy(elem::Rod)            = Rod(copy(elem.nodes), elem.r0, elem.l0, elem.A, elem.mat)
 copy(elem::Beam)           = Beam(copy(elem.nodes), elem.r0, elem.L, elem.w, elem.lgwx, elem.lgwy, elem.mat)
 # clone
-function copy(elem::C2D{M} where M)
+function clone(elem::C2D{M} where M)
   nodes = copy(elem.nodes)
   Nx    = tuple([copy(x) for x in elem.Nx]...)
   Ny    = tuple([copy(x) for x in elem.Ny]...)
@@ -79,7 +79,7 @@ function copy(elem::C2D{M} where M)
   
   C2D{M}(nodes, Nx, Ny, wgt, V, mat)
 end
-function copy(elem::C3D{M} where M)
+function clone(elem::C3D{M} where M)
   nodes = copy(elem.nodes)
   Nx    = tuple([copy(x) for x in elem.Nx]...)
   Ny    = tuple([copy(x) for x in elem.Ny]...)
@@ -89,7 +89,7 @@ function copy(elem::C3D{M} where M)
   
   C3D{M}(nodes, Nx, Ny, Nz, wgt, V, mat)
 end
-function copy(elem::CAS{M} where M)
+function clone(elem::CAS{M} where M)
   nodes = copy(elem.nodes)
   N0    = tuple([copy(x) for x in elem.N0]...)
   Nx    = tuple([copy(x) for x in elem.Nx]...)
