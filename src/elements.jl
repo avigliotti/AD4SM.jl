@@ -74,31 +74,24 @@ function clone(elem::C2D{M} where M)
   nodes = copy(elem.nodes)
   Nx    = tuple([copy(x) for x in elem.Nx]...)
   Ny    = tuple([copy(x) for x in elem.Ny]...)
-  wgt   = tuple([x for x in wgt]...)
-  mat   = copy(elem.mat)
   
-  C2D{M}(nodes, Nx, Ny, wgt, V, mat)
+  C2D{M}(nodes, Nx, Ny, elem.wgt, elem.V, elem.mat)
 end
 function clone(elem::C3D{M} where M)
   nodes = copy(elem.nodes)
   Nx    = tuple([copy(x) for x in elem.Nx]...)
   Ny    = tuple([copy(x) for x in elem.Ny]...)
   Nz    = tuple([copy(x) for x in elem.Nz]...)
-  wgt   = tuple([x for x in wgt]...)
-  mat   = copy(elem.mat)
   
-  C3D{M}(nodes, Nx, Ny, Nz, wgt, V, mat)
+  C3D{M}(nodes, Nx, Ny, Nz, elem.wgt, elem.V, elem.mat)
 end
 function clone(elem::CAS{M} where M)
   nodes = copy(elem.nodes)
   N0    = tuple([copy(x) for x in elem.N0]...)
   Nx    = tuple([copy(x) for x in elem.Nx]...)
   Ny    = tuple([copy(x) for x in elem.Ny]...)
-  X0    = tuple([x for x in X0 ]...)
-  wgt   = tuple([x for x in wgt]...)
-  mat   = copy(elem.mat)
   
-  CAS{M}(nodes, N0, Nx, Ny, X0, wgt, V, mat)
+  CAS{M}(nodes, N0, Nx, Ny, elem.X0, elem.wgt, elem.V, elem.mat)
 end
 # structure for constraint eqs
 struct ConstEq
