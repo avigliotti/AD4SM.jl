@@ -388,7 +388,31 @@ getJ(elem,u,ii)  = getJ(getF(elem, u, ii))
 getJ(elem,u)     = getV(elem,u)/elem.V
 getI3(elem,u,ii) = getJ(getF(elem, u, ii))^2
 getI3(elem,u)    = sum([elem.wgt[ii]getI3(elem,u,ii) for ii in 1:length(elem.wgt)])/elem.V
-# elastic energy evaluation functions for models (lists of elements)
+#
+function getϕ(elems::Array, u; T=Threads.nthreads())
+  @show T
+
+  nDoFs  = length(u)
+  nElems = length(elems)
+
+  Φ = zeros(size(elems))
+  r = zeros(nDoFs)
+  C = [spzeros(nDoFs, nDoFs) for ii = 1:T]
+  Threads.@threads for kk = 1:T
+    for ii = kk:T:nElems
+    elem           =  elems[ii]
+    nodes          =  elem.nodes
+    iDoFs          =  LinearIndices(u)[:,nodes][:]
+    ϕ              =  AD4SM.Elements.getϕ(elem, adiff.D2(u[:,nodes]))
+    Φ[ii]          =  AD4SM.adiff.val(ϕ)
+    r[iDoFs]       += AD4SM.adiff.grad(ϕ)
+    C[kk][iDoFs,iDoFs] += AD4SM.adiff.hess(ϕ)
+    end
+  end
+  
+  (Φ, r, sum(C))
+end elastic energy evaluation functions for models (lists of elements)
+#=
 function getϕ(elems::Array, u)
 
   nElems = length(elems)
@@ -412,6 +436,7 @@ function getϕ(elems::Array, u)
     end
   end
   (Φ, r, C)
+
 end
 function getϕ(elems::Array, u, chunk)
 
@@ -432,6 +457,7 @@ function getϕ(elems::Array, u, chunk)
   end
   (Φ, r, C)
 end
+=#
 function getϕ(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64})
 
   nEqs   = length(eqns)
