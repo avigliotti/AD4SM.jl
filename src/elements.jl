@@ -391,7 +391,7 @@ getI3(elem,u)    = sum([elem.wgt[ii]getI3(elem,u,ii) for ii in 1:length(elem.wgt
 #
 # elastic energy evaluation functions for models (lists of elements)
 function getϕ(elems::Array, u; T=Threads.nthreads())
-  @show T
+
   nDoFs  = length(u)
   nElems = length(elems)
 
@@ -403,10 +403,10 @@ function getϕ(elems::Array, u; T=Threads.nthreads())
     elem           =  elems[ii]
     nodes          =  elem.nodes
     iDoFs          =  LinearIndices(u)[:,nodes][:]
-    ϕ              =  AD4SM.Elements.getϕ(elem, adiff.D2(u[:,nodes]))
-    Φ[ii]          =  AD4SM.adiff.val(ϕ)
-    r[iDoFs]       += AD4SM.adiff.grad(ϕ)
-    C[kk][iDoFs,iDoFs] += AD4SM.adiff.hess(ϕ)
+    ϕ              =  Elements.getϕ(elem, adiff.D2(u[:,nodes]))
+    Φ[ii]          =  adiff.val(ϕ)
+    r[iDoFs]       += adiff.grad(ϕ)
+    C[kk][iDoFs,iDoFs] += adiff.hess(ϕ)
     end
   end
   
