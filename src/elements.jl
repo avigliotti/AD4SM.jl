@@ -74,7 +74,7 @@ function clone(elem::C2D{M}) where M
   nodes = copy(elem.nodes)
   Nx    = tuple([copy(x) for x in elem.Nx]...)
   Ny    = tuple([copy(x) for x in elem.Ny]...)
-  
+
   C2D{M}(nodes, Nx, Ny, elem.wgt, elem.V, elem.mat)
 end
 function clone(elem::C3D{M}) where M
@@ -82,7 +82,7 @@ function clone(elem::C3D{M}) where M
   Nx    = tuple([copy(x) for x in elem.Nx]...)
   Ny    = tuple([copy(x) for x in elem.Ny]...)
   Nz    = tuple([copy(x) for x in elem.Nz]...)
-  
+
   C3D{M}(nodes, Nx, Ny, Nz, elem.wgt, elem.V, elem.mat)
 end
 function clone(elem::CAS{M}) where M
@@ -90,7 +90,7 @@ function clone(elem::CAS{M}) where M
   N0    = tuple([copy(x) for x in elem.N0]...)
   Nx    = tuple([copy(x) for x in elem.Nx]...)
   Ny    = tuple([copy(x) for x in elem.Ny]...)
-  
+
   CAS{M}(nodes, N0, Nx, Ny, elem.X0, elem.wgt, elem.V, elem.mat)
 end
 # structure for constraint eqs
@@ -213,8 +213,12 @@ function Hex08(nodes::Vector{<:Integer},
                mat=Materials.Hooke())
   (V, Nx, Ny, Nz, wgt) = begin
     r        = [-1, 1]*0.577350269189626 # √3/3
-    N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1+ζ),(1-ξ)*(1-η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1+ζ),
-                (1+ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1-ζ),(1+ξ)*(1+η)*(1-ζ),(1+ξ)*(1+η)*(1+ζ)]/8
+    # N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1+ζ),(1-ξ)*(1-η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1+ζ),
+    #             (1+ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1-ζ),(1+ξ)*(1+η)*(1-ζ),(1+ξ)*(1+η)*(1+ζ)]/8
+  N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1-ζ),(1+ξ)*(1-η)*(1-ζ),
+              (1+ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),
+              (1-ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1+ζ),
+              (1+ξ)*(1+η)*(1+ζ),(1-ξ)*(1+η)*(1+ζ)]/8
     Nx  = Array{Array{Float64,1},3}(undef,2,2,2)
     Ny  = Array{Array{Float64,1},3}(undef,2,2,2)
     Nz  = Array{Array{Float64,1},3}(undef,2,2,2)
@@ -400,62 +404,62 @@ function getϕ(elems::Array, u; T=Threads.nthreads())
   C = [spzeros(nDoFs, nDoFs) for ii = 1:T]
   Threads.@threads for kk = 1:T
     for ii = kk:T:nElems
-    elem           =  elems[ii]
-    nodes          =  elem.nodes
-    iDoFs          =  LinearIndices(u)[:,nodes][:]
-    ϕ              =  Elements.getϕ(elem, adiff.D2(u[:,nodes]))
-    Φ[ii]          =  adiff.val(ϕ)
-    r[iDoFs]       += adiff.grad(ϕ)
-    C[kk][iDoFs,iDoFs] += adiff.hess(ϕ)
+      elem           =  elems[ii]
+      nodes          =  elem.nodes
+      iDoFs          =  LinearIndices(u)[:,nodes][:]
+      ϕ              =  Elements.getϕ(elem, adiff.D2(u[:,nodes]))
+      Φ[ii]          =  adiff.val(ϕ)
+      r[iDoFs]       += adiff.grad(ϕ)
+      C[kk][iDoFs,iDoFs] += adiff.hess(ϕ)
     end
   end
-  
+
   (Φ, r, sum(C))
 end 
 #=
 function getϕ(elems::Array, u)
 
-  nElems = length(elems)
-  if p==1 || nElems<=p
-    (Φ, r, C) = getϕ(elems, u, 1:nElems)
-  else
-    nDoFs  = length(u)
+nElems = length(elems)
+if p==1 || nElems<=p
+(Φ, r, C) = getϕ(elems, u, 1:nElems)
+else
+nDoFs  = length(u)
 
-    Φ = zeros(nElems)
-    r = zeros(nDoFs)
-    C = spzeros(nDoFs, nDoFs)
+Φ = zeros(nElems)
+r = zeros(nDoFs)
+C = spzeros(nDoFs, nDoFs)
 
-    chunks = split(nElems, Elements.p)
-    procs  = [@spawn getϕ(elems, u, chunk)  for chunk in chunks]
+chunks = split(nElems, Elements.p)
+procs  = [@spawn getϕ(elems, u, chunk)  for chunk in chunks]
 
-    for (ii,chunk) in enumerate(chunks)
-      retval =   fetch(procs[ii])
-      Φ      .+= retval[1]
-      r      .+= retval[2]
-      C      .+= retval[3]
-    end
-  end
-  (Φ, r, C)
+for (ii,chunk) in enumerate(chunks)
+retval =   fetch(procs[ii])
+Φ      .+= retval[1]
+r      .+= retval[2]
+C      .+= retval[3]
+end
+end
+(Φ, r, C)
 
 end
 function getϕ(elems::Array, u, chunk)
 
-  nDoFs  = length(u)
-  nElems = length(elems)
+nDoFs  = length(u)
+nElems = length(elems)
 
-  Φ = zeros(size(elems))
-  r = zeros(nDoFs)
-  C = spzeros(nDoFs, nDoFs)
-  for ii ∈ chunk 
-    elem           =  elems[ii]
-    nodes          =  elem.nodes
-    iDoFs          =  LinearIndices(u)[:,nodes][:]  
-    ϕ              =  getϕ(elem, adiff.D2(u[:,nodes]))
-    Φ[ii]          =  adiff.val(ϕ)
-    r[iDoFs]       += adiff.grad(ϕ)
-    C[iDoFs,iDoFs] += adiff.hess(ϕ)
-  end
-  (Φ, r, C)
+Φ = zeros(size(elems))
+r = zeros(nDoFs)
+C = spzeros(nDoFs, nDoFs)
+for ii ∈ chunk 
+elem           =  elems[ii]
+nodes          =  elem.nodes
+iDoFs          =  LinearIndices(u)[:,nodes][:]  
+ϕ              =  getϕ(elem, adiff.D2(u[:,nodes]))
+Φ[ii]          =  adiff.val(ϕ)
+r[iDoFs]       += adiff.grad(ϕ)
+C[iDoFs,iDoFs] += adiff.hess(ϕ)
+end
+(Φ, r, C)
 end
 =#
 function getϕ(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64})
