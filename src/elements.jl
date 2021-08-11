@@ -153,8 +153,8 @@ function Quad(nodes::Vector{<:Integer},
 
       Nx[ii,jj]  = Nxy[1,:]
       Ny[ii,jj]  = Nxy[2,:]
-      # wgt[ii,jj] = abs(det(J))
-      wgt[ii,jj] = det(J)
+      wgt[ii,jj] = abs(det(J))
+      # wgt[ii,jj] = det(J)
 
       A += wgt[ii,jj]
     end
