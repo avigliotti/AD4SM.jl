@@ -1,6 +1,5 @@
 module AD4SM
 
-greet() = print("Hello World!")
 
 include("adiff.jl")
 include("materials.jl")
