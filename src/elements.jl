@@ -153,8 +153,9 @@ function Quad(nodes::Vector{<:Integer},
 
       Nx[ii,jj]  = Nxy[1,:]
       Ny[ii,jj]  = Nxy[2,:]
-      wgt[ii,jj] = abs(det(J))
-      # wgt[ii,jj] = det(J)
+      wgt[ii,jj] = abs(det(J))    
+      # having the absolute value in front of det J makes irrelevant whether 
+      # the nodes are numbered clockwise or counter-clockwise
 
       A += wgt[ii,jj]
     end
