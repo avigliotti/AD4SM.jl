@@ -153,7 +153,8 @@ function Quad(nodes::Vector{<:Integer},
 
       Nx[ii,jj]  = Nxy[1,:]
       Ny[ii,jj]  = Nxy[2,:]
-      wgt[ii,jj] = abs(det(J))    
+      # wgt[ii,jj] = abs(det(J))    
+      wgt[ii,jj] = det(J)
       # having the absolute value in front of det J makes irrelevant whether 
       # the nodes are numbered clockwise or counter-clockwise
 
@@ -400,6 +401,7 @@ function getϕ(elems::Array, u; T=Threads.nthreads())
 
   nDoFs  = length(u)
   nElems = length(elems)
+  indxes = LinearIndices(u)
 
   Φ = zeros(size(elems))
   r = zeros(nDoFs)
@@ -408,7 +410,7 @@ function getϕ(elems::Array, u; T=Threads.nthreads())
     for ii = kk:T:nElems
       elem           =  elems[ii]
       nodes          =  elem.nodes
-      iDoFs          =  LinearIndices(u)[:,nodes][:]
+      iDoFs          =  indxes[:,nodes][:]
       ϕ              =  Elements.getϕ(elem, adiff.D2(u[:,nodes]))
       Φ[ii]          =  adiff.val(ϕ)
       r[iDoFs]       += adiff.grad(ϕ)
@@ -418,52 +420,6 @@ function getϕ(elems::Array, u; T=Threads.nthreads())
 
   (Φ, r, sum(C))
 end 
-#=
-function getϕ(elems::Array, u)
-
-nElems = length(elems)
-if p==1 || nElems<=p
-(Φ, r, C) = getϕ(elems, u, 1:nElems)
-else
-nDoFs  = length(u)
-
-Φ = zeros(nElems)
-r = zeros(nDoFs)
-C = spzeros(nDoFs, nDoFs)
-
-chunks = split(nElems, Elements.p)
-procs  = [@spawn getϕ(elems, u, chunk)  for chunk in chunks]
-
-for (ii,chunk) in enumerate(chunks)
-retval =   fetch(procs[ii])
-Φ      .+= retval[1]
-r      .+= retval[2]
-C      .+= retval[3]
-end
-end
-(Φ, r, C)
-
-end
-function getϕ(elems::Array, u, chunk)
-
-nDoFs  = length(u)
-nElems = length(elems)
-
-Φ = zeros(size(elems))
-r = zeros(nDoFs)
-C = spzeros(nDoFs, nDoFs)
-for ii ∈ chunk 
-elem           =  elems[ii]
-nodes          =  elem.nodes
-iDoFs          =  LinearIndices(u)[:,nodes][:]  
-ϕ              =  getϕ(elem, adiff.D2(u[:,nodes]))
-Φ[ii]          =  adiff.val(ϕ)
-r[iDoFs]       += adiff.grad(ϕ)
-C[iDoFs,iDoFs] += adiff.hess(ϕ)
-end
-(Φ, r, C)
-end
-=#
 function getϕ(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64})
 
   nEqs   = length(eqns)
