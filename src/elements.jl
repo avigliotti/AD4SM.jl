@@ -236,7 +236,8 @@ function Hex08(nodes::Vector{<:Integer},
       Nx[ii,jj,kk]  = Nxyz[1,:]
       Ny[ii,jj,kk]  = Nxyz[2,:]
       Nz[ii,jj,kk]  = Nxyz[3,:]
-      wgt[ii,jj,kk] = abs(det(J))
+      # wgt[ii,jj,kk] = abs(det(J))
+      wgt[ii,jj,kk] = det(J)
 
       V +=wgt[ii,jj,kk]
     end
@@ -285,8 +286,8 @@ function ASQuad(nodes::Vector{<:Integer},
       Nx[ii,jj]  = Nxy[1,:]
       Ny[ii,jj]  = Nxy[2,:]
       X0[ii,jj]  = p[1].v 
-      # wgt[ii,jj] = abs(det(J))
-      wgt[ii,jj] = abs(det(J))*2π*p[1].v
+      # wgt[ii,jj] = abs(det(J))*2π*p[1].v
+      wgt[ii,jj] = det(J)*2π*p[1].v
 
       V +=wgt[ii,jj]
     end
