@@ -112,24 +112,25 @@ function getϕ(C11::N where N<:Number, mat::Hooke)
   ϕ = 0.5mat.E*(C11-1)^2  
 end
 function getϕ(F::Array{N,2} where N<:Number, mat::Hooke)
+
   if mat.small
     E = 0.5(F+transpose(F))-I   # the symmetric part of G
   else
     E = 0.5(transpose(F)F-I)    # the Green-Lagrange strain tensor
   end
 
-  if size(F) == (3,3)
-    ν, Es = mat.ν, mat.E
-    λ = Es*ν/(1+ν)/(1-2ν) 
-    μ = Es/2/(1+ν) 
+  ν, Es = mat.ν, mat.E
+  λ = Es*ν/(1+ν)/(1-2ν) 
+  μ = Es/2/(1+ν) 
 
-    I1 = E[1]+E[5]+E[9]
-    S  = λ*I1*I + 2μ*E
-    ϕ  = 0.5sum(E.*S)
+  if size(F) == (3,3)
+    ϕ =  (2μ+λ) * (E[1]^2   + E[5]^2   + E[9]^2)
+    ϕ += λ      * (E[1]E[5] + E[5]E[9] + E[9]E[1])
+    ϕ += 2μ     * (E[2]^2   + E[3]^2   + E[6]^2)
   else
-    ν, Es = mat.ν, mat.E
-    ϕ = Es/(1-ν^2)/2*(E[1]^2+E[2]^2+2ν*E[1]E[2]+(1-ν)*E[3]^2)
+    ϕ = (2μ+λ)*(E[1]^2+E[4]^2) + λ*E[1]E[4] + 2μ*E[2]^2
   end
+
   return ϕ
 end
 # status retrieving functions
