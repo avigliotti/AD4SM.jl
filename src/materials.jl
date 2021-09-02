@@ -127,9 +127,11 @@ function getϕ(F::Array{N,2} where N<:Number, mat::Hooke)
     ϕ =  (2μ+λ) * (E[1]^2   + E[5]^2   + E[9]^2)
     ϕ += λ      * (E[1]E[5] + E[5]E[9] + E[9]E[1])
     ϕ += 2μ     * (E[2]^2   + E[3]^2   + E[6]^2)
+    ϕ \= 2
   else
     # 2D is plain strain
     ϕ = (2μ+λ)*(E[1]^2+E[4]^2) + λ*E[1]E[4] + 2μ*E[2]^2
+    ϕ \= 2
   end
 
   return ϕ
