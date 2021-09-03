@@ -334,10 +334,10 @@ function getϕ(elem::Beam, u::Array{<:Number,2})
   end
   return ϕ
 end
-function getϕ(elem::T where T<:AD4SM.Elements.CElems, u::Array{U,2})  where U #<:adiff.D2
+function getϕ(elem::T where T<:CElems, u::Array{U,2})  where U #<:adiff.D2
   ϕ = zero(U)
   for (ii, wgt) in enumerate(elem.wgt)
-    F = AD4SM.Elements.getF(elem,u,ii)
+    F = getF(elem,u,ii)
     ϕ += wgt*getϕ(F,elem.mat)
   end 
   ϕ
