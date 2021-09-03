@@ -12,6 +12,15 @@ struct Hooke
   small ::Bool
   Hooke(E,ν;small=false) = new(Float64(E),Float64(ν), small)
 end
+struct Hooke2D{T}
+  E     ::Float64
+  ν     ::Float64
+  small ::Bool
+  T
+  Hooke2D(E,ν; small=true, plane_stress=true) = plane_stress ? 
+  new{:plane_stress}(Float64(E),Float64(ν), small) : 
+  new{:plane_strain}(Float64(E),Float64(ν), small)
+end
 struct MooneyRivlin
   C1  ::Float64
   C2  ::Float64
@@ -123,16 +132,38 @@ function getϕ(F::Array{N,2} where N<:Number, mat::Hooke)
   λ = Es*ν/(1+ν)/(1-2ν) 
   μ = Es/2/(1+ν) 
 
-  if size(F) == (3,3)
-    ϕ =  (μ+λ/2) * (E[1]^2   + E[5]^2   + E[9]^2)
-    ϕ += λ       * (E[1]E[5] + E[5]E[9] + E[9]E[1])
-    ϕ += 2μ      * (E[2]^2   + E[3]^2   + E[6]^2)
-  else
-    # 2D is plain strain
-    ϕ = (μ+λ/2)*(E[1]^2+E[4]^2) + λ*E[1]E[4] + 2μ*E[2]^2
-  end
+  ϕ =  (μ+λ/2) * (E[1]^2   + E[5]^2   + E[9]^2)
+  ϕ += λ       * (E[1]E[5] + E[5]E[9] + E[9]E[1])
+  ϕ += 2μ      * (E[2]^2   + E[3]^2   + E[6]^2)
 
   return ϕ
+end
+function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{:plane_strain})
+
+  if mat.small
+    E = 0.5(F+transpose(F))-I   # the symmetric part of G
+  else
+    E = 0.5(transpose(F)F-I)    # the Green-Lagrange strain tensor
+  end
+
+  ν, Es = mat.ν, mat.E
+  λ = Es*ν/(1+ν)/(1-2ν) 
+  μ = Es/2/(1+ν) 
+
+  (μ+λ/2)*(E[1]^2+E[4]^2) + λ*E[1]E[4] + 2μ*E[2]^2
+end
+function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{:plane_stress})
+
+  if mat.small
+    E = 0.5(F+transpose(F))-I   # the symmetric part of G
+  else
+    E = 0.5(transpose(F)F-I)    # the Green-Lagrange strain tensor
+  end
+
+  ν, Es = mat.ν, mat.E
+  μ = Es/2/(1+ν) 
+
+  (Es/(1-ν^2))*(E[1]^2+E[4]^2+ν*E[1]E[4]) + (Es/(1+ν))*E[2]^2
 end
 # status retrieving functions
 function getP(F::Array{Float64,2}, mat) # 1st PK tensor from F

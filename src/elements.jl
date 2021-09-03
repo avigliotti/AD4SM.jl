@@ -334,6 +334,15 @@ function getϕ(elem::Beam, u::Array{<:Number,2})
   end
   return ϕ
 end
+function getϕ(elem::T where T<:AD4SM.Elements.CElems, u::Array{U,2})  where U #<:adiff.D2
+  ϕ = zero(U)
+  for (ii, wgt) in enumerate(elem.wgt)
+    F = AD4SM.Elements.getF(elem,u,ii)
+    ϕ += wgt*getϕ(F,elem.mat)
+  end 
+  ϕ
+end
+#=
 function getϕ(elem::T where T<:CElems, u::Array{<:Number,2})
   M = length(elem.wgt)
   if isa(u[1], adiff.D2) 
@@ -352,6 +361,7 @@ function cross(ϕ, F)
   h = sum([0.5ϕ.h[ii,jj]*(F[ii].g*F[jj].g+F[jj].g*F[ii].g) for jj=1:N for ii=1:N])
   adiff.D2(ϕ.v, g, h) 
 end
+=#
 # methods for evaluating def. gradient
 function getF(elem::C3D, u::Array{N} where N, ii::Int64)
 
