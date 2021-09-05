@@ -4,7 +4,7 @@ module Elements
 
 using LinearAlgebra, Printf
 using Distributed, SparseArrays
-using ProgressMeter, Dates, StatsBase
+using ProgressMeter, Dates#, StatsBase
 
 using ..adiff, ..Materials
 import ..Materials.getϕ
