@@ -45,7 +45,7 @@ struct Ogden
   Ogden(α, μ)    = new(Float64(α), Float64(μ), NaN) 
   Ogden(α, μ, K) = new(Float64(α), Float64(μ), Float64(K)) 
 end
-Material = Union{Hooke,Hooke2D,MooneyRivlin,NeoHooke,Ogden} 
+Material = Union{Hooke,Hooke1D,Hooke2D,MooneyRivlin,NeoHooke,Ogden} 
 HyperEla = Union{MooneyRivlin,NeoHooke,Ogden} 
 #
 # default convergence tolerance for 2D stress
