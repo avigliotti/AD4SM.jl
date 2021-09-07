@@ -172,7 +172,7 @@ plot_model(elems, nodes,
   ax = ax, color = :r, alpha=0.25)
 title("undeformed  model")
 
-ax.set_aspect(N3/N2)
+# ax.set_aspect(N3/N2)
 ;
 
 nNodes    = length(nodes)
