@@ -12,6 +12,11 @@ struct Hooke
   small ::Bool
   Hooke(E,ν;small=false) = new(Float64(E),Float64(ν), small)
 end
+struct Hooke1D
+  E     ::Float64
+  small ::Bool
+  Hooke(E,ν;small=false) = new(Float64(E), small)
+end
 struct Hooke2D{T}
   E     ::Float64
   ν     ::Float64
@@ -119,13 +124,20 @@ end
 function getϕ(C11::N where N<:Number, mat::Hooke)
   ϕ = 0.5mat.E*(C11-1)^2  
 end
+function getϕ(C11::N where N<:Number, mat::Hooke1D)
+  ϕ = mat.small ? mat.E*C11 : 0.5mat.E*(C11-1)^2  
+end
 function getϕ(F::Array{N,2} where N<:Number, mat::Hooke)
 
+  #=
   if mat.small
     E = 0.5(F+transpose(F))-I   # the symmetric part of G
   else
     E = 0.5(transpose(F)F-I)    # the Green-Lagrange strain tensor
   end
+  =#
+  #               symmetric part of G   :   Green-Lagrange strain
+  E = mat.small ? 0.5(F+transpose(F))-I : 0.5(transpose(F)F-I)
 
   ν, Es = mat.ν, mat.E
   λ = Es*ν/(1+ν)/(1-2ν) 
@@ -139,11 +151,15 @@ function getϕ(F::Array{N,2} where N<:Number, mat::Hooke)
 end
 function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{:plane_strain})
 
+  #=
   if mat.small
     E = 0.5(F+transpose(F))-I   # the symmetric part of G
   else
     E = 0.5(transpose(F)F-I)    # the Green-Lagrange strain tensor
   end
+  =#
+  #               symmetric part of G   :   Green-Lagrange strain
+  E = mat.small ? 0.5(F+transpose(F))-I : 0.5(transpose(F)F-I)
 
   ν, Es = mat.ν, mat.E
   λ = Es*ν/(1+ν)/(1-2ν) 
