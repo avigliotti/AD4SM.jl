@@ -15,7 +15,7 @@ end
 struct Hooke1D
   E     ::Float64
   small ::Bool
-  Hooke(E;small=false) = new(Float64(E), small)
+  Hooke1D(E;small=false) = new(Float64(E), small)
 end
 struct Hooke2D{T}
   E     ::Float64
