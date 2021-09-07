@@ -1,12 +1,14 @@
 
 using Printf, LinearAlgebra
-using BenchmarkTools, Statistics
+using BenchmarkTools #, Statistics
 using PyPlot, PyCall
 using MAT
 ;
 
 using AD4SM
 ;
+
+mean(x) = sum(x)/length(x)
 
 function replicateRVE(nodes_RVE, beams_RVE, 
     a1, a2, a3, N1, N2, N3)
@@ -172,7 +174,8 @@ plot_model(elems, nodes,
   ax = ax, color = :r, alpha=0.25)
 title("undeformed  model")
 
-ax.set_aspect(N3/N2)
+# ax.set_aspect(N3/N2)
+# getproperty(ax, :set_aspect)("equal")
 ;
 
 nNodes    = length(nodes)

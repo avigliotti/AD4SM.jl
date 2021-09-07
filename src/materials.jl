@@ -121,9 +121,11 @@ function getϕ(I1, I2, I3, mat::NeoHooke)
   end
   return ϕ
 end
+#=
 function getϕ(C11::N where N<:Number, mat::Hooke)
   ϕ = 0.5mat.E*(C11-1)^2  
 end
+=#
 function getϕ(C11::N where N<:Number, mat::Hooke1D)
   ϕ = mat.small ? mat.E*C11 : 0.5mat.E*(C11-1)^2  
 end
