@@ -1,6 +1,6 @@
 
 using Distributed
-using Statistics, LinearAlgebra
+using LinearAlgebra #, Statistics 
 using Printf, WriteVTK, AbaqusReader
 using PyCall, PyPlot, JLD, ProgressMeter
 
@@ -8,6 +8,8 @@ using AD4SM
 
 @show Elements.setp(4)
 ;
+
+mean(x) = sum(x)/length(x)
 
 # this function is the constraint equation for the internal holes
 function cnst_func(u,ucntr,r0,cntr0,Rsq) 

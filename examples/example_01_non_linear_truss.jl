@@ -1,12 +1,13 @@
 
 using Printf, LinearAlgebra
-using BenchmarkTools, Statistics
+using BenchmarkTools #, Statistics
 using PyPlot, PyCall
 using MAT
 ;
 
 using AD4SM
 ;
+mean(x) = sum(x)/length(x)
 
 function replicateRVE(nodes_RVE, beams_RVE, 
     a1, a2, a3, N1, N2, N3)
