@@ -163,8 +163,8 @@ idtop = findall(abs.([node[3] for node in nodes].-maxz) .<1e-6)
 ;
 
 A = .01
-elems = [Elements.Rod(beam[:], nodes[beam[:],:], A, mat=Materials.Hooke(1, 0.3)) 
-  for beam in beams]
+# elems = [Elements.Rod(beam[:], nodes[beam[:],:], A, mat=Materials.Hooke(1, 0.3)) for beam in beams]
+elems = [Elements.Rod(beam[:], nodes[beam[:],:], A, mat=Materials.Hooke1D(1)) for beam in beams]
 ;
 
 ax = mplot3d.Axes3D(figure(figsize=(2,8)))

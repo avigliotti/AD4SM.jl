@@ -61,8 +61,8 @@ end
 nNodes   = length(nodes)
 t, w, Es = .1, .1, 5
 A        = t*w
-elems    = [Elements.Beam(beam, nodes[beam], t, w,
-    mat=Materials.Hooke(Es, 0.3)) for beam in beams]
+# elems    = [Elements.Beam(beam, nodes[beam], t, w, mat=Materials.Hooke(Es, 0.3)) for beam in beams]
+elems    = [Elements.Beam(beam, nodes[beam], t, w, mat=Materials.Hooke1D(Es)) for beam in beams]
 ;
 
 minx = minimum([node[1] for node in nodes])
