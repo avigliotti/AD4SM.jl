@@ -6,47 +6,54 @@ using LinearAlgebra
 using ..adiff
 
 # Material types
-struct Hooke
-  E     ::Float64
-  ν     ::Float64
+struct Hooke{T}
+  E     ::T
+  ν     ::T
   small ::Bool
-  Hooke(E,ν;small=false) = new(Float64(E),Float64(ν), small)
+  # Hooke(E, ν; small=false) = Hooke(promote(E,ν)..., small)
+  Hooke(E::T,ν::T;small=false) where T<:Number = new{T}(E,ν, small)
 end
-struct Hooke1D
-  E     ::Float64
+struct Hooke1D{T}
+  E     ::T
   small ::Bool
-  Hooke1D(E;small=false) = new(Float64(E), small)
+  Hooke1D(E::T;small=false) where T<:Number = new{T}(E, small)
 end
-struct Hooke2D{T}
-  E     ::Float64
-  ν     ::Float64
+struct Hooke2D{T,P}
+  E     ::T
+  ν     ::T
   small ::Bool
-  Hooke2D(E,ν; small=true, plane_stress=true) = plane_stress ? 
-  new{:plane_stress}(Float64(E),Float64(ν), small) : 
-  new{:plane_strain}(Float64(E),Float64(ν), small)
+  Hooke2D(E::T,ν::T; small=true, plane_stress=true) where T<:Number = plane_stress ? 
+  new{T,:plane_stress}(E,ν,small) : 
+  new{T,:plane_strain}(E,ν,small)
 end
-struct MooneyRivlin
-  C1  ::Float64
-  C2  ::Float64
-  K   ::Float64
-  MooneyRivlin(C1, C2)    = new(Float64(C1), Float64(C2), NaN) 
-  MooneyRivlin(C1, C2, K) = new(Float64(C1), Float64(C2), Float64(K)) 
+struct MooneyRivlin{T}
+  C1  ::T
+  C2  ::T
+  K   ::T
+  MooneyRivlin(C1::T, C2::T)       where T<:Number = new{T}(C1, C2, T(NaN))
+  MooneyRivlin(C1::T, C2::T, K::T) where T<:Number = new{T}(C1, C2, K) 
 end
-struct NeoHooke
-  C1   ::Float64
-  K    ::Float64
-  NeoHooke(C1)    = new(Float64(C1), NaN) 
-  NeoHooke(C1, K) = new(Float64(C1), Float64(K))
+struct NeoHooke{T}
+  C1   ::T 
+  K    ::T
+  NeoHooke(C1::T)       where T<:Number = new{T}(C1, T(NaN))
+  NeoHooke(C1::T, K::T) where T<:Number = new{T}(C1, K)
 end
-struct Ogden  
-  α   ::Float64
-  μ   ::Float64
-  K   ::Float64
-  Ogden(α, μ)    = new(Float64(α), Float64(μ), NaN) 
-  Ogden(α, μ, K) = new(Float64(α), Float64(μ), Float64(K)) 
+struct Ogden{T}
+  α   ::T
+  μ   ::T
+  K   ::T
+  Ogden(α::T, μ::T)       where T<:Number = new{T}(α, μ, T(NaN)) 
+  Ogden(α::T, μ::T, K::T) where T<:Number = new{T}(α, μ, K) 
 end
 Material = Union{Hooke,Hooke1D,Hooke2D,MooneyRivlin,NeoHooke,Ogden} 
 HyperEla = Union{MooneyRivlin,NeoHooke,Ogden} 
+Mat3D    = Union{Hooke,MooneyRivlin,NeoHooke,Ogden}
+Mat2D    = Hooke2D
+Mat1D    = Hooke1D
+dims(mat::M) where M<:Mat3D = 3
+dims(mat::M) where M<:Mat2D = 2
+dims(mat::M) where M<:Mat1D = 1
 #
 # default convergence tolerance for 2D stress
 dTol     = 1e-7
@@ -55,7 +62,7 @@ function setmaxiter(x)
   global maxiter = Int64(x)
 end
 function setdTol(x)
-  global dTol = Float64(x)
+  global dTol = x
 end
 # elastic energy evaluation functions for materials
 function getϕ(F::Array{N,2}, mat::M) where {N<:Number, M<:HyperEla}
@@ -121,25 +128,19 @@ function getϕ(I1, I2, I3, mat::NeoHooke)
   end
   return ϕ
 end
-#=
-function getϕ(C11::N where N<:Number, mat::Hooke)
-  ϕ = 0.5mat.E*(C11-1)^2  
+function getϕ(F11::N where N<:Number, mat::Hooke1D)
+  ϕ = (mat.E*(F11-1)^2)/2
 end
-=#
-function getϕ(C11::N where N<:Number, mat::Hooke1D)
-  ϕ = mat.small ? mat.E*C11 : 0.5mat.E*(C11-1)^2  
-end
+# function getϕ(C11::N where N<:Number, mat::Hooke1D)
+#   ϕ = mat.small ? mat.E*(C11-1) : 0.5mat.E*(C11-1)^2  
+# end
 function getϕ(F::Array{N,2} where N<:Number, mat::Hooke)
 
-  #=
   if mat.small
-    E = 0.5(F+transpose(F))-I   # the symmetric part of G
+    E = (F+transpose(F)-2I)/2   # the symmetric part of G
   else
-    E = 0.5(transpose(F)F-I)    # the Green-Lagrange strain tensor
+    E = (transpose(F)F-I)/2   # the Green-Lagrange strain tensor
   end
-  =#
-  #               symmetric part of G   :   Green-Lagrange strain
-  E = mat.small ? 0.5(F+transpose(F))-I : 0.5(transpose(F)F-I)
 
   ν, Es = mat.ν, mat.E
   λ = Es*ν/(1+ν)/(1-2ν) 
@@ -151,17 +152,13 @@ function getϕ(F::Array{N,2} where N<:Number, mat::Hooke)
 
   return ϕ
 end
-function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{:plane_strain})
+function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{T,:plane_strain} where T)
 
-  #=
   if mat.small
-    E = 0.5(F+transpose(F))-I   # the symmetric part of G
+    E = (F+transpose(F)-2I)/2   # the symmetric part of G
   else
-    E = 0.5(transpose(F)F-I)    # the Green-Lagrange strain tensor
+    E = (transpose(F)F-I)/2   # the Green-Lagrange strain tensor
   end
-  =#
-  #               symmetric part of G   :   Green-Lagrange strain
-  E = mat.small ? 0.5(F+transpose(F))-I : 0.5(transpose(F)F-I)
 
   ν, Es = mat.ν, mat.E
   λ = Es*ν/(1+ν)/(1-2ν) 
@@ -169,12 +166,12 @@ function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{:plane_strain})
 
   (μ+λ/2)*(E[1]^2+E[4]^2) + λ*E[1]E[4] + 2μ*E[2]^2
 end
-function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{:plane_stress})
+function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{T,:plane_stress} where T)
 
   if mat.small
-    E = 0.5(F+transpose(F))-I   # the symmetric part of G
+    E = (F+transpose(F)-2I)/2   # the symmetric part of G
   else
-    E = 0.5(transpose(F)F-I)    # the Green-Lagrange strain tensor
+    E = (transpose(F)F-I)/2   # the Green-Lagrange strain tensor
   end
 
   ν, Es = mat.ν, mat.E
@@ -183,16 +180,22 @@ function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{:plane_stress})
   (Es/(1-ν^2))*(E[1]^2+E[4]^2+ν*E[1]E[4]) + (Es/(1+ν))*E[2]^2
 end
 # status retrieving functions
-function getP(F::Array{Float64,2}, mat) # 1st PK tensor from F
-  ϕ = getϕ(adiff.D2(F), mat)               
-  reshape(adiff.grad(ϕ), (3,3))
+# function getP(F::Array{Float64,2}, mat) # 1st PK tensor from F
+#   dims_ = dims(mat)
+#   ϕ     = getϕ(adiff.D2(F), mat)               
+#   reshape(adiff.grad(ϕ), (dims_,dims_))
+# end
+function getP(F::Array{Float64,2}, mat::Material) # 1st PK tensor from F
+  # dims_ = dims(mat)
+  ϕ     = getϕ(adiff.D2(F), mat)               
+  reshape(adiff.grad(ϕ), size(F))
 end
-function getσ(F::Array{Float64,2}, mat) # Cauchy stress 
+function getσ(F::Array{Float64,2}, mat::Material) # Cauchy stress 
   J = det(F)
   P = getP(F,mat)         # 1st PK stress
   (P*transpose(F))/J
 end
-function getinfo(F::Array{Float64,2}, mat; info = :ϕ)
+function getinfo(F::Array{Float64,2}, mat::Material; info = :ϕ)
   if info == :ϕ
     getϕ(F, mat)     
   elseif info == :detF 
@@ -205,7 +208,7 @@ function getinfo(F::Array{Float64,2}, mat; info = :ϕ)
     getσ(F, mat)
   elseif info == :σVM
     σ = getσ(F, mat)
-    sqrt(0.5)*sqrt((σ[1]-σ[5])^2+(σ[5]-σ[9])^2+(σ[9]-σ[1])^2+6(σ[4]^2+σ[7]^2+σ[8]^2))
+    sqrt((σ[1]-σ[5])^2+(σ[5]-σ[9])^2+(σ[9]-σ[1])^2+6(σ[4]^2+σ[7]^2+σ[8]^2))/2
   elseif info == :S
     F\getP(F, mat)
   elseif info == :I
