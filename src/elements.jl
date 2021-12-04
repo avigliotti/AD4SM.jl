@@ -432,11 +432,11 @@ function getϕ(elem::Beam, u::Array{<:Number,2})
   end
   return ϕ
 end
-function getϕ(elem::T where T<:CElems, u::Array{U,2})  where U #<:adiff.D2
+function getϕ(elem::CElems{N,P,M} where {N,M}, u::Array{U,2})  where {U, P}
   ϕ = zero(U)
-  for (ii, wgt) in enumerate(elem.wgt)
+  for ii=1:P
     F  = getF(elem,u,ii)
-    ϕ += wgt*getϕ(F,elem.mat)
+    ϕ += elem.wgt[ii]getϕ(F,elem.mat)
   end 
   ϕ
 end
