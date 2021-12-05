@@ -1,5 +1,8 @@
 module Solvers
 
+# using .adiff, .Materials, .Elements 
+using ..adiff, ..Materials, ..Elements 
+
 p = Int64(nworkers())
 function setp(x)
   global p = Int64(x)

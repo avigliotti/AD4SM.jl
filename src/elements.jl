@@ -463,24 +463,27 @@ end
 # methods for evaluating def. gradient
 function getF(elem::C3DElems, u::Array{N} where N, ii::Int64)
   Nx, Ny, Nz = elem.Nx[ii], elem.Ny[ii], elem.Nz[ii]
-
-  [Nx⋅u[1:3:end] Ny⋅u[1:3:end] Nz⋅u[1:3:end];
-   Nx⋅u[2:3:end] Ny⋅u[2:3:end] Nz⋅u[2:3:end];
-   Nx⋅u[3:3:end] Ny⋅u[3:3:end] Nz⋅u[3:3:end] ] + I
+  u0, v0, w0 = u[1:3:end],  u[2:3:end],  u[3:3:end]
+  
+  [Nx⋅u0 Ny⋅u0 Nz⋅u0;
+   Nx⋅v0 Ny⋅v0 Nz⋅v0;
+   Nx⋅w0 Ny⋅w0 Nz⋅w0 ] + I
 end
 function getF(elem::C2DElems, u::Array{N} where N, ii::Int64) 
   Nx, Ny = elem.Nx[ii], elem.Ny[ii]
+  u0, v0 = u[1:2:end],  u[2:2:end]
 
-  [Nx⋅u[1:2:end] Ny⋅u[1:2:end];
-   Nx⋅u[2:2:end] Ny⋅u[2:2:end]] + I
+  [Nx⋅u0 Ny⋅u0;
+   Nx⋅v0 Ny⋅v0] + I
 end
-function getF(elem::CAS,      u::Array{N} where N, ii::Int64) 
-  Nx,  Ny   = elem.Nx[ii],   elem.Ny[ii]
-  N0,  X0   = elem.N0[ii],   elem.X0[ii]
-  u0x, u0y  = Nx⋅u[1:2:end], Ny⋅u[1:2:end]
-  v0x, v0y  = Nx⋅u[2:2:end], Ny⋅u[2:2:end]
-  w0z       = N0⋅u[1:2:end]/X0
-  my0       = zero(u[1])
+function getF(elem::CAS,   u::Array{D}, ii::Int64)  where D
+  Nx,  Ny   = elem.Nx[ii], elem.Ny[ii]
+  N0,  X0   = elem.N0[ii], elem.X0[ii]
+  u0,  v0   = u[1:2:end],  u[2:2:end] 
+  u0x, u0y  = Nx⋅u0, Ny⋅u0
+  v0x, v0y  = Nx⋅v0, Ny⋅v0
+  w0z       = N0⋅u0/X0
+  my0       = zero(D)
 
   [u0x  u0y   my0;
    v0x  v0y   my0;
