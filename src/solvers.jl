@@ -1,5 +1,9 @@
 module Solvers
 
+using LinearAlgebra, Printf
+using Distributed, SparseArrays
+using ProgressMeter, Dates#, StatsBase
+#
 # using .adiff, .Materials, .Elements 
 using ..adiff, ..Materials, ..Elements 
 
