@@ -11,80 +11,80 @@ import Base.copy
 # continous elements 
 struct C1D{N,P,M}
   nodes::Vector{<:Integer}
-  Nx::NTuple{P,Array{<:Number,1}}
-  wgt::NTuple{P,Number}
-  V::Number
+  Nx::NTuple{P,Array{Float64,1}}
+  wgt::NTuple{P,Float64}
+  V::Real
   mat::M
   C1D(nodes,Nx,wgt,V,mat)=new{length(nodes),length(wgt),typeof(mat)}(nodes,Nx,wgt,V,mat)
 end
 struct C2D{N,P,M}
   nodes::Vector{<:Integer}
-  Nx::NTuple{P,Array{<:Number,1}}
-  Ny::NTuple{P,Array{<:Number,1}}
-  wgt::NTuple{P,Number}
-  V::Number
+  Nx::NTuple{P,Array{Float64,1}}
+  Ny::NTuple{P,Array{Float64,1}}
+  wgt::NTuple{P,Float64}
+  V::Real
   mat::M
   C2D(nodes,Nx,Ny,wgt,V,mat)=new{length(nodes),length(wgt),typeof(mat)}(nodes,Nx,Ny,wgt,V,mat)
 end
 struct C3D{N,P,M}
   nodes::Vector{<:Integer}
-  Nx::NTuple{P,Array{<:Number,1}}
-  Ny::NTuple{P,Array{<:Number,1}}
-  Nz::NTuple{P,Array{<:Number,1}}
-  wgt::NTuple{P,Number}
-  V::Number
+  Nx::NTuple{P,Array{Float64,1}}
+  Ny::NTuple{P,Array{Float64,1}}
+  Nz::NTuple{P,Array{Float64,1}}
+  wgt::NTuple{P,Float64}
+  V::Real
   mat::M
   C3D(nodes,Nx,Ny,Nz,wgt,V,mat)=new{length(nodes),length(wgt),typeof(mat)}(nodes,Nx,Ny,Nz,wgt,V,mat)
 end
 struct CAS{N,P,M} 
   nodes::Vector{<:Integer}
-  N0::NTuple{P,Array{<:Number,1}}
-  Nx::NTuple{P,Array{<:Number,1}}
-  Ny::NTuple{P,Array{<:Number,1}}
-  X0::NTuple{P,Number}
-  wgt::NTuple{P,Number}
-  V::Number
+  N0::NTuple{P,Array{Float64,1}}
+  Nx::NTuple{P,Array{Float64,1}}
+  Ny::NTuple{P,Array{Float64,1}}
+  X0::NTuple{P,Float64}
+  wgt::NTuple{P,Float64}
+  V::Real
   mat::M
   CAS(nodes,N0,Nx,Ny,X0,wgt,V,mat)=new{length(nodes),length(wgt),typeof(mat)}(nodes,N0,Nx,Ny,X0,wgt,V,mat)
 end
 # continous elements with phase
 struct C2DP{N,P,M}
   nodes::Vector{<:Integer}
-  N0::NTuple{P,Array{<:Number,1}}
-  Nx::NTuple{P,Array{<:Number,1}}
-  Ny::NTuple{P,Array{<:Number,1}}
-  wgt::NTuple{P,Number}
-  V::Number
+  N0::NTuple{P,Array{Float64,1}}
+  Nx::NTuple{P,Array{Float64,1}}
+  Ny::NTuple{P,Array{Float64,1}}
+  wgt::NTuple{P,Float64}
+  V::Real
   mat::M
   C2DP(nodes,N0,Nx,Ny,wgt,V,mat)=new{length(nodes),length(wgt),typeof(mat)}(nodes,N0,Nx,Ny,wgt,V,mat)
 end
 struct C3DP{N,P,M}
   nodes::Vector{<:Integer}
-  N0::NTuple{P,Array{<:Number,1}}
-  Nx::NTuple{P,Array{<:Number,1}}
-  Ny::NTuple{P,Array{<:Number,1}}
-  Nz::NTuple{P,Array{<:Number,1}}
-  wgt::NTuple{P,Number}
-  V::Number
+  N0::NTuple{P,Array{Float64,1}}
+  Nx::NTuple{P,Array{Float64,1}}
+  Ny::NTuple{P,Array{Float64,1}}
+  Nz::NTuple{P,Array{Float64,1}}
+  wgt::NTuple{P,Float64}
+  V::Real
   mat::M
   C3DP(nodes,N0,Nx,Ny,Nz,wgt,V,mat)=new{length(nodes),length(wgt),typeof(mat)}(nodes,N0,Nx,Ny,Nz,wgt,V,mat)
 end
 #  structural elements
 struct Rod
   nodes::Vector{<:Integer}         # node id
-  r0::Array{<:Number}          # 
-  l0::Number
-  A::Number                  # area 
+  r0::Array{Float64}          # 
+  l0::Float64
+  A::Float64                  # area 
   mat::Materials.Material     # material properties
 end
 struct Beam
   nodes::Vector{<:Integer}
-  r0::Array{<:Number,1}
-  L::Number
-  t::Number
-  w::Number
-  lgwx::Array{Tuple{Number,Number},1}
-  lgwy::Array{Tuple{Number,Number},1}
+  r0::Array{Float64,1}
+  L::Real
+  t::Real
+  w::Real
+  lgwx::Array{Tuple{Float64,Float64},1}
+  lgwy::Array{Tuple{Float64,Float64},1}
   mat::Materials.Material
 end
 Elems           = Union{Rod, Beam, C2D, C3D, CAS}
@@ -102,7 +102,7 @@ function Rod(nodes, p0, A; mat=Materials.Hooke())
 
   r0  = p0[2]-p0[1] 
   l0  = norm(r0)
-  Rod(nodes, r0, l0, A, mat)
+  Rod(nodes.|>Int64, r0.|>Float64, l0|>Float64, A|>Float64, mat)
 end
 function Beam(nodes, p0, t, w; mat=Materials.Hooke(1, 0.3), Nx = 5, Ny = 3)
 
@@ -113,7 +113,7 @@ function Beam(nodes, p0, t, w; mat=Materials.Hooke(1, 0.3), Nx = 5, Ny = 3)
   L   = norm(d0)
   r0  = d0/L
 
-  Beam(nodes, r0, L, t, w, lgwx, lgwy, mat)
+  Beam(nodes, r0, L, Float64(t), Float64(w), lgwx, lgwy, mat)
 end
 function Line(nodes::Vector{<:Integer}, 
               p0::Vector{Vector{T}} where T<:Number ;
@@ -143,16 +143,16 @@ function Tria(nodes::Vector{<:Integer},
   C2D(nodes,Nx,Ny,wgt,A,mat) 
 end
 function Quad(nodes::Vector{<:Integer}, 
-              p0::Vector{Vector{T}};
-              mat=Materials.Hooke()) where T<:Number
+              p0::Vector{Vector{T}} where T<:Number;
+              mat=Materials.Hooke())
 
   (A,Nx,Ny,wgt) = begin 
     r        = [-1, 1]*0.577350269189626 # √3/3
     N(ξ,η)   = [(1-ξ)*(1-η),(1+ξ)*(1-η),(1+ξ)*(1+η),(1-ξ)*(1+η)]/4
 
-    Nx  = Array{Array{T,1},2}(undef,2,2)
-    Ny  = Array{Array{T,1},2}(undef,2,2)
-    wgt = Array{T,2}(undef,2,2)
+    Nx  = Array{Array{Float64,1},2}(undef,2,2)
+    Ny  = Array{Array{Float64,1},2}(undef,2,2)
+    wgt = Array{Float64,2}(undef,2,2)
     A   = 0
     for (ii, ξ) in enumerate(r), (jj, η) in enumerate(r)
       N0  = N(adiff.D2([ξ,η])...)
@@ -221,8 +221,8 @@ function Tet10(nodes::Vector{<:Integer},
   C3D(nodes,Nx,Ny,Nz,V,mat) 
 end
 function Hex08(nodes::Vector{<:Integer}, 
-               p0::Vector{Vector{T}};
-               mat=Materials.Hooke()) where T<:Number
+               p0::Vector{Vector{T}} where T<:Number;
+               mat=Materials.Hooke())
   (V, Nx, Ny, Nz, wgt) = begin
     r        = [-1, 1]*0.577350269189626 # √3/3
     # N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1+ζ),(1-ξ)*(1-η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1+ζ),
@@ -231,10 +231,10 @@ function Hex08(nodes::Vector{<:Integer},
                 (1+ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),
                 (1-ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1+ζ),
                 (1+ξ)*(1+η)*(1+ζ),(1-ξ)*(1+η)*(1+ζ)]/8
-    Nx  = Array{Array{T,1},3}(undef,2,2,2)
-    Ny  = Array{Array{T,1},3}(undef,2,2,2)
-    Nz  = Array{Array{T,1},3}(undef,2,2,2)
-    wgt = Array{T,3}(undef,2,2,2)
+    Nx  = Array{Array{Float64,1},3}(undef,2,2,2)
+    Ny  = Array{Array{Float64,1},3}(undef,2,2,2)
+    Nz  = Array{Array{Float64,1},3}(undef,2,2,2)
+    wgt = Array{Float64,3}(undef,2,2,2)
     V   = 0
     for (ii, ξ) in enumerate(r), (jj, η) in enumerate(r), (kk, ζ) in enumerate(r)
       N0   = N(adiff.D2([ξ,η,ζ])...)
@@ -273,17 +273,17 @@ function ASTria(nodes::Vector{<:Integer},
   CAS(nodes,N,Nx,Ny,X0,wgt,A,mat) 
 end
 function ASQuad(nodes::Vector{<:Integer},
-                p0::Vector{Vector{T}};
-                mat=Materials.Hooke()) where T<:Number
+                p0::Vector{Vector{T}} where T<:Number;
+                mat=Materials.Hooke())
   (V,N0,Nx,Ny,X0,wgt) = begin
     r        = [-1, 1]*0.577350269189626 # √3/3
     N(ξ,η)   = [(1-ξ)*(1-η),(1+ξ)*(1-η),(1+ξ)*(1+η),(1-ξ)*(1+η)]/4
 
-    N0  = Array{Array{T,1},2}(undef,2,2)
-    Nx  = Array{Array{T,1},2}(undef,2,2)
-    Ny  = Array{Array{T,1},2}(undef,2,2)
-    X0  = Array{T,2}(undef,2,2)
-    wgt = Array{T,2}(undef,2,2)
+    N0  = Array{Array{Float64,1},2}(undef,2,2)
+    Nx  = Array{Array{Float64,1},2}(undef,2,2)
+    Ny  = Array{Array{Float64,1},2}(undef,2,2)
+    X0  = Array{Float64,2}(undef,2,2)
+    wgt = Array{Float64,2}(undef,2,2)
     V   = 0
     for (ii, ξ) in enumerate(r), (jj, η) in enumerate(r)
       Nij = N(adiff.D2([ξ,η])...)
@@ -356,8 +356,8 @@ function QuadP(nodes::Vector{<:Integer},
   C2DP(nodes,N0,Nx,Ny,wgt,A,mat) 
 end
 function Hex08P(nodes::Vector{<:Integer}, 
-               p0::Vector{Vector{T}};
-               mat=Materials.Hooke()) where T<:Number
+               p0::Vector{Vector{T}} where T<:Number;
+               mat=Materials.Hooke())
   (V, N0, Nx, Ny, Nz, wgt) = begin
     r        = [-1, 1]*0.577350269189626 # √3/3
     N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1-ζ),(1+ξ)*(1-η)*(1-ζ),
@@ -365,11 +365,11 @@ function Hex08P(nodes::Vector{<:Integer},
                 (1-ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1+ζ),
                 (1+ξ)*(1+η)*(1+ζ),(1-ξ)*(1+η)*(1+ζ)]/8
 
-    N0  = Array{Array{T,1},3}(undef,2,2,2)
-    Nx  = Array{Array{T,1},3}(undef,2,2,2)
-    Ny  = Array{Array{T,1},3}(undef,2,2,2)
-    Nz  = Array{Array{T,1},3}(undef,2,2,2)
-    wgt = Array{T,3}(undef,2,2,2)
+    N0  = Array{Array{Float64,1},3}(undef,2,2,2)
+    Nx  = Array{Array{Float64,1},3}(undef,2,2,2)
+    Ny  = Array{Array{Float64,1},3}(undef,2,2,2)
+    Nz  = Array{Array{Float64,1},3}(undef,2,2,2)
+    wgt = Array{Float64,3}(undef,2,2,2)
     V   = 0
 
     for (ii, ξ) in enumerate(r), (jj, η) in enumerate(r), (kk, ζ) in enumerate(r)
@@ -432,11 +432,11 @@ function getϕ(elem::Beam, u::Array{<:Number,2})
   end
   return ϕ
 end
-function getϕ(elem::CElems{N,P,M} where {N,M}, u::Array{U,2})  where {U, P}
+function getϕ(elem::T where T<:CElems, u::Array{U,2})  where U #<:adiff.D2
   ϕ = zero(U)
-  F = getF(elem,u)
-  for ii=1:P
-    ϕ += elem.wgt[ii]getϕ(F[ii],elem.mat)
+  for (ii, wgt) in enumerate(elem.wgt)
+    F  = getF(elem,u,ii)
+    ϕ += wgt*getϕ(F,elem.mat)
   end 
   ϕ
 end
@@ -461,43 +461,26 @@ function cross(ϕ, F)
 end
 =#
 # methods for evaluating def. gradient
-function getF(elem::C3DElems{N,P,M} where {N,M}, u::Array{D}) where {P,D}
-  u0, v0, w0 = u[1:3:end],  u[2:3:end],  u[3:3:end]
-  F = fill(Array{D,2}(undef,3,3), P)
-  @inbounds for ii = 1:P
-    Nx, Ny, Nz = elem.Nx[ii], elem.Ny[ii], elem.Nz[ii]
-    F[ii] = [Nx⋅u0 Ny⋅u0 Nz⋅u0;
-             Nx⋅v0 Ny⋅v0 Nz⋅v0;
-             Nx⋅w0 Ny⋅w0 Nz⋅w0 ] + I
-  end
-  F
-end
 function getF(elem::C3DElems, u::Array{N} where N, ii::Int64)
   Nx, Ny, Nz = elem.Nx[ii], elem.Ny[ii], elem.Nz[ii]
-  u0, v0, w0 = u[1:3:end],  u[2:3:end],  u[3:3:end]
-  
-  [Nx⋅u0 Ny⋅u0 Nz⋅u0;
-   Nx⋅v0 Ny⋅v0 Nz⋅v0;
-   Nx⋅w0 Ny⋅w0 Nz⋅w0 ] + I
+
+  [Nx⋅u[1:3:end] Ny⋅u[1:3:end] Nz⋅u[1:3:end];
+   Nx⋅u[2:3:end] Ny⋅u[2:3:end] Nz⋅u[2:3:end];
+   Nx⋅u[3:3:end] Ny⋅u[3:3:end] Nz⋅u[3:3:end] ] + I
 end
-function getF(elem::C2DElems{N,P,M} where {N,M}, u::Array{D}) where {P,D}
-  u0, v0 = u[1:2:end],  u[2:2:end]
-  F = fill(Array{D,2}(undef,2,2), P)
-  @inbounds for ii = 1:P
-    Nx, Ny = elem.Nx[ii], elem.Ny[ii]
-    F[ii]  = [Nx⋅u0 Ny⋅u0;
-              Nx⋅v0 Ny⋅v0] + I
-  end
-  F
+function getF(elem::C2DElems, u::Array{N} where N, ii::Int64) 
+  Nx, Ny = elem.Nx[ii], elem.Ny[ii]
+
+  [Nx⋅u[1:2:end] Ny⋅u[1:2:end];
+   Nx⋅u[2:2:end] Ny⋅u[2:2:end]] + I
 end
-function getF(elem::CAS,   u::Array{D}, ii::Int64)  where D
-  Nx,  Ny   = elem.Nx[ii], elem.Ny[ii]
-  N0,  X0   = elem.N0[ii], elem.X0[ii]
-  u0,  v0   = u[1:2:end],  u[2:2:end] 
-  u0x, u0y  = Nx⋅u0, Ny⋅u0
-  v0x, v0y  = Nx⋅v0, Ny⋅v0
-  w0z       = N0⋅u0/X0
-  my0       = zero(D)
+function getF(elem::CAS,      u::Array{N} where N, ii::Int64) 
+  Nx,  Ny   = elem.Nx[ii],   elem.Ny[ii]
+  N0,  X0   = elem.N0[ii],   elem.X0[ii]
+  u0x, u0y  = Nx⋅u[1:2:end], Ny⋅u[1:2:end]
+  v0x, v0y  = Nx⋅u[2:2:end], Ny⋅u[2:2:end]
+  w0z       = N0⋅u[1:2:end]/X0
+  my0       = zero(u[1])
 
   [u0x  u0y   my0;
    v0x  v0y   my0;

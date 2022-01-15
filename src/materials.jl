@@ -36,7 +36,7 @@ end
 struct NeoHooke{T}
   C1   ::T 
   K    ::T
-  NeoHooke(C1::T)       where T<:Number = new{T}(C1, T(NaN))
+  NeoHooke(C1::T)       where T<:Number = new{T}(C1, T(-1))
   NeoHooke(C1::T, K::T) where T<:Number = new{T}(C1, K)
 end
 struct Ogden{T}
@@ -118,7 +118,7 @@ end
 function getϕ(I1, I2, I3, mat::NeoHooke)
 
   C1, K  = mat.C1, mat.K
-  if isnan(K) 
+  if K<0 
     ϕ  = C1*(I1-3)
   else
     J  = sqrt(I3)

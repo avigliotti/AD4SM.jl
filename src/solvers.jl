@@ -22,29 +22,50 @@ ConstEq(func, iDoFs) = ConstEq(func, iDoFs, adiff.D2)
 #
 #
 # elastic energy evaluation functions for models (Array of elements)
-function getϕ(elems::Array, u; T=Threads.nthreads())
-
-  nDoFs  = length(u)
+function getϕ(elems::Vector{<:Elements.CElems{N,P,M}} where {N,M}, 
+              u::Array{T,2}) where {P,T}
   nElems = length(elems)
-  indxes = LinearIndices(u)
+  nDoFs  = size(u,1)
+  N      = P*nDoFs
+  M      = (N+1)N÷2
 
-  Φ = zeros(size(elems))
-  r = zeros(nDoFs)
-  C = [spzeros(nDoFs, nDoFs) for ii = 1:T]
-  Threads.@threads for kk = 1:T
-    for ii = kk:T:nElems
-      elem           =  elems[ii]
-      nodes          =  elem.nodes
-      iDoFs          =  indxes[:,nodes][:]
-      ϕ              =  Elements.getϕ(elem, adiff.D2(u[:,nodes]))
-      Φ[ii]          =  adiff.val(ϕ)
-      r[iDoFs]       += adiff.grad(ϕ)
-      C[kk][iDoFs,iDoFs] += adiff.hess(ϕ)
-    end
+  Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
+  Threads.@threads for ii=1:nElems
+    Φ[ii] = Elements.getϕ(elems[ii], adiff.D2(u[:,elems[ii].nodes]))
+  end
+  makeϕrKt(Φ, elems, u)
+end 
+function makeϕrKt(Φ::Array{adiff.D2{N,M,T}, 1} where {N,M}, elems, u) where T
+  N  = length(u) 
+  Nt = 0
+  for ϕ in Φ
+    Nt += length(ϕ.g.v)*length(ϕ.g.v)
   end
 
-  (Φ, r, sum(C))
-end 
+  I  = zeros(T, Nt)
+  J  = zeros(T, Nt)  
+  Kt = zeros(T, Nt)  
+  r  = zeros(T, N)
+  ϕ  = 0
+  indxs  = LinearIndices(u)
+
+  N1 = 1
+  for (ii,elem) in enumerate(elems)    
+    idxii     = indxs[:, elem.nodes][:]    
+    ϕ        += adiff.val(Φ[ii]) 
+    r[idxii] += adiff.grad(Φ[ii]) 
+    nii       = length(idxii)
+    Nii       = nii*nii
+    oneii     = ones(nii)
+    idd       = N1:N1+Nii-1
+    I[idd]    = idxii * transpose(oneii)
+    J[idd]    = oneii * transpose(idxii)
+    Kt[idd]   = adiff.hess(Φ[ii])
+    N1       += Nii
+  end
+
+  ϕ, r, sparse(I,J,Kt,N,N)
+end
 function getϕ(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64})
 
   nEqs   = length(eqns)

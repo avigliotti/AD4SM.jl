@@ -15,8 +15,6 @@ export adiff, Materials, Elements, Solvers
 VER = "0.0.2"
 export VER
 
-# using .adiff, .Materials, .Elements 
-using .adiff, .Materials, .Elements 
 
 
 end # module
