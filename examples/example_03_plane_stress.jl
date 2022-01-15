@@ -6,7 +6,7 @@ using PyCall, PyPlot, JLD, ProgressMeter
 
 using AD4SM
 
-@show Elements.setp(4)
+# @show Elements.setp(4)
 ;
 
 # this function is the constraint equation for the internal holes
