@@ -65,18 +65,18 @@ for (ii,LF) in enumerate(LF)
   @printf("doing step %3i/%i, LF = %.4f, w0 = %.3f", 
           ii, nSteps, LF, w0); flush(stdout)
 
-  eqns  = [Elements.ConstEq(x->sum(x),          idxes[1,id_t][:], adiff.D1),
-           Elements.ConstEq(x->sum(x),          idxes[2,id_t][:], adiff.D1),
-           Elements.ConstEq(x->sum(x)/n_t-w0/2, idxes[3,id_t][:], adiff.D1),
-           Elements.ConstEq(x->sum(x),          idxes[1,id_b][:], adiff.D1),
-           Elements.ConstEq(x->sum(x),          idxes[2,id_b][:], adiff.D1),
-           Elements.ConstEq(x->sum(x)/n_b+w0/2, idxes[3,id_b][:], adiff.D1) ]
+  eqns  = [Solverss.ConstEq(x->sum(x),          idxes[1,id_t][:], adiff.D1),
+           Solverss.ConstEq(x->sum(x),          idxes[2,id_t][:], adiff.D1),
+           Solverss.ConstEq(x->sum(x)/n_t-w0/2, idxes[3,id_t][:], adiff.D1),
+           Solverss.ConstEq(x->sum(x),          idxes[1,id_b][:], adiff.D1),
+           Solverss.ConstEq(x->sum(x),          idxes[2,id_b][:], adiff.D1),
+           Solverss.ConstEq(x->sum(x)/n_b+w0/2, idxes[3,id_b][:], adiff.D1) ]
 
   lastu = copy(unew)
   lastλ = copy(λnew)
   fnew  = zeros(3, nNodes)
   T     = @elapsed (bfailed, normr, iter) = 
-  Elements.solvestep!(elems, lastu, unew, ifree, 
+  Solvers.solvestep!(elems, lastu, unew, ifree, 
                       eqns      = eqns,
                       λ         = λnew,
                       fe        = fnew, 

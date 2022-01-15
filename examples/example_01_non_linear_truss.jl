@@ -186,14 +186,14 @@ idxx      = LinearIndices(u0)
 
 ifree[:,end] .= false
 
-eqns_top = [Elements.ConstEq(x-> [0, sin(x[4]), cos(x[4])]⋅(nodes[ii]+x[1:3])-maxz, 
+eqns_top = [Solverss.ConstEq(x-> [0, sin(x[4]), cos(x[4])]⋅(nodes[ii]+x[1:3])-maxz, 
     vcat(idxx[:,ii],idxx[1,end])) for ii in idtop]
-eqns_btm = [Elements.ConstEq(x-> [0, sin(-x[4]), cos(-x[4])]⋅(nodes[ii]+x[1:3])-minz, 
+eqns_btm = [Solverss.ConstEq(x-> [0, sin(-x[4]), cos(-x[4])]⋅(nodes[ii]+x[1:3])-minz, 
     vcat(idxx[:,ii],idxx[1,end])) for ii in idbtm]
 eqns = vcat(eqns_top, eqns_btm)
 ;
 
-Elements.solvestep!(elems, copy(u0), u0, ifree, λ=λ, eqns=eqns, dTol=1e-6, becho=true)
+Solvers.solvestep!(elems, copy(u0), u0, ifree, λ=λ, eqns=eqns, dTol=1e-6, becho=true)
 ;
 
 nNodes    = length(nodes)
@@ -204,9 +204,9 @@ idxx      = LinearIndices(unew)
 
 ifree[:,end] .= false
 
-eqns_top = [Elements.ConstEq(x-> [0, sin(x[4]), cos(x[4])]⋅(nodes[ii]+x[1:3])-maxz, 
+eqns_top = [Solverss.ConstEq(x-> [0, sin(x[4]), cos(x[4])]⋅(nodes[ii]+x[1:3])-maxz, 
     vcat(idxx[:,ii],idxx[1,end])) for ii in idtop]
-eqns_btm = [Elements.ConstEq(x-> [0, sin(-x[4]), cos(-x[4])]⋅(nodes[ii]+x[1:3])-minz, 
+eqns_btm = [Solverss.ConstEq(x-> [0, sin(-x[4]), cos(-x[4])]⋅(nodes[ii]+x[1:3])-minz, 
     vcat(idxx[:,ii],idxx[1,end])) for ii in idbtm]
 eqns = vcat(eqns_top, eqns_btm)
 
@@ -219,7 +219,7 @@ for (ii,θ) in enumerate(θ)
   
   # solve the current step
   tic = Base.time_ns()
-  (bfailed, normr, iter) = Elements.solvestep!(elems, uold, unew, ifree, λ=λ, eqns=eqns, 
+  (bfailed, normr, iter) = Solvers.solvestep!(elems, uold, unew, ifree, λ=λ, eqns=eqns, 
                                                 dTol=1e-6, becho=false, bpredict=false)
   toc = Int64(Base.time_ns()-tic)/1e9
   
@@ -272,9 +272,9 @@ unew_2    = zeros(3, nnodes_2+1)                     # initial values for the no
 ifree     = trues(3, nnodes_2+1)                     # there are no prescribed DoFs 
 idxx      = LinearIndices(unew_2)
 
-eqns_top = [Elements.ConstEq(x-> [0, sin(x[4]), cos(x[4])]⋅(nodes_2[ii]+x[1:3])-maxz, 
+eqns_top = [Solverss.ConstEq(x-> [0, sin(x[4]), cos(x[4])]⋅(nodes_2[ii]+x[1:3])-maxz, 
     vcat(idxx[:,ii],idxx[1,end])) for ii in idtop]
-eqns_btm = [Elements.ConstEq(x-> [0, sin(-x[4]), cos(-x[4])]⋅(nodes_2[ii]+x[1:3])-minz, 
+eqns_btm = [Solverss.ConstEq(x-> [0, sin(-x[4]), cos(-x[4])]⋅(nodes_2[ii]+x[1:3])-minz, 
     vcat(idxx[:,ii],idxx[1,end])) for ii in idbtm]
 eqns = vcat(eqns_top, eqns_btm)
 ;
@@ -289,7 +289,7 @@ for (ii, θ) in enumerate(θ)
   
   # solve the current step
   tic = Base.time_ns()
-  (bfailed, normr, iter) = Elements.solvestep!(elems_2, uold_2, unew_2, ifree, λ=λ, eqns=eqns, 
+  (bfailed, normr, iter) = Solvers.solvestep!(elems_2, uold_2, unew_2, ifree, λ=λ, eqns=eqns, 
                                                 dTol=1e-6, becho=false, bpredict=false)
 
   toc = Int64(Base.time_ns()-tic)/1e9

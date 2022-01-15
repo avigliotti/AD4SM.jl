@@ -155,7 +155,7 @@ u0[2,id_top] .= 0
 
 ;
 
-@time Elements.solvestep!(elems, u0, bifree, 
+@time Solvers.solvestep!(elems, u0, bifree, 
   bprogress=true, becho=false, dTol=dTol)
 ;
 
@@ -163,7 +163,7 @@ u            = copy(u0)
 u[:,id_btm] .= 0
 u[2,id_top] .= -Δu
 
-allus_e = Elements.solve(elems, u, ifree=bifree, LF=range(1/10N, 1, length=N),
+allus_e = Solvers.solve(elems, u, ifree=bifree, LF=range(1/10N, 1, length=N),
                      becho=true, bechoi=false, ballus=ballus, bprogress=false,
                      dTolu=1e-6, dTole=1e-2, maxiter=15)
 ;
@@ -187,10 +187,10 @@ eqns = vcat(
   [begin
       id_bnd_ii = id_srtd[idx]
       idx_ii = idxu[:, id_bnd_ii][:]
-      Elements.ConstEq(x->get_vol(pos0[:,idx][:]+x[1:end-1])-x[end], 
+      Solverss.ConstEq(x->get_vol(pos0[:,idx][:]+x[1:end-1])-x[end], 
                         vcat(idx_ii, nDoFsu+ii), adiff.D2)
       end for (ii,idx) in enumerate(id_eqs_DoFs)] ...,
-  Elements.ConstEq(x->sum(x)-V0, nDoFsu+1:nDoFsu+nGropus, adiff.D2))
+  Solverss.ConstEq(x->sum(x)-V0, nDoFsu+1:nDoFsu+nGropus, adiff.D2))
 @show nEqns = length(eqns)
 ;
 
@@ -212,7 +212,7 @@ u0[:,id_btm]     .= 0
 u0[2,id_top]     .= 0
 ;
 
-@time Elements.solvestep!(elems, 
+@time Solvers.solvestep!(elems, 
         u0, bifree, λ=λ, bprogress=true, becho=false, 
         dTolu=1e-5, dTole=1e-3, eqns=eqns)
 ;
@@ -221,7 +221,7 @@ u           = copy(u0)
 u[:,id_btm] .= 0
 u[2,id_top] .= -Δu
 
-allus_d = Elements.solve(elems, u, ifree=bifree, λ=λ, eqns=eqns, LF=range(0, 1, length=200),
+allus_d = Solvers.solve(elems, u, ifree=bifree, λ=λ, eqns=eqns, LF=range(0, 1, length=200),
                      becho=true, bechoi=false, ballus=ballus, bprogress=false,
                      dTolu=1e-5, dTole=5e-2, maxiter=11)
 ;

@@ -519,7 +519,7 @@ getI3(elem,u)    = sum([elem.wgt[ii]getI3(elem,u,ii) for ii in 1:length(elem.wgt
 #
 function getinfo(elem::Elems, u::Array{<:Number,2}; info=:detF)
   M = length(elem.Nx)
-  F = sum([getF(elem, u, ii) for ii in 1:M])/M
+  F = sum(getF(elem, u))/M
   Materials.getinfo(F, elem.mat, info=info)
 end
 getinfo(elems::Array, u; info=:detF) =  [getinfo(elem, u[:,elem.nodes], info=info) for elem in elems]

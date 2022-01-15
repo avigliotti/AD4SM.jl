@@ -11,9 +11,9 @@ using AD4SM
 
 # this function is the constraint equation for the internal holes
 function cnst_func(u,ucntr,r0,cntr0,Rsq) 
-    r    = r0+u
-    cntr = cntr0+ucntr
-    sum((r-cntr).^2)-Rsq
+  r    = r0+u
+  cntr = cntr0+ucntr
+  sum((r-cntr).^2)-Rsq
 end
 # this function find the centre of the constrained holes in the reference configuration
 function find_centre(nodes; dTol = 1e-12, maxiter=21)
@@ -37,7 +37,7 @@ function find_centre(nodes; dTol = 1e-12, maxiter=21)
   Rsquares = adiff.val.(deltas) 
   return (c0, Rsquares)
 end
-    
+
 # some plotting functions
 patch = pyimport("matplotlib.patches")
 coll  = pyimport("matplotlib.collections")  
@@ -83,15 +83,15 @@ function plot_model(elems, nodes;
   return (cfig, ax, patchcoll)
 end
 function get_I1(elems, u0)
-      
-    nElems = length(elems)
-    F      = Elements.getinfo(elems,u0,info=:F)
-    J      = [det(F)                       for F  in F]
-    C      = [transpose(F)*F               for F  in F]
-    L3     = [(C[1]C[4]-C[2]C[3])^-1       for C  in C]
-    Ic     = [Materials.getInvariants(C[ii], L3[ii]) for ii in 1:nElems] 
 
-    I1     = [item[1] for item in Ic]
+  nElems = length(elems)
+  F      = Elements.getinfo(elems,u0,info=:F)
+  J      = [det(F)                       for F  in F]
+  C      = [transpose(F)*F               for F  in F]
+  L3     = [(C[1]C[4]-C[2]C[3])^-1       for C  in C]
+  Ic     = [Materials.getInvariants(C[ii], L3[ii]) for ii in 1:nElems] 
+
+  I1     = [item[1] for item in Ic]
 end 
 ;
 
@@ -115,21 +115,20 @@ mymodel   = AbaqusReader.abaqus_read_mesh(sMeshFile)
 nodes    = [mymodel["nodes"][ii]    for ii ∈ 1:length(mymodel["nodes"])]
 el_nodes = [mymodel["elements"][ii] for ii ∈ 1:length(mymodel["elements"])]
 
-elems = []
-for item ∈ el_nodes
-if length(item)==3
-  push!(elems, Elements.Tria(item, nodes[item], mat=mat))
-elseif length(item)==4
-  push!(elems, Elements.Quad(item, nodes[item], mat=mat))
-end
-end    
+elems = [
+  if length(item)==3
+    Elements.Tria(item, nodes[item], mat=mat)
+  elseif length(item)==4
+    Elements.Quad(item, nodes[item], mat=mat)
+  end for item ∈ el_nodes ]
+
 
 points   = hcat(nodes...)
 cells    = [if length(nodes)==3
-            MeshCell(VTKCellTypes.VTK_TRIANGLE, nodes)
-          else length(nodes)==4
-            MeshCell(VTKCellTypes.VTK_QUAD, nodes)
-          end  for nodes in el_nodes ]
+              MeshCell(VTKCellTypes.VTK_TRIANGLE, nodes)
+            else length(nodes)==4
+              MeshCell(VTKCellTypes.VTK_QUAD, nodes)
+            end  for nodes in el_nodes ]
 
 @show nNodes, nElems  = length(nodes), length(el_nodes)
 @show Δx, Δy          = (xmax-xmin), (ymax-ymin)
@@ -150,8 +149,8 @@ nid_sh08 = mymodel["node_sets"]["ID_SH08"]
 nid_sh09 = mymodel["node_sets"]["ID_SH09"]
 
 nid_shx  = [nid_sh01, nid_sh02, nid_sh03,
-          nid_sh04, nid_sh05, nid_sh06,
-          nid_sh07, nid_sh08, nid_sh09]
+            nid_sh04, nid_sh05, nid_sh06,
+            nid_sh07, nid_sh08, nid_sh09]
 nSHs     = length(nid_shx)
 
 nid_lh01 = mymodel["node_sets"]["ID_LH01"]
@@ -172,10 +171,10 @@ nid_lh15 = mymodel["node_sets"]["ID_LH15"]
 nid_lh16 = mymodel["node_sets"]["ID_LH16"]
 
 nid_lhx  = [nid_lh01, nid_lh02, nid_lh03,
-          nid_lh04, nid_lh05, nid_lh06,
-          nid_lh07, nid_lh08, nid_lh09, nid_lh10,
-          nid_lh11, nid_lh12, nid_lh13,
-          nid_lh14, nid_lh15, nid_lh16]
+            nid_lh04, nid_lh05, nid_lh06,
+            nid_lh07, nid_lh08, nid_lh09, nid_lh10,
+            nid_lh11, nid_lh12, nid_lh13,
+            nid_lh14, nid_lh15, nid_lh16]
 nLHs     = length(nid_lhx)
 
 cntrs_s = [find_centre(nodes[idx]) for idx in nid_shx]
@@ -188,30 +187,30 @@ PyPlot.title("undeformed model")
 ;
 
 idxs  = LinearIndices(((2, nNodes+nSHs+nLHs)))
-eqns  = Array{Elements.ConstEq}(undef, 0)
+eqns  = Array{Solvers.ConstEq}(undef, 0)
 if bsheqs
-    eqns  = vcat(eqns,
-                 [ [ begin
-                      r0      = nodes[nid]
-                      cntr0   = nodes[nNodes+ii]
-                      Rsq     = cntrs_s[ii][2][jj]
-                      id_dofs = vcat(idxs[:,nid][:],idxs[:,nNodes+ii][:])
-                      Elements.ConstEq(x->cnst_func(x[1:2],x[3:4],r0,cntr0,Rsq), 
-                                       id_dofs,adiff.D2) 
-                    end  for (jj,nid) in enumerate(nid_ii)] 
-                  for (ii,nid_ii) in enumerate(nid_shx)]...)
+  eqns  = vcat(eqns,
+               [ [ begin
+                    r0      = nodes[nid]
+                    cntr0   = nodes[nNodes+ii]
+                    Rsq     = cntrs_s[ii][2][jj]
+                    id_dofs = vcat(idxs[:,nid][:],idxs[:,nNodes+ii][:])
+                    Solvers.ConstEq(x->cnst_func(x[1:2],x[3:4],r0,cntr0,Rsq), 
+                                    id_dofs,adiff.D2) 
+                  end  for (jj,nid) in enumerate(nid_ii)] 
+                for (ii,nid_ii) in enumerate(nid_shx)]...)
 end
 if blheqs
-    eqns = vcat(eqns,
-                [ [ begin
-                     r0      = nodes[nid]
-                     cntr0   = nodes[nNodes+nSHs+ii]
-                     Rsq     = cntrs_l[ii][2][jj]
-                     id_dofs = vcat(idxs[:,nid][:],idxs[:,nNodes+nSHs+ii][:])
-                     Elements.ConstEq(x->cnst_func(x[1:2],x[3:4],r0,cntr0,Rsq), 
-                                      id_dofs,adiff.D2) 
-                   end  for (jj,nid) in enumerate(nid_ii)] 
-                 for (ii,nid_ii) in enumerate(nid_lhx)]... )
+  eqns = vcat(eqns,
+              [ [ begin
+                   r0      = nodes[nid]
+                   cntr0   = nodes[nNodes+nSHs+ii]
+                   Rsq     = cntrs_l[ii][2][jj]
+                   id_dofs = vcat(idxs[:,nid][:],idxs[:,nNodes+nSHs+ii][:])
+                   Solvers.ConstEq(x->cnst_func(x[1:2],x[3:4],r0,cntr0,Rsq), 
+                                   id_dofs,adiff.D2) 
+                 end  for (jj,nid) in enumerate(nid_ii)] 
+               for (ii,nid_ii) in enumerate(nid_lhx)]... )
 end
 ;
 
@@ -224,8 +223,8 @@ if !bsheqs u[:,nNodes+1:nNodes+nSHs] .= NaN; end
 if !blheqs u[:,nNodes+nSHs+1:end]    .= NaN; end
 
 if !bfside
-    u[1,nid_bndl] .= 0 
-    u[1,nid_bndr] .= 0 
+  u[1,nid_bndl] .= 0 
+  u[1,nid_bndr] .= 0 
 end
 
 ifree     = isnan.(u)
@@ -235,8 +234,8 @@ icnst     = .!ifree
 u0         = 1e-4Δx*randn(2, nNodes+nSHs+nLHs)
 u0[icnst] .= 0
 unew       = copy(u0)
-@time Elements.solvestep!(elems, u0, unew, ifree, eqns=eqns, λ = zeros(length(eqns)),
-                          bprogress=false, becho=true)
+@time Solvers.solvestep!(elems, u0, unew, ifree, eqns=eqns, λ = zeros(length(eqns)),
+                         bprogress=false, becho=true)
 u[ifree] .= unew[ifree]
 ;
 
@@ -244,8 +243,8 @@ N       = 24
 LF_c    = vcat(range(0.0, 0.9, length=2N÷8),
                range(0.9, 1.0, length=6N÷8))
 
-allus_c = Elements.solve(elems, u, LF=LF_c, ifree=ifree, eqns=eqn,
-                          bprogress=false, becho=true, bechoi=true)
+allus_c = Solvers.solve(elems, u, LF=LF_c, ifree=ifree, eqns=eqns,
+                        bprogress=false, becho=true, bechoi=true)
 ;
 
 rf_tot_c = [sum(item[2][2,nid_bndt])   for item in allus_c]
@@ -258,9 +257,9 @@ cfig = figure()
 ax1   = cfig.add_subplot(2,1,1)
 
 plot_model(elems, nodes, alpha=0.05, 
-  facecolor=:c, edgecolor=:c, cfig=cfig, ax=ax1)
+           facecolor=:c, edgecolor=:c, cfig=cfig, ax=ax1)
 plot_model(elems, nodes, u = allus_c[end][1], 
-  edgecolor=:c, Φ = get_I1(elems, allus_c[end][1]), cfig=cfig, ax=ax1)
+           edgecolor=:c, Φ = get_I1(elems, allus_c[end][1]), cfig=cfig, ax=ax1)
 title("deformed model - compression")
 
 ax2   = cfig.add_subplot(2,1,2)
@@ -281,8 +280,8 @@ if !bsheqs u[:,nNodes+1:nNodes+nSHs] .= NaN; end
 if !blheqs u[:,nNodes+nSHs+1:end]    .= NaN; end
 
 if !bfside
-    u[1,nid_bndl]     .= 0 
-    u[1,nid_bndr]     .= 0 
+  u[1,nid_bndl]     .= 0 
+  u[1,nid_bndr]     .= 0 
 end
 
 ifree     = isnan.(u)
@@ -292,8 +291,8 @@ icnst     = .!ifree
 u0         = 1e-4Δx*randn(2, nNodes+nSHs+nLHs)
 u0[icnst] .= 0
 unew       = copy(u0)
-@time Elements.solvestep!(elems, u0, unew, ifree, eqns=eqns, λ = zeros(length(eqns)),
-                          bprogress=false, becho=true)
+@time Solvers.solvestep!(elems, u0, unew, ifree, eqns=eqns, λ = zeros(length(eqns)),
+                         bprogress=false, becho=true)
 u[ifree] .= unew[ifree]
 ;
 
@@ -301,8 +300,8 @@ N       = 10
 LF_t    = vcat(range(0.0, 0.9, length=2N÷3),
                range(0.9, 1.0, length=N÷3+1))
 println("\n\t starting the tensile branch \n"); flush(stdout)
-allus_t = Elements.solve(elems, u, LF=LF_t, ifree=ifree, eqns=eqns,
-                          bprogress=false, becho=true, bechoi=true)
+allus_t = Solvers.solve(elems, u, LF=LF_t, ifree=ifree, eqns=eqns,
+                        bprogress=false, becho=true, bechoi=true)
 ;
 
 rf_tot_t = [sum(item[2][2,nid_bndt])   for item in allus_t]
@@ -310,18 +309,18 @@ rf_tot_t = [sum(item[2][2,nid_bndt])   for item in allus_t]
 ;
 
 JLD.save(sFileName*".jld",
-            "nodes", nodes, "elems", elems,
-            "points", points, "cells", cells, "mat", mat,
-            "nid_bndl", nid_bndl, "nid_bndr", nid_bndr, 
-            "nid_bndt", nid_bndt, "nid_bndb", nid_bndb, 
-            "allus_t", allus_t, "allus_c", allus_c,          
-            "LF_t", LF_t, "LF_c", LF_c,
-            "rf_tot_t", rf_tot_t, "Δu_tot_t", Δu_tot_t,
-            "rf_tot_c", rf_tot_c, "Δu_tot_c", Δu_tot_c,  
-            "cntrs_s", cntrs_s, "cntrs_l", cntrs_l,
-            "nid_shx", nid_shx, "nid_lhx", nid_lhx,
-            "Δx", Δx, "Δy", Δy, "nNodes", nNodes, "nElems", nElems,
-            "sMeshFile", sMeshFile, "sFileName", sFileName)
+         "nodes", nodes, "elems", elems,
+         "points", points, "cells", cells, "mat", mat,
+         "nid_bndl", nid_bndl, "nid_bndr", nid_bndr, 
+         "nid_bndt", nid_bndt, "nid_bndb", nid_bndb, 
+         "allus_t", allus_t, "allus_c", allus_c,          
+         "LF_t", LF_t, "LF_c", LF_c,
+         "rf_tot_t", rf_tot_t, "Δu_tot_t", Δu_tot_t,
+         "rf_tot_c", rf_tot_c, "Δu_tot_c", Δu_tot_c,  
+         "cntrs_s", cntrs_s, "cntrs_l", cntrs_l,
+         "nid_shx", nid_shx, "nid_lhx", nid_lhx,
+         "Δx", Δx, "Δy", Δy, "nNodes", nNodes, "nElems", nElems,
+         "sMeshFile", sMeshFile, "sFileName", sFileName)
 @printf("results written to %s\n", sFileName); flush(stdout)
 ;
 
@@ -331,9 +330,9 @@ cfig  = figure()
 ax1   = cfig.add_subplot(2,1,1)
 
 plot_model(elems, nodes, alpha=0.05, 
-  facecolor=:c, edgecolor=:c, cfig=cfig, ax=ax1)
+           facecolor=:c, edgecolor=:c, cfig=cfig, ax=ax1)
 plot_model(elems, nodes, u = allus_t[end][1], 
-  edgecolor=:c, Φ = get_I1(elems, allus_t[end][1]), cfig=cfig, ax=ax1)
+           edgecolor=:c, Φ = get_I1(elems, allus_t[end][1]), cfig=cfig, ax=ax1)
 title("deformed model - tensile")
 
 ax2   = cfig.add_subplot(2,1,2)
