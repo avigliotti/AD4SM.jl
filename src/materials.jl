@@ -30,7 +30,7 @@ struct MooneyRivlin{T}
   C1  ::T
   C2  ::T
   K   ::T
-  MooneyRivlin(C1::T, C2::T)       where T<:Number = new{T}(C1, C2, T(NaN))
+  MooneyRivlin(C1::T, C2::T)       where T<:Number = new{T}(C1, C2, T(-1))
   MooneyRivlin(C1::T, C2::T, K::T) where T<:Number = new{T}(C1, C2, K) 
 end
 struct NeoHooke{T}
@@ -43,7 +43,7 @@ struct Ogden{T}
   α   ::T
   μ   ::T
   K   ::T
-  Ogden(α::T, μ::T)       where T<:Number = new{T}(α, μ, T(NaN)) 
+  Ogden(α::T, μ::T)       where T<:Number = new{T}(α, μ, T(-1)) 
   Ogden(α::T, μ::T, K::T) where T<:Number = new{T}(α, μ, K) 
 end
 Material = Union{Hooke,Hooke1D,Hooke2D,MooneyRivlin,NeoHooke,Ogden} 
@@ -70,7 +70,7 @@ function getϕ(F::Array{N,2}, mat::M) where {N<:Number, M<:HyperEla}
   if length(C) == 9
     (I1,I2,I3) = getInvariants(C)
   else
-    L3 = isnan(mat.K) ? (F[1]F[4]-F[2]F[3])^-2 : 1
+    L3 = mat.K<0 ? (F[1]F[4]-F[2]F[3])^-2 : 1
     (I1,I2,I3) = getInvariants(C, L3)
   end
   getϕ(I1,I2,I3,mat)
@@ -82,7 +82,7 @@ function getϕ(F::Array{N,2}, mat::Ogden) where {N<:Number}
   if length(F) == 9
     C = transpose(F)F
   else
-    F33 = isnan(K) ? 1/(F[1]F[4]-F[2]F[3]) : one(F[1]) 
+    F33 = K<0 ? 1/(F[1]F[4]-F[2]F[3]) : one(F[1]) 
     F3D = fill(zero(F[1]), (3,3))
     F3D[1:2,1:2] = F
     F3D[9] = F33
@@ -91,7 +91,7 @@ function getϕ(F::Array{N,2}, mat::Ogden) where {N<:Number}
 
   λ = sqrt.(svdvals(C))
     
-  if isnan(K)
+  if K<0
     ϕ = μ/α * (sum(λ.^α) - 3)
   else
     J = prod(λ)
@@ -104,7 +104,7 @@ end
 function getϕ(I1, I2, I3, mat::MooneyRivlin)
 
   C1, C2, K = mat.C1, mat.C2, mat.K
-  if isnan(K) 
+  if K<0
     ϕ  = C1*(I1-3) + C2*(I2-3)
   else
     J  = sqrt(I3)
