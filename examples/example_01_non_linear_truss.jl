@@ -186,9 +186,9 @@ idxx      = LinearIndices(u0)
 
 ifree[:,end] .= false
 
-eqns_top = [Solverss.ConstEq(x-> [0, sin(x[4]), cos(x[4])]⋅(nodes[ii]+x[1:3])-maxz, 
+eqns_top = [Solvers.ConstEq(x-> [0, sin(x[4]), cos(x[4])]⋅(nodes[ii]+x[1:3])-maxz, 
     vcat(idxx[:,ii],idxx[1,end])) for ii in idtop]
-eqns_btm = [Solverss.ConstEq(x-> [0, sin(-x[4]), cos(-x[4])]⋅(nodes[ii]+x[1:3])-minz, 
+eqns_btm = [Solvers.ConstEq(x-> [0, sin(-x[4]), cos(-x[4])]⋅(nodes[ii]+x[1:3])-minz, 
     vcat(idxx[:,ii],idxx[1,end])) for ii in idbtm]
 eqns = vcat(eqns_top, eqns_btm)
 ;
@@ -204,9 +204,9 @@ idxx      = LinearIndices(unew)
 
 ifree[:,end] .= false
 
-eqns_top = [Solverss.ConstEq(x-> [0, sin(x[4]), cos(x[4])]⋅(nodes[ii]+x[1:3])-maxz, 
+eqns_top = [Solvers.ConstEq(x-> [0, sin(x[4]), cos(x[4])]⋅(nodes[ii]+x[1:3])-maxz, 
     vcat(idxx[:,ii],idxx[1,end])) for ii in idtop]
-eqns_btm = [Solverss.ConstEq(x-> [0, sin(-x[4]), cos(-x[4])]⋅(nodes[ii]+x[1:3])-minz, 
+eqns_btm = [Solvers.ConstEq(x-> [0, sin(-x[4]), cos(-x[4])]⋅(nodes[ii]+x[1:3])-minz, 
     vcat(idxx[:,ii],idxx[1,end])) for ii in idbtm]
 eqns = vcat(eqns_top, eqns_btm)
 
@@ -272,9 +272,9 @@ unew_2    = zeros(3, nnodes_2+1)                     # initial values for the no
 ifree     = trues(3, nnodes_2+1)                     # there are no prescribed DoFs 
 idxx      = LinearIndices(unew_2)
 
-eqns_top = [Solverss.ConstEq(x-> [0, sin(x[4]), cos(x[4])]⋅(nodes_2[ii]+x[1:3])-maxz, 
+eqns_top = [Solvers.ConstEq(x-> [0, sin(x[4]), cos(x[4])]⋅(nodes_2[ii]+x[1:3])-maxz, 
     vcat(idxx[:,ii],idxx[1,end])) for ii in idtop]
-eqns_btm = [Solverss.ConstEq(x-> [0, sin(-x[4]), cos(-x[4])]⋅(nodes_2[ii]+x[1:3])-minz, 
+eqns_btm = [Solvers.ConstEq(x-> [0, sin(-x[4]), cos(-x[4])]⋅(nodes_2[ii]+x[1:3])-minz, 
     vcat(idxx[:,ii],idxx[1,end])) for ii in idbtm]
 eqns = vcat(eqns_top, eqns_btm)
 ;

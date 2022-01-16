@@ -7,17 +7,18 @@
 # qsub /u1/vian294/METMAT/AutoDiff/rev_paper1/example_3DSpring_r1.jl
 
 using Printf, WriteVTK, AbaqusReader, JLD, Dates, LinearAlgebra
-@everywhere cd("/u1/vian294/METMAT/AutoDiff/rev_paper1")
+# @everywhere cd("/u1/vian294/METMAT/AutoDiff/rev_paper1")
 @show pwd()
 
-@everywhere using AD4SM
+# @everywhere using AD4SM
+using AD4SM
 
-@show Elements.setp(8)
+# @show Elements.setp(8)
 
 mean(x)   = sum(x)/length(x)
 
 sMeshFile = "3DSpringHexaj.inp" 
-mat       = Materials.NeoHooke(10, 1e3)
+mat       = Materials.NeoHooke(10. , 1e3)
 bisinc    = true
 sVTKpath  = "./vtk_files/"
 bVTKall   = true
@@ -65,12 +66,12 @@ for (ii,LF) in enumerate(LF)
   @printf("doing step %3i/%i, LF = %.4f, w0 = %.3f", 
           ii, nSteps, LF, w0); flush(stdout)
 
-  eqns  = [Solverss.ConstEq(x->sum(x),          idxes[1,id_t][:], adiff.D1),
-           Solverss.ConstEq(x->sum(x),          idxes[2,id_t][:], adiff.D1),
-           Solverss.ConstEq(x->sum(x)/n_t-w0/2, idxes[3,id_t][:], adiff.D1),
-           Solverss.ConstEq(x->sum(x),          idxes[1,id_b][:], adiff.D1),
-           Solverss.ConstEq(x->sum(x),          idxes[2,id_b][:], adiff.D1),
-           Solverss.ConstEq(x->sum(x)/n_b+w0/2, idxes[3,id_b][:], adiff.D1) ]
+  eqns  = [Solvers.ConstEq(x->sum(x),          idxes[1,id_t][:], adiff.D1),
+           Solvers.ConstEq(x->sum(x),          idxes[2,id_t][:], adiff.D1),
+           Solvers.ConstEq(x->sum(x)/n_t-w0/2, idxes[3,id_t][:], adiff.D1),
+           Solvers.ConstEq(x->sum(x),          idxes[1,id_b][:], adiff.D1),
+           Solvers.ConstEq(x->sum(x),          idxes[2,id_b][:], adiff.D1),
+           Solvers.ConstEq(x->sum(x)/n_b+w0/2, idxes[3,id_b][:], adiff.D1) ]
 
   lastu = copy(unew)
   lastλ = copy(λnew)

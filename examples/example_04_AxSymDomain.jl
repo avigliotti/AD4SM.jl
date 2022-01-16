@@ -187,10 +187,10 @@ eqns = vcat(
   [begin
       id_bnd_ii = id_srtd[idx]
       idx_ii = idxu[:, id_bnd_ii][:]
-      Solverss.ConstEq(x->get_vol(pos0[:,idx][:]+x[1:end-1])-x[end], 
+      Solvers.ConstEq(x->get_vol(pos0[:,idx][:]+x[1:end-1])-x[end], 
                         vcat(idx_ii, nDoFsu+ii), adiff.D2)
       end for (ii,idx) in enumerate(id_eqs_DoFs)] ...,
-  Solverss.ConstEq(x->sum(x)-V0, nDoFsu+1:nDoFsu+nGropus, adiff.D2))
+  Solvers.ConstEq(x->sum(x)-V0, nDoFsu+1:nDoFsu+nGropus, adiff.D2))
 @show nEqns = length(eqns)
 ;
 
