@@ -7,6 +7,8 @@ using ProgressMeter, Dates#, StatsBase
 # using .adiff, .Materials, .Elements 
 using ..adiff, ..Materials, ..Elements 
 
+import ..Materials.getϕ
+
 p = Int64(nworkers())
 function setp(x)
   global p = Int64(x)
@@ -19,19 +21,116 @@ struct ConstEq
 end
 ConstEq(func, iDoFs) = ConstEq(func, iDoFs, adiff.D2)
 #
-#
-#
+# elastic energy evaluation functions for elements
+function getϕ(elem::Elements.Rod,  u::Matrix{<:Number})
+
+  l   = norm(elem.r0+u[:,2]-u[:,1])
+  F11 = l/elem.l0
+  elem.A*elem.l0*getϕ(F11, elem.mat)    
+
+end
+function getϕ(elem::Elements.Beam, u::Matrix{<:Number})
+
+  L, r0, t, w = elem.L, elem.r0, elem.t, elem.w
+  T    = [r0[1] r0[2]; -r0[2] r0[1]]
+  u0   = vcat(T*u[1:2,1], u[3,1], T*u[1:2,2], u[3,2])
+  u0_x = (u0[4]-u0[1])/L
+
+  ϕ  = 0
+  for (r,wr) in elem.lgwx
+    x, dx     = r*L, wr*L
+
+    v0_x  = (-6x/L^2 + 6x^2/L^3)u0[2] +
+    (1 - 4x/L + 3x^2/L^2)u0[3] +
+    (6x/L^2 - 6x^2/L^3)u0[5] +
+    (-2x/L + 3x^2/L^2)u0[6]
+
+    v0_xx = (-6/L^2 + 12x/L^3)u0[2] + 
+    (-4/L + 6x/L^2)u0[3] + 
+    (6/L^2 - 12x/L^3)u0[5] + 
+    (-2/L + 6x/L^2)u0[6]
+
+    for (s,ws) in elem.lgwy
+      y, dy  = s*elem.t, ws*elem.t
+
+      dV   = dx*dy*elem.w
+      C11 = (1+u0_x-v0_xx*y)^2 + v0_x^2
+      ϕ   += getϕ(C11, elem.mat)*dV
+    end
+  end
+  return ϕ
+end
+function getϕ(elem::Elements.CElems{P}, u::Array{U,2})  where {U, P}
+  ϕ = zero(U)
+  for ii=1:P
+    F  = getF(elem,u,ii)
+    ϕ += elem.wgt[ii]getϕ(F,elem.mat)
+  end 
+  ϕ
+end
+getϕu(elem::Elements.C2D, u::Matrix) = getϕ(elem, adiff.D2(u))
+getϕu(elem::Elements.CAS, u::Matrix) = getϕ(elem, adiff.D2(u))
+function getϕu(elem::Elements.C3D{P}, u0::Matrix{T})  where {P,T}
+
+  u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
+  N       = lastindex(u0)  
+  wgt     = elem.wgt
+  val     = zero(T)
+  grad    = zeros(T,N)
+  hess    = zeros(T,(N+1)N÷2)
+  δF      = zeros(T,N,9)
+
+  @inbounds for ii=1:P
+    Nx,Ny,Nz    = elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
+    δF[1:3:N,1] = δF[2:3:N,2] = δF[3:3:N,3] = Nx
+    δF[1:3:N,4] = δF[2:3:N,5] = δF[3:3:N,6] = Ny
+    δF[1:3:N,7] = δF[2:3:N,8] = δF[3:3:N,9] = Nz
+
+    F    = [Nx⋅u Ny⋅u Nz⋅u;
+            Nx⋅v Ny⋅v Nz⋅v;
+            Nx⋅w Ny⋅w Nz⋅w ] + I
+    ϕ    = getϕ(adiff.D2(F), elem.mat)::adiff.D2{9, 45, T}
+    val += wgt[ii]ϕ.v
+    @inbounds for jj=1:9,i1=1:N
+      grad[i1] += wgt[ii]*ϕ.g[jj]*δF[i1,jj]
+      @inbounds  for kk=1:9,i2=1:i1
+        hess[(i1-1)i1÷2+i2] += wgt[ii]*ϕ.h[jj,kk]*δF[i1,jj]*δF[i2,kk]
+      end   
+    end
+  end
+
+  adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
+end
+#=
+function getϕ(elem::T where T<:CElems, u::Matrix{<:Number})
+  M = length(elem.wgt)
+  if isa(u[1], adiff.D2) 
+    ϕ = sum([begin
+               F = getF(elem,u,ii)
+               ϕ = getϕ(adiff.D2(getfield.(F,:v)),elem.mat)
+               elem.wgt[ii]cross(ϕ,F)
+             end  for ii in 1:M])
+  else
+    ϕ = sum([elem.wgt[ii]getϕ(getF(elem,u,ii), elem.mat) for ii in 1:M])
+  end 
+end
+function cross(ϕ, F)
+  N = length(F)
+  g = sum([ϕ.g[ii]F[ii].g for ii in 1:N])
+  h = sum([0.5ϕ.h[ii,jj]*(F[ii].g*F[jj].g+F[jj].g*F[ii].g) for jj=1:N for ii=1:N])
+  adiff.D2(ϕ.v, g, h) 
+end
+=#
 # elastic energy evaluation functions for models (Array of elements)
-function getϕ(elems::Vector{<:Elements.CElems{N,P,M}} where {N,M}, 
-              u::Array{T,2}) where {P,T}
+function getϕ(elems::Vector{<:Elements.CElems}, 
+              u::Array{T,2}) where T
   nElems = length(elems)
-  nDoFs  = size(u,1)
-  N      = P*nDoFs
+  N      = length(u[:,elems[1].nodes])
   M      = (N+1)N÷2
 
   Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
   Threads.@threads for ii=1:nElems
-    Φ[ii] = Elements.getϕ(elems[ii], adiff.D2(u[:,elems[ii].nodes]))
+    Φ[ii] = getϕu(elems[ii], u[:,elems[ii].nodes])
   end
   makeϕrKt(Φ, elems, u)
 end 
@@ -107,6 +206,7 @@ function getϕ(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64}, chun
   end
   (veqs, reqs, Keqs)  
 end
+#=
 function renumber!(nodes, elems)
 
   unodes   = sort(unique(vcat([elem.nodes for elem in elems]...)))
@@ -125,6 +225,7 @@ function renumber!(nodes, elems)
   end
   (nodes, elems)
 end
+=#
 function split(N::Int64, p::Int64)
   n    = Int64(floor(N/p))
   nEls = ones(Int64, p)*n
@@ -133,7 +234,6 @@ function split(N::Int64, p::Int64)
   slice = [ range(sum(nEls[1:ii-1])+1, length=nEls[ii])
            for ii in 1:p]
 end
-
 # solvers 
 function solve(elems, u;
                N          = 11,
@@ -263,8 +363,8 @@ function solvestep!(elems, uold, unew, bfreeu;
       if nEqs == 0
         res              = fi[ifreeu]-fe[ifreeu]
         res[:]         .-= Kt[ifreeu,icnstu]*Δucnst
-        # updt[:]          = Kt[ifreeu,ifreeu]\res
-        updt[:]          = qr(Kt[ifreeu,ifreeu])\res
+        # updt[:]          = qr(Kt[ifreeu,ifreeu])\res
+        updt[:]          = lu(Kt[ifreeu,ifreeu])\res
         unew[ifreeu]    .= uold[ifreeu] .+ updt 
         normupdt         = maximum(abs.(updt))
       else
@@ -277,8 +377,10 @@ function solvestep!(elems, uold, unew, bfreeu;
         H[iius,iius]     = Kt[ifreeu,ifreeu]-KEqs[ifreeu,ifreeu]
         H[iius,iieqs]    = -rEqs[ifreeu,:]
         H[iieqs,iius]    = transpose(H[iius,iieqs])
-        H[iieqs,iieqs]   = spdiagm(0=>dNoise*randn(nEqs))
-        updt[:]          = qr(H)\res
+        # H[iieqs,iieqs]   = spdiagm(0=>dNoise*randn(nEqs))
+        H               += spdiagm(0=>dNoise*randn(nDoFs))
+        # updt[:]          = qr(H)\res
+        updt[:]          = lu(H)\res
         unew[ifreeu]    .= uold[ifreeu] .+ updt[iius]
         λ              .-= updt[iieqs]
         normupdt         = maximum(abs.(updt[iius]))
@@ -316,7 +418,8 @@ function solvestep!(elems, uold, unew, bfreeu;
       fe[:]   = nEqs==0 ? fi[:] : fi[:]-rEqs*λ
     elseif iter < maxiter
       if nEqs == 0
-        updt[:]         = qr(Kt[ifreeu,ifreeu])\res
+        # updt[:]         = qr(Kt[ifreeu,ifreeu])\res
+        updt[:]         = lu(Kt[ifreeu,ifreeu])\res
         normupdt        = maximum(abs.(updt))
         if !isnan(maxupdt)
           if normupdt > maxupdt  
@@ -329,8 +432,11 @@ function solvestep!(elems, uold, unew, bfreeu;
         H[iius,iius]    = Kt[ifreeu,ifreeu]-KEqs[ifreeu,ifreeu]
         H[iius,iieqs]   = -rEqs[ifreeu,:]
         H[iieqs,iius]   = transpose(H[iius,iieqs])
-        H[iieqs,iieqs]  = spdiagm(0=>dNoise*randn(nEqs))
-        updt[:]         = qr(H)\res
+        #H[iieqs,iieqs]  = spdiagm(0=>dNoise*randn(nEqs))
+        H               += spdiagm(0=>dNoise*randn(nDoFs))
+        # updt[:]         = qr(H)\res
+        # updt[:]         = cholesky(Symmetric(H))\res
+        updt[:]         = lu(H)\res
         normupdt        = maximum(abs.(updt[iius]))
         if !isnan(maxupdt)
           if normupdt > maxupdt  
@@ -361,4 +467,5 @@ function solvestep!(elems, uold, unew, bfreeu;
 
   (bfailed, normru, iter)
 end
+
 end

@@ -9,22 +9,25 @@ using ..adiff
 struct Hooke{T}
   E     ::T
   ν     ::T
+  ρ     ::T
   small ::Bool
   # Hooke(E, ν; small=false) = Hooke(promote(E,ν)..., small)
-  Hooke(E::T,ν::T;small=false) where T<:Number = new{T}(E,ν, small)
+  Hooke(E::T,ν::T,ρ=one(T);small=false) where T<:Number = new{T}(E,ν,ρ,small)
 end
 struct Hooke1D{T}
   E     ::T
+  ρ     ::T
   small ::Bool
-  Hooke1D(E::T;small=false) where T<:Number = new{T}(E, small)
+  Hooke1D(E::T,ρ=one(T);small=false) where T<:Number = new{T}(E,ρ,small)
 end
 struct Hooke2D{T,P}
   E     ::T
   ν     ::T
+  ρ     ::T
   small ::Bool
-  Hooke2D(E::T,ν::T; small=true, plane_stress=true) where T<:Number = plane_stress ? 
-  new{T,:plane_stress}(E,ν,small) : 
-  new{T,:plane_strain}(E,ν,small)
+  Hooke2D(E::T,ν::T,ρ=one(T); small=true, plane_stress=true) where T<:Number = plane_stress ? 
+  new{T,:plane_stress}(E,ν,ρ,small) : 
+  new{T,:plane_strain}(E,ν,ρ,small)
 end
 struct MooneyRivlin{T}
   C1  ::T
@@ -175,7 +178,7 @@ function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{T,:plane_stress} wher
   end
 
   ν, Es = mat.ν, mat.E
-  μ = Es/2/(1+ν) 
+  # μ = Es/2/(1+ν) 
 
   (Es/(1-ν^2))*(E[1]^2+E[4]^2+ν*E[1]E[4]) + (Es/(1+ν))*E[2]^2
 end

@@ -47,13 +47,15 @@ D2(v::T)               where T<:Number = D2(v,Grad(one(T)),Grad(zero(T)))
 D1(v::T)               where T<:Number = D1(v,Grad(one(T)))
 D2{N,M,T}(v::Number)   where {N,M,T}   = D2{N,M,T}(T(v),zero(Grad{N,T}),zero(Grad{M,T}))
 D1{N,T}(v::Number)     where {N,T}     = D1{N,T}(T(v),zero(Grad{N,T}))
-D2(v::T, g::Grad{N,T}) where {N,T}     = D2(v,g,zero(Grad{(N+1)N/2,T}))
-D2(x::Array{T})        where T<:Number = begin
+D2(v::T, g::Grad{N,T}) where {N,T}     = D2(v,g,zero(Grad{(N+1)N÷2,T}))
+#D2(x::Array{T})        where T<:Number = begin
+D2(x::AbstractArray{T}) where T<:Number = begin
   N     = length(x)
   grad  = init(Grad{N,T})
-  [D2(x, grad[ii], zero(Grad{(N+1)N/2,T})) for (ii,x) in enumerate(x)]
+  [D2(x, grad[ii], zero(Grad{(N+1)N÷2,T})) for (ii,x) in enumerate(x)]
 end
-D1(x::Array{T})        where T<:Number = begin
+# D1(x::Array{T})        where T<:Number = begin
+D1(x::AbstractArray{T}) where T<:Number = begin
   N     = length(x)
   grad  = init(Grad{N,T})
   [D1(x, grad[ii]) for (ii,x) in enumerate(x)]
@@ -67,7 +69,7 @@ promote_rule(::Type{D2{N,M,T}}, ::Type{<:Real}) where {N,M,T}  = D2{N,M,T}
 promote_rule(::Type{D1{N,T}},   ::Type{<:Real}) where {N,T}    = D1{N,T}
 #
 @inline @propagate_inbounds getindex(x::Grad{N}, I...) where N = x.v[I...]
-@inline @propagate_inbounds getindex(x::Grad{N}, I,J)  where N = ((I>J) && @swap(I,J); x.v[(J-1)J/2+I])
+@inline @propagate_inbounds getindex(x::Grad{N}, I,J)  where N = ((I>J) && @swap(I,J); x.v[(J-1)J÷2+I])
 @inline @generated init(::Type{Grad{N,T}})         where {N,T} = tupfy(j->:(Grad($(tupfy(i->δ(i,j,T),N)))),N)
 @inline @generated +(x::Grad{N,T}, y::Grad{N,T})   where {N,T} = :(Grad{N,T}($(tupfy(i->:(x[$i]+y[$i]),N))))
 @inline @generated -(x::Grad{N,T}, y::Grad{N,T})   where {N,T} = :(Grad{N,T}($(tupfy(i->:(x[$i]-y[$i]),N))))
@@ -92,6 +94,11 @@ promote_rule(::Type{D1{N,T}},   ::Type{<:Real}) where {N,T}    = D1{N,T}
 >(y::Number,x::Duals) = y>x.v
 ≤(y::Number,x::Duals) = y≤x.v
 ≥(y::Number,x::Duals) = y≥x.v
+#
+<(y::Duals,x::Duals)  = y.v<x.v
+>(y::Duals,x::Duals)  = y.v>x.v
+≤(y::Duals,x::Duals)  = y.v≤x.v
+≥(y::Duals,x::Duals)  = y.v≥x.v
 #
 # D1 operators,  this can be improved
 # 
@@ -153,14 +160,6 @@ promote_rule(::Type{D1{N,T}},   ::Type{<:Real}) where {N,T}    = D1{N,T}
 @inline val(x::D2)                           = x.v
 @inline grad(x::D2{N,M,T})  where {N,M,T}    = [x.g[i]   for i in 1:N]
 @inline hess(x::D2{N,M,T})  where {N,M,T}    = [x.h[i,j] for i in 1:N, j in 1:N]
-
-# @inline val(U::Array{D2})   = [u.v for u in U]
-# @inline grad(U::Array{D2})  = [[u.g[ii] for u in U] for ii=1:N]
-# @inline hess(U::Array{D2})  = [[u.h[ii] for u in U] for ii=1:M]
-# 
-# @inline val(A::Symmetric{D2,  Array{D2,2}}) = [u.v for u in A]
-# @inline grad(U::Symmetric{D2, Array{D2,2}}) = [[u.g[ii] for u in U] for ii=1:N]
-# @inline hess(U::Symmetric{D2, Array{D2,2}}) = [[u.h[ii] for u in U] for ii=1:M]
 
 #function svdvals(B::Symmetric{D2{N,M},Array{D2{N,M},2}} where {N,M};
 #                 ϵ=1e-9)

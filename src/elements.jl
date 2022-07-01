@@ -5,98 +5,93 @@ module Elements
 using LinearAlgebra
 
 using ..adiff, ..Materials
-import ..Materials.getϕ
 import Base.copy
 
+export getF
+
 # continous elements 
-struct C1D{N,P,M}
-  nodes::Vector{<:Integer}
-  Nx::NTuple{P,Array{<:Number,1}}
-  wgt::NTuple{P,Number}
-  V::Number
+struct C1D{P,M,T<:Number,I<:Integer}
+  nodes::Vector{I}
+  Nx::NTuple{P,Vector{T}}
+  wgt::NTuple{P,T}
+  V::T
   mat::M
-  C1D(nodes,Nx,wgt,V,mat)=new{length(nodes),length(wgt),typeof(mat)}(nodes,Nx,wgt,V,mat)
 end
-struct C2D{N,P,M}
-  nodes::Vector{<:Integer}
-  Nx::NTuple{P,Array{<:Number,1}}
-  Ny::NTuple{P,Array{<:Number,1}}
-  wgt::NTuple{P,Number}
-  V::Number
+struct C2D{P,M,T<:Number,I<:Integer}
+  nodes::Vector{I}
+  Nx::NTuple{P,Vector{T}}
+  Ny::NTuple{P,Vector{T}}
+  wgt::NTuple{P,T}
+  V::T
   mat::M
-  C2D(nodes,Nx,Ny,wgt,V,mat)=new{length(nodes),length(wgt),typeof(mat)}(nodes,Nx,Ny,wgt,V,mat)
 end
-struct C3D{N,P,M}
-  nodes::Vector{<:Integer}
-  Nx::NTuple{P,Array{<:Number,1}}
-  Ny::NTuple{P,Array{<:Number,1}}
-  Nz::NTuple{P,Array{<:Number,1}}
-  wgt::NTuple{P,Number}
-  V::Number
+struct C3D{P,M,T<:Number,I<:Integer}
+  nodes::Vector{I}
+  Nx::NTuple{P,Vector{T}}
+  Ny::NTuple{P,Vector{T}}
+  Nz::NTuple{P,Vector{T}}
+  wgt::NTuple{P,T}
+  V::T
   mat::M
-  C3D(nodes,Nx,Ny,Nz,wgt,V,mat)=new{length(nodes),length(wgt),typeof(mat)}(nodes,Nx,Ny,Nz,wgt,V,mat)
 end
-struct CAS{N,P,M} 
-  nodes::Vector{<:Integer}
-  N0::NTuple{P,Array{<:Number,1}}
-  Nx::NTuple{P,Array{<:Number,1}}
-  Ny::NTuple{P,Array{<:Number,1}}
-  X0::NTuple{P,Number}
-  wgt::NTuple{P,Number}
-  V::Number
+struct CAS{P,M,T<:Number,I<:Integer}
+  nodes::Vector{I}
+  N0::NTuple{P,Vector{T}}
+  Nx::NTuple{P,Vector{T}}
+  Ny::NTuple{P,Vector{T}}
+  X0::NTuple{P,T}
+  wgt::NTuple{P,T}
+  V::T
   mat::M
-  CAS(nodes,N0,Nx,Ny,X0,wgt,V,mat)=new{length(nodes),length(wgt),typeof(mat)}(nodes,N0,Nx,Ny,X0,wgt,V,mat)
 end
 # continous elements with phase
-struct C2DP{N,P,M}
-  nodes::Vector{<:Integer}
-  N0::NTuple{P,Array{<:Number,1}}
-  Nx::NTuple{P,Array{<:Number,1}}
-  Ny::NTuple{P,Array{<:Number,1}}
-  wgt::NTuple{P,Number}
-  V::Number
+struct C2DP{P,M,T<:Number,I<:Integer}
+  nodes::Vector{I}
+  N0::NTuple{P,Vector{T}}
+  Nx::NTuple{P,Vector{T}}
+  Ny::NTuple{P,Vector{T}}
+  wgt::NTuple{P,T}
+  V::T
   mat::M
-  C2DP(nodes,N0,Nx,Ny,wgt,V,mat)=new{length(nodes),length(wgt),typeof(mat)}(nodes,N0,Nx,Ny,wgt,V,mat)
 end
-struct C3DP{N,P,M}
-  nodes::Vector{<:Integer}
-  N0::NTuple{P,Array{<:Number,1}}
-  Nx::NTuple{P,Array{<:Number,1}}
-  Ny::NTuple{P,Array{<:Number,1}}
-  Nz::NTuple{P,Array{<:Number,1}}
-  wgt::NTuple{P,Number}
-  V::Number
+struct C3DP{P,M,T<:Number,I<:Integer}
+  nodes::Vector{I}
+  N0::NTuple{P,Vector{T}}
+  Nx::NTuple{P,Vector{T}}
+  Ny::NTuple{P,Vector{T}}
+  Nz::NTuple{P,Vector{T}}
+  wgt::NTuple{P,T}
+  V::T
   mat::M
-  C3DP(nodes,N0,Nx,Ny,Nz,wgt,V,mat)=new{length(nodes),length(wgt),typeof(mat)}(nodes,N0,Nx,Ny,Nz,wgt,V,mat)
 end
 #  structural elements
-struct Rod
-  nodes::Vector{<:Integer}         # node id
-  r0::Array{<:Number}          # 
-  l0::Number
-  A::Number                  # area 
-  mat::Materials.Material     # material properties
+struct Rod{M,T<:Number,I<:Integer}
+  nodes::Vector{I}
+  r0::Vector{T}
+  l0::T
+  A::T
+  mat::M
 end
-struct Beam
-  nodes::Vector{<:Integer}
-  r0::Array{<:Number,1}
-  L::Number
-  t::Number
-  w::Number
-  lgwx::Array{Tuple{Number,Number},1}
-  lgwy::Array{Tuple{Number,Number},1}
-  mat::Materials.Material
+struct Beam{M,T<:Number,I<:Integer}
+  nodes::Vector{I}
+  r0::Vector{T}
+  L::T
+  t::T
+  w::T
+  lgwx::Array{Tuple{T,T},1}
+  lgwy::Array{Tuple{T,T},1}
+  mat::M
 end
-Elems           = Union{Rod, Beam, C2D, C3D, CAS}
-CElems{N,P,M}   = Union{C2D{N,P,M}, C3D{N,P,M}, CAS{N,P,M}, C2DP{N,P,M}, C3DP{N,P,M}}
-CartEls{N,P,M}  = Union{C2D{N,P,M}, C3D{N,P,M}, C3DP{N,P,M}, C2DP{N,P,M}}
-C2DElems{N,P,M} = Union{C2D{N,P,M}, C2DP{N,P,M}}
-C3DElems{N,P,M} = Union{C3D{N,P,M}, C3DP{N,P,M}}
-CPElems{N,P,M}  = Union{C2DP{N,P,M}, C3DP{N,P,M}}
+Elems             = Union{Rod, Beam, C2D, C3D, CAS}
+CElems{P,M,T,I}   = Union{C2D{P,M,T,I}, C3D{P,M,T,I}, 
+                          CAS{P,M,T,I}, C2DP{P,M,T,I}, C3DP{P,M,T,I}}
+CartEls{P,M,T,I}  = Union{C2D{P,M,T,I}, C3D{P,M,T,I}, C3DP{P,M,T,I}, C2DP{P,M,T,I}}
+C2DElems{P,M,T,I} = Union{C2D{P,M,T,I}, C2DP{P,M,T,I}}
+C3DElems{P,M,T,I} = Union{C3D{P,M,T,I}, C3DP{P,M,T,I}}
+CPElems{P,M,T,I}  = Union{C2DP{P,M,T,I}, C3DP{P,M,T,I}}
 # parameters retriving functions 
-getN(::CElems{N,P,M}) where {N,P,M} = N
-getP(::CElems{N,P,M}) where {N,P,M} = P
-getM(::CElems{N,P,M}) where {N,P,M} = M
+getP(::CElems{P,M,T,I}) where {P,M,T,I} = P
+getM(::CElems{P,M,T,I}) where {P,M,T,I} = M
 # constructors
 function Rod(nodes, p0, A; mat=Materials.Hooke()) 
 
@@ -144,36 +139,35 @@ function Tria(nodes::Vector{<:Integer},
 end
 function Quad(nodes::Vector{<:Integer}, 
               p0::Vector{Vector{T}};
+              GP=((T(-0.577350269189626), one(T)), 
+                  (T(0.577350269189626), one(T))), # √3/3
               mat=Materials.Hooke()) where T<:Number
 
-  (A,Nx,Ny,wgt) = begin 
-    r        = [-1, 1]*0.577350269189626 # √3/3
-    N(ξ,η)   = [(1-ξ)*(1-η),(1+ξ)*(1-η),(1+ξ)*(1+η),(1-ξ)*(1+η)]/4
+  # r        = [-1, 1]*0.577350269189626 # √3/3
+  N(ξ,η)   = [(1-ξ)*(1-η),(1+ξ)*(1-η),(1+ξ)*(1+η),(1-ξ)*(1+η)]/4
 
-    Nx  = Array{Array{T,1},2}(undef,2,2)
-    Ny  = Array{Array{T,1},2}(undef,2,2)
-    wgt = Array{T,2}(undef,2,2)
-    A   = 0
-    for (ii, ξ) in enumerate(r), (jj, η) in enumerate(r)
-      N0  = N(adiff.D2([ξ,η])...)
-      p   = sum([N0[ii]p0[ii] for ii in 1:4])
-      J   = [p[ii].g[jj] for jj in 1:2, ii in 1:2]
-      Nxy = J\hcat(adiff.grad.(N0)...)
+  nGP = length(GP)
+  Nx  = Array{Array{T,1},2}(undef,nGP,nGP)
+  Ny  = Array{Array{T,1},2}(undef,nGP,nGP)
+  wgt = Array{T,2}(undef,nGP,nGP)
+  A   = 0
+  for (ii, (ξ,wξ)) in enumerate(GP),
+    (jj, (η,wη)) in enumerate(GP) 
+    N0  = N(adiff.D2([ξ,η])...)
+    p   = sum([N0[ii]p0[ii] for ii in 1:4])
+    J   = [p[ii].g[jj] for jj in 1:2, ii in 1:2]
+    Nxy = J\hcat(adiff.grad.(N0)...)
 
-      Nx[ii,jj]  = Nxy[1,:]
-      Ny[ii,jj]  = Nxy[2,:]
-      wgt[ii,jj] = detJ(J)
-      # wgt[ii,jj] = abs(detJ(J))    
-      # having the absolute value in front of det J makes irrelevant whether 
-      # the nodes are numbered clockwise or counter-clockwise
+    Nx[ii,jj]  = Nxy[1,:]
+    Ny[ii,jj]  = Nxy[2,:]
+    wgt[ii,jj] = detJ(J)
 
-      A += wgt[ii,jj]
-    end
-    (A,tuple(Nx...),tuple(Ny...),tuple(wgt...))
+    A += wgt[ii,jj]
   end
 
-  C2D(nodes,Nx,Ny,wgt,A,mat) 
+  C2D(nodes,tuple(Nx...),tuple(Ny...),tuple(wgt...),A,mat) 
 end
+QuadR(nodes,p0;mat=Materials.Hooke()) = Quad(nodes,p0,mat=mat,GP=((0.0,1.0),))
 function Tet04(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}} where T<:Number;
                mat=Materials.Hooke())
@@ -222,38 +216,38 @@ function Tet10(nodes::Vector{<:Integer},
 end
 function Hex08(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}};
+               GP=((T(-0.577350269189626), one(T)), (T(0.577350269189626), one(T))), # √3/3
                mat=Materials.Hooke()) where T<:Number
-  (V, Nx, Ny, Nz, wgt) = begin
-    r        = [-1, 1]*0.577350269189626 # √3/3
-    # N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1+ζ),(1-ξ)*(1-η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1+ζ),
-    #             (1+ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1-ζ),(1+ξ)*(1+η)*(1-ζ),(1+ξ)*(1+η)*(1+ζ)]/8
-    N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1-ζ),(1+ξ)*(1-η)*(1-ζ),
-                (1+ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),
-                (1-ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1+ζ),
-                (1+ξ)*(1+η)*(1+ζ),(1-ξ)*(1+η)*(1+ζ)]/8
-    Nx  = Array{Array{T,1},3}(undef,2,2,2)
-    Ny  = Array{Array{T,1},3}(undef,2,2,2)
-    Nz  = Array{Array{T,1},3}(undef,2,2,2)
-    wgt = Array{T,3}(undef,2,2,2)
-    V   = 0
-    for (ii, ξ) in enumerate(r), (jj, η) in enumerate(r), (kk, ζ) in enumerate(r)
-      N0   = N(adiff.D2([ξ,η,ζ])...)
-      p    = sum([N0[ii]p0[ii] for ii in 1:8])
-      J    = [p[ii].g[jj] for jj in 1:3, ii in 1:3]
-      Nxyz = J\hcat(adiff.grad.(N0)...)
 
-      Nx[ii,jj,kk]  = Nxyz[1,:]
-      Ny[ii,jj,kk]  = Nxyz[2,:]
-      Nz[ii,jj,kk]  = Nxyz[3,:]
-      # wgt[ii,jj,kk] = abs(detJ(J))
-      wgt[ii,jj,kk] = detJ(J)
+  N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1-ζ),(1+ξ)*(1-η)*(1-ζ),
+              (1+ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),
+              (1-ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1+ζ),
+              (1+ξ)*(1+η)*(1+ζ),(1-ξ)*(1+η)*(1+ζ)]/8
+  nGP = length(GP)
+  Nx  = Array{Array{T,1},3}(undef,nGP,nGP,nGP)
+  Ny  = Array{Array{T,1},3}(undef,nGP,nGP,nGP)
+  Nz  = Array{Array{T,1},3}(undef,nGP,nGP,nGP)
+  wgt = Array{T,3}(undef,nGP,nGP,nGP)
+  V   = 0
+  for (ii, (ξ,wξ)) in enumerate(GP),
+    (jj, (η,wη)) in enumerate(GP), 
+    (kk, (ζ,wζ)) in enumerate(GP)
 
-      V +=wgt[ii,jj,kk]
-    end
-    (V,tuple(Nx...),tuple(Ny...),tuple(Nz...),tuple(wgt...))
+    N0   = N(adiff.D2([ξ,η,ζ])...)
+    p    = sum([N0[ii]p0[ii] for ii in 1:8])
+    J    = [p[ii].g[jj] for jj in 1:3, ii in 1:3]
+    Nxyz = J\hcat(adiff.grad.(N0)...)
+
+    Nx[ii,jj,kk]  = Nxyz[1,:]
+    Ny[ii,jj,kk]  = Nxyz[2,:]
+    Nz[ii,jj,kk]  = Nxyz[3,:]
+    wgt[ii,jj,kk] = detJ(J)*wξ*wη*wζ
+
+    V +=wgt[ii,jj,kk]
   end
-  C3D(nodes,Nx,Ny,Nz,wgt,V,mat) 
+  C3D(nodes,tuple(Nx...),tuple(Ny...),tuple(Nz...),tuple(wgt...),V,mat) 
 end
+Hex08R(nodes, p0;mat=Materials.Hooke()) = Hex08(nodes, p0, mat=mat, GP=((0.0,1.0),))
 function ASTria(nodes::Vector{<:Integer},
                 p0::Vector{Vector{T}} where T<:Number;
                 mat=Materials.Hooke())
@@ -322,146 +316,77 @@ function TriaP(nodes::Vector{<:Integer},
   C2DP(nodes,N0,Nx,Ny,wgt,A,mat) 
 end
 function QuadP(nodes::Vector{<:Integer}, 
-              p0::Vector{Vector{T}};
-              mat=Materials.Hooke()) where T<:Number
-
-  (A,N0,Nx,Ny,wgt) = begin 
-    r        = [-1, 1]*T(√3/3) #0.577350269189626 # √3/3
-    N(ξ,η)   = [(1-ξ)*(1-η),(1+ξ)*(1-η),(1+ξ)*(1+η),(1-ξ)*(1+η)]/4
-
-    N0  = Array{Array{T,1},2}(undef,2,2)
-    Nx  = Array{Array{T,1},2}(undef,2,2)
-    Ny  = Array{Array{T,1},2}(undef,2,2)
-    wgt = Array{T,2}(undef,2,2)
-    A   = 0
-    for (ii, ξ) in enumerate(r), (jj, η) in enumerate(r)
-      Nij = N(adiff.D2([ξ,η])...)
-      p   = sum([Nij[ii]p0[ii] for ii in 1:4])
-      J   = [p[ii].g[jj] for jj in 1:2, ii in 1:2]
-      Nxy = J\hcat(adiff.grad.(Nij)...)
-
-      N0[ii,jj]  = adiff.val.(Nij)
-      Nx[ii,jj]  = Nxy[1,:]
-      Ny[ii,jj]  = Nxy[2,:]
-      wgt[ii,jj] = detJ(J)
-      # wgt[ii,jj] = abs(detJ(J))    
-      # having the absolute value in front of det J makes irrelevant whether 
-      # the nodes are numbered clockwise or counter-clockwise
-
-      A += wgt[ii,jj]
-    end
-    (A,tuple(N0...),tuple(Nx...),tuple(Ny...),tuple(wgt...))
-  end
-
-  C2DP(nodes,N0,Nx,Ny,wgt,A,mat) 
-end
-function Hex08P(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}};
+               GP=((-0.577350269189626, 1.0), (0.577350269189626, 1.0)), # √3/3
                mat=Materials.Hooke()) where T<:Number
-  (V, N0, Nx, Ny, Nz, wgt) = begin
-    r        = [-1, 1]*0.577350269189626 # √3/3
-    N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1-ζ),(1+ξ)*(1-η)*(1-ζ),
-                (1+ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),
-                (1-ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1+ζ),
-                (1+ξ)*(1+η)*(1+ζ),(1-ξ)*(1+η)*(1+ζ)]/8
+  #r        = [-1, 1]*T(√3/3) #0.577350269189626 # √3/3
+  N(ξ,η)   = [(1-ξ)*(1-η),(1+ξ)*(1-η),(1+ξ)*(1+η),(1-ξ)*(1+η)]/4
 
-    N0  = Array{Array{T,1},3}(undef,2,2,2)
-    Nx  = Array{Array{T,1},3}(undef,2,2,2)
-    Ny  = Array{Array{T,1},3}(undef,2,2,2)
-    Nz  = Array{Array{T,1},3}(undef,2,2,2)
-    wgt = Array{T,3}(undef,2,2,2)
-    V   = 0
+  nGP = length(GP)
+  N0  = Array{Array{T,1},2}(undef,nGP,nGP)
+  Nx  = Array{Array{T,1},2}(undef,nGP,nGP)
+  Ny  = Array{Array{T,1},2}(undef,nGP,nGP)
+  wgt = Array{T,2}(undef,nGP,nGP)
+  A   = 0
+  for (ii, (ξ,wξ)) in enumerate(GP),
+    (jj, (η,wη)) in enumerate(GP) 
+    Nij = N(adiff.D2([ξ,η])...)
+    p   = sum([Nij[ii]p0[ii] for ii in 1:4])
+    J   = [p[ii].g[jj] for jj in 1:2, ii in 1:2]
+    Nxy = J\hcat(adiff.grad.(Nij)...)
 
-    for (ii, ξ) in enumerate(r), (jj, η) in enumerate(r), (kk, ζ) in enumerate(r)
-      Nij  = N(adiff.D2([ξ,η,ζ])...)
-      p    = sum([Nij[ii]p0[ii] for ii in 1:8])
-      J    = [p[ii].g[jj] for jj in 1:3, ii in 1:3]
-      Nxyz = J\hcat(adiff.grad.(Nij)...)
+    N0[ii,jj]  = adiff.val.(Nij)
+    Nx[ii,jj]  = Nxy[1,:]
+    Ny[ii,jj]  = Nxy[2,:]
+    wgt[ii,jj] = detJ(J)*wξ*wη
 
-      N0[ii,jj,kk]  = adiff.val.(Nij)
-      Nx[ii,jj,kk]  = Nxyz[1,:]
-      Ny[ii,jj,kk]  = Nxyz[2,:]
-      Nz[ii,jj,kk]  = Nxyz[3,:]
-      wgt[ii,jj,kk] = detJ(J)
-      # wgt[ii,jj,kk] = abs(detJ(J))
-      # having the absolute value in front of det J makes irrelevant whether 
-      # the nodes are numbered clockwise or counter-clockwise
-
-      V +=wgt[ii,jj,kk]
-    end
-    (V,tuple(N0...),tuple(Nx...),tuple(Ny...),tuple(Nz...),tuple(wgt...))
+    A += wgt[ii,jj]
   end
-  C3DP(nodes,N0,Nx,Ny,Nz,wgt,V,mat) 
+
+  C2DP(nodes,tuple(N0...),tuple(Nx...),tuple(Ny...),tuple(wgt...),A,mat) 
 end
-# elastic energy evaluation functions for elements
-function getϕ(elem::Rod,  u::Array{<:Number,2})
+QuadPR(nodes, p0;mat=Materials.Hooke()) = QuadP(nodes, p0, mat=mat, GP=((0.0,1.0),))
+function Hex08P(nodes::Vector{<:Integer}, 
+                p0::Vector{Vector{T}};
+                GP=((T(-0.577350269189626), one(T)), 
+                    (T(0.577350269189626), one(T))), # √3/3
+                mat=Materials.Hooke()) where T<:Number
 
-  l   = norm(elem.r0+u[:,2]-u[:,1])
-  F11 = l/elem.l0
-  elem.A*elem.l0*getϕ(F11, elem.mat)    
+  N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1-ζ),(1+ξ)*(1-η)*(1-ζ),
+              (1+ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),
+              (1-ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1+ζ),
+              (1+ξ)*(1+η)*(1+ζ),(1-ξ)*(1+η)*(1+ζ)]/8
+  nGP = length(GP)
+  N0  = Array{Array{T,1},3}(undef,nGP,nGP,nGP)
+  Nx  = Array{Array{T,1},3}(undef,nGP,nGP,nGP)
+  Ny  = Array{Array{T,1},3}(undef,nGP,nGP,nGP)
+  Nz  = Array{Array{T,1},3}(undef,nGP,nGP,nGP)
+  wgt = Array{T,3}(undef,nGP,nGP,nGP)
+  V   = 0
 
-end
-function getϕ(elem::Beam, u::Array{<:Number,2})
+  for (ii, (ξ,wξ)) in enumerate(GP),
+    (jj, (η,wη)) in enumerate(GP), 
+    (kk, (ζ,wζ)) in enumerate(GP)
 
-  L, r0, t, w = elem.L, elem.r0, elem.t, elem.w
-  T    = [r0[1] r0[2]; -r0[2] r0[1]]
-  u0   = vcat(T*u[1:2,1], u[3,1], T*u[1:2,2], u[3,2])
-  u0_x = (u0[4]-u0[1])/L
+    Nijk = N(adiff.D2([ξ,η,ζ])...)
+    p    = sum([Nijk[ii]p0[ii] for ii in 1:8])
+    J    = [p[ii].g[jj] for jj in 1:3, ii in 1:3]
+    Nxyz = J\hcat(adiff.grad.(Nijk)...)
 
-  ϕ  = 0
-  for (r,wr) in elem.lgwx
-    x, dx     = r*L, wr*L
+    N0[ii,jj,kk]  = adiff.val.(Nijk)
+    Nx[ii,jj,kk]  = Nxyz[1,:]
+    Ny[ii,jj,kk]  = Nxyz[2,:]
+    Nz[ii,jj,kk]  = Nxyz[3,:]
+    wgt[ii,jj,kk] = detJ(J)*wξ*wη*wζ
 
-    v0_x  = (-6x/L^2 + 6x^2/L^3)u0[2] +
-    (1 - 4x/L + 3x^2/L^2)u0[3] +
-    (6x/L^2 - 6x^2/L^3)u0[5] +
-    (-2x/L + 3x^2/L^2)u0[6]
-
-    v0_xx = (-6/L^2 + 12x/L^3)u0[2] + 
-    (-4/L + 6x/L^2)u0[3] + 
-    (6/L^2 - 12x/L^3)u0[5] + 
-    (-2/L + 6x/L^2)u0[6]
-
-    for (s,ws) in elem.lgwy
-      y, dy  = s*elem.t, ws*elem.t
-
-      dV   = dx*dy*elem.w
-      C11 = (1+u0_x-v0_xx*y)^2 + v0_x^2
-      ϕ   += getϕ(C11, elem.mat)*dV
-    end
+    V +=wgt[ii,jj,kk]
   end
-  return ϕ
+  Elements.C3DP(nodes,tuple(N0...),tuple(Nx...),tuple(Ny...),
+                tuple(Nz...),tuple(wgt...),V,mat) 
 end
-function getϕ(elem::CElems{N,P,M} where {N,M}, u::Array{U,2})  where {U, P}
-  ϕ = zero(U)
-  F = getF(elem,u)
-  for ii=1:P
-    ϕ += elem.wgt[ii]getϕ(F[ii],elem.mat)
-  end 
-  ϕ
-end
-#=
-function getϕ(elem::T where T<:CElems, u::Array{<:Number,2})
-  M = length(elem.wgt)
-  if isa(u[1], adiff.D2) 
-    ϕ = sum([begin
-               F = getF(elem,u,ii)
-               ϕ = getϕ(adiff.D2(getfield.(F,:v)),elem.mat)
-               elem.wgt[ii]cross(ϕ,F)
-             end  for ii in 1:M])
-  else
-    ϕ = sum([elem.wgt[ii]getϕ(getF(elem,u,ii), elem.mat) for ii in 1:M])
-  end 
-end
-function cross(ϕ, F)
-  N = length(F)
-  g = sum([ϕ.g[ii]F[ii].g for ii in 1:N])
-  h = sum([0.5ϕ.h[ii,jj]*(F[ii].g*F[jj].g+F[jj].g*F[ii].g) for jj=1:N for ii=1:N])
-  adiff.D2(ϕ.v, g, h) 
-end
-=#
+Hex08PR(nodes, p0;mat=Materials.Hooke()) = Hex08P(nodes, p0, mat=mat, GP=((0.0,1.0),))
 # methods for evaluating def. gradient
-function getF(elem::C3DElems{N,P,M} where {N,M}, u::Array{D}) where {P,D}
+function getF(elem::C3DElems{P,M,T,I} where {M,T,I}, u::Array{D}) where {P,D}
   u0, v0, w0 = u[1:3:end],  u[2:3:end],  u[3:3:end]
   F = fill(Array{D,2}(undef,3,3), P)
   @inbounds for ii = 1:P
@@ -472,7 +397,7 @@ function getF(elem::C3DElems{N,P,M} where {N,M}, u::Array{D}) where {P,D}
   end
   F
 end
-function getF(elem::C3DElems, u::Array{N} where N, ii::Int64)
+function getF(elem::C3DElems, u::Matrix, ii::Integer)
   Nx, Ny, Nz = elem.Nx[ii], elem.Ny[ii], elem.Nz[ii]
   u0, v0, w0 = u[1:3:end],  u[2:3:end],  u[3:3:end]
   
@@ -480,7 +405,7 @@ function getF(elem::C3DElems, u::Array{N} where N, ii::Int64)
    Nx⋅v0 Ny⋅v0 Nz⋅v0;
    Nx⋅w0 Ny⋅w0 Nz⋅w0 ] + I
 end
-function getF(elem::C2DElems{N,P,M} where {N,M}, u::Array{D}) where {P,D}
+function getF(elem::C2DElems{P,M,T,I} where {M,T,I}, u::Array{D}) where {P,D}
   u0, v0 = u[1:2:end],  u[2:2:end]
   F = fill(Array{D,2}(undef,2,2), P)
   @inbounds for ii = 1:P
@@ -489,6 +414,12 @@ function getF(elem::C2DElems{N,P,M} where {N,M}, u::Array{D}) where {P,D}
               Nx⋅v0 Ny⋅v0] + I
   end
   F
+end
+function getF(elem::C2DElems{P,M,T,I} where {M,T,I}, u::Array{D}, ii::Integer) where {P,D}
+  u0, v0 = u[1:2:end],  u[2:2:end]
+  Nx, Ny = elem.Nx[ii], elem.Ny[ii]
+  [Nx⋅u0 Ny⋅u0;
+   Nx⋅v0 Ny⋅v0] + I
 end
 function getF(elem::CAS,   u::Array{D}, ii::Int64)  where D
   Nx,  Ny   = elem.Nx[ii], elem.Ny[ii]
@@ -511,15 +442,14 @@ function detJ(F)
     F[1]F[4]-F[2]F[3]
   end
 end
-getV(elem,u)     = sum([elem.wgt[ii]detJ(elem,u,ii) for ii in 1:length(elem.wgt)])
 detJ(elem,u,ii)  = detJ(getF(elem, u, ii))
+getV(elem,u)     = sum([elem.wgt[ii]detJ(elem,u,ii) for ii in 1:length(elem.wgt)])
 detJ(elem,u)     = getV(elem,u)/elem.V
 getI3(elem,u,ii) = detJ(getF(elem, u, ii))^2
 getI3(elem,u)    = sum([elem.wgt[ii]getI3(elem,u,ii) for ii in 1:length(elem.wgt)])/elem.V
 #
-function getinfo(elem::Elems, u::Array{<:Number,2}; info=:detF)
-  M = length(elem.Nx)
-  F = sum(getF(elem, u))/M
+function getinfo(elem::CElems{P}, u::Matrix{<:Number}; info=:detF) where P
+  F = sum([getF(elem, u, ii) for ii=1:P])/P
   Materials.getinfo(F, elem.mat, info=info)
 end
 getinfo(elems::Array, u; info=:detF) =  [getinfo(elem, u[:,elem.nodes], info=info) for elem in elems]
