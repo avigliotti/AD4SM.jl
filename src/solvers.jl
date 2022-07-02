@@ -66,9 +66,6 @@ function getϕ(elem::Elements.CElems{P}, u::Array{U,2})  where {U, P}
   end 
   ϕ
 end
-# getϕu(elem::Elements.C2D, u::Matrix) = getϕ(elem, adiff.D2(u))
-# getϕu(elem::Elements.CAS, u::Matrix) = getϕ(elem, adiff.D2(u))
-# getϕu(elem::Union{Elements.Rod,Elements.Beam}, u::Matrix) = getϕ(elem, adiff.D2(u))
 getϕu(elem::Elements.Elems, u::Matrix) = getϕ(elem, adiff.D2(u))
 function getϕu(elem::Elements.C3D{P}, u0::Matrix{T})  where {P,T}
 
@@ -101,28 +98,7 @@ function getϕu(elem::Elements.C3D{P}, u0::Matrix{T})  where {P,T}
 
   adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
 end
-#=
-function getϕ(elem::T where T<:CElems, u::Matrix{<:Number})
-  M = length(elem.wgt)
-  if isa(u[1], adiff.D2) 
-    ϕ = sum([begin
-               F = getF(elem,u,ii)
-               ϕ = getϕ(adiff.D2(getfield.(F,:v)),elem.mat)
-               elem.wgt[ii]cross(ϕ,F)
-             end  for ii in 1:M])
-  else
-    ϕ = sum([elem.wgt[ii]getϕ(getF(elem,u,ii), elem.mat) for ii in 1:M])
-  end 
-end
-function cross(ϕ, F)
-  N = length(F)
-  g = sum([ϕ.g[ii]F[ii].g for ii in 1:N])
-  h = sum([0.5ϕ.h[ii,jj]*(F[ii].g*F[jj].g+F[jj].g*F[ii].g) for jj=1:N for ii=1:N])
-  adiff.D2(ϕ.v, g, h) 
-end
-=#
 # elastic energy evaluation functions for models (Array of elements)
-# function getϕ(elems::Vector{<:Elements.CElems}, 
 function getϕ(elems::Vector{<:Elements.Elems}, 
               u::Array{T,2}) where T
   nElems = length(elems)
