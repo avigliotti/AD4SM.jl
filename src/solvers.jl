@@ -2,7 +2,6 @@ module Solvers
 
 using LinearAlgebra, Printf
 using Distributed, SparseArrays
-using ProgressMeter, Dates#, StatsBase
  
 using ..adiff, ..Materials, ..Elements 
 
@@ -244,7 +243,6 @@ function solve(elems, u;
                λ          = zeros(length(eqns)),
                ifree      = isnan.(u),
                fe         = zeros(size(u)),
-               bprogress  = false,
                becho      = false,
                dTol       = 1e-5,
                dTolu      = dTol,
@@ -252,7 +250,6 @@ function solve(elems, u;
                dNoise     = 1e-12,
                maxiter    = 11,
                bechoi     = false,
-               bprogressi = false,
                ballus     = true,
                bpredict   = true,
                maxupdt    = NaN)
@@ -260,7 +257,6 @@ function solve(elems, u;
   N     = length(LF)
   t0    = Base.time_ns()
   beqns = length(eqns)>0
-  if bprogress; p    = ProgressMeter.Progress(length(LF)); end
   if ballus;    allu = [];  end
 
   fnew  = copy(fe)
@@ -285,7 +281,6 @@ function solve(elems, u;
                  dTolu     = dTolu,
                  dNoise    = dNoise,
                  maxiter   = maxiter,
-                 bprogress = bprogressi,
                  becho     = bechoi,
                  bpredict  = bpredict,
                  maxupdt   = maxupdt)
@@ -306,14 +301,12 @@ function solve(elems, u;
           push!(allu, (copy(unew), copy(fnew)))
         end
       end
-      bprogress && ProgressMeter.next!(p)
       becho     && @printf("step %3i/%i, LF=%.3f, done in %2i iter, after %.2f sec.\n",
                            ii,N,LF,iter,T)
     end
     becho && flush(stdout)
   end
-  becho && @printf("completed in %s\n",(Base.time_ns()-t0)÷1e9|>
-                   Dates.Second|>Dates.CompoundPeriod|>Dates.canonicalize)
+  becho && @printf("completed in %i seconds\n",(Base.time_ns()-t0)÷1e9)
   becho && flush(stdout)
 
   ballus ? allu : unew
@@ -328,13 +321,8 @@ function solvestep!(elems, uold, unew, bfreeu;
                     dNoise    = 1e-12,
                     maxiter   = 11,
                     becho     = false,
-                    bprogress = false,
                     bpredict  = true,
                     maxupdt   = NaN)
-
-  if bprogress
-    p = ProgressMeter.ProgressThresh(dTolu)
-  end
 
   ifreeu    = findall(bfreeu[:])
   icnstu    = findall(.!bfreeu[:])
@@ -452,7 +440,6 @@ function solvestep!(elems, uold, unew, bfreeu;
     else
       bfailed = true
     end    
-    bprogress && ProgressMeter.update!(p, normru)
     if becho 
       if (bdone | bfailed) 
         @printf("iter: %2i, norm0: %.2e, normru: %.2e, normre: %.2e, eltime: %.2f sec.\n", 
