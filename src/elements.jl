@@ -5,7 +5,7 @@ module Elements
 using LinearAlgebra
 
 using ..adiff, ..Materials
-import Base.copy
+# import Base.copy
 
 export getF
 
