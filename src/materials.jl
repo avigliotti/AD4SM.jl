@@ -181,7 +181,6 @@ function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{T,:plane_stress} wher
   # μ = Es/2/(1+ν) 
 
   (Es/(1-ν^2))*(E[1]^2+E[4]^2+ν*E[1]E[4]) + (Es/(1+ν))*E[2]^2
->>>>>>> candidate
 end
 # status retrieving functions
 # function getP(F::Array{Float64,2}, mat) # 1st PK tensor from F
