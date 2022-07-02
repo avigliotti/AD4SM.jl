@@ -6,27 +6,58 @@ using LinearAlgebra
 using ..adiff
 
 # Material types
-struct Hooke
-  E     ::Float64
-  ν     ::Float64
+struct Hooke{T}
+  E     ::T
+  ν     ::T
+  ρ     ::T
   small ::Bool
-  Hooke(E,ν;small=false) = new(Float64(E),Float64(ν), small)
+  # Hooke(E, ν; small=false) = Hooke(promote(E,ν)..., small)
+  Hooke(E::T,ν::T,ρ=one(T);small=false) where T<:Number = new{T}(E,ν,ρ,small)
 end
-struct MooneyRivlin
-  C1  ::Float64
-  C2  ::Float64
-  K   ::Float64
-  MooneyRivlin(C1, C2)    = new(Float64(C1), Float64(C2), NaN) 
-  MooneyRivlin(C1, C2, K) = new(Float64(C1), Float64(C2), Float64(K)) 
+struct Hooke1D{T}
+  E     ::T
+  ρ     ::T
+  small ::Bool
+  Hooke1D(E::T,ρ=one(T);small=false) where T<:Number = new{T}(E,ρ,small)
 end
-struct NeoHooke
-  C1   ::Float64
-  K    ::Float64
-  NeoHooke(C1)    = new(Float64(C1), NaN) 
-  NeoHooke(C1, K) = new(Float64(C1), Float64(K))
+struct Hooke2D{T,P}
+  E     ::T
+  ν     ::T
+  ρ     ::T
+  small ::Bool
+  Hooke2D(E::T,ν::T,ρ=one(T); small=true, plane_stress=true) where T<:Number = plane_stress ? 
+  new{T,:plane_stress}(E,ν,ρ,small) : 
+  new{T,:plane_strain}(E,ν,ρ,small)
 end
-Material = Union{Hooke,MooneyRivlin,NeoHooke} 
-HyperEla = Union{MooneyRivlin,NeoHooke} 
+struct MooneyRivlin{T}
+  C1  ::T
+  C2  ::T
+  K   ::T
+  MooneyRivlin(C1::T, C2::T)       where T<:Number = new{T}(C1, C2, T(-1))
+  MooneyRivlin(C1::T, C2::T, K::T) where T<:Number = new{T}(C1, C2, K) 
+end
+struct NeoHooke{T}
+  C1   ::T 
+  K    ::T
+  NeoHooke(C1::T)       where T<:Number = new{T}(C1, T(-1))
+  NeoHooke(C1::T, K::T) where T<:Number = new{T}(C1, K)
+end
+struct Ogden{T}
+  α   ::T
+  μ   ::T
+  K   ::T
+  Ogden(α::T, μ::T)       where T<:Number = new{T}(α, μ, T(-1)) 
+  Ogden(α::T, μ::T, K::T) where T<:Number = new{T}(α, μ, K) 
+end
+Material = Union{Hooke,Hooke1D,Hooke2D,MooneyRivlin,NeoHooke,Ogden} 
+HyperEla = Union{MooneyRivlin,NeoHooke,Ogden} 
+Mat3D    = Union{Hooke,MooneyRivlin,NeoHooke,Ogden}
+Mat2D    = Hooke2D
+Mat1D    = Hooke1D
+dims(mat::M) where M<:Mat3D = 3
+dims(mat::M) where M<:Mat2D = 2
+dims(mat::M) where M<:Mat1D = 1
+#
 # default convergence tolerance for 2D stress
 dTol     = 1e-7
 maxiter  = 30
@@ -34,7 +65,7 @@ function setmaxiter(x)
   global maxiter = Int64(x)
 end
 function setdTol(x)
-  global dTol = Float64(x)
+  global dTol = x
 end
 # elastic energy evaluation functions for materials
 function getϕ(F::Array{N,2}, mat::M) where {N<:Number, M<:HyperEla}
@@ -42,15 +73,41 @@ function getϕ(F::Array{N,2}, mat::M) where {N<:Number, M<:HyperEla}
   if length(C) == 9
     (I1,I2,I3) = getInvariants(C)
   else
-    L3 = isnan(mat.K) ? (F[1]F[4]-F[2]F[3])^-2 : 1
+    L3 = mat.K<0 ? (F[1]F[4]-F[2]F[3])^-2 : 1
     (I1,I2,I3) = getInvariants(C, L3)
   end
-  Materials.getϕ(I1,I2,I3,mat)
+  getϕ(I1,I2,I3,mat)
+end
+function getϕ(F::Array{N,2}, mat::Ogden) where {N<:Number}
+
+  α, μ, K = mat.α, mat.μ, mat.K
+
+  if length(F) == 9
+    C = transpose(F)F
+  else
+    F33 = K<0 ? 1/(F[1]F[4]-F[2]F[3]) : one(F[1]) 
+    F3D = fill(zero(F[1]), (3,3))
+    F3D[1:2,1:2] = F
+    F3D[9] = F33
+    C   = transpose(F3D)*F3D
+  end
+
+  λ = sqrt.(svdvals(C))
+    
+  if K<0
+    ϕ = μ/α * (sum(λ.^α) - 3)
+  else
+    J = prod(λ)
+    # λ/J^(1/3) are the principal stretches of the deviatoric part
+    ϕ = μ/α *(sum(λ.^α)/J^(α/3) - 3) + K*(J-1)^2
+  end
+
+  return ϕ
 end
 function getϕ(I1, I2, I3, mat::MooneyRivlin)
 
   C1, C2, K = mat.C1, mat.C2, mat.K
-  if isnan(K) 
+  if K<0
     ϕ  = C1*(I1-3) + C2*(I2-3)
   else
     J  = sqrt(I3)
@@ -64,7 +121,7 @@ end
 function getϕ(I1, I2, I3, mat::NeoHooke)
 
   C1, K  = mat.C1, mat.K
-  if isnan(K) 
+  if K<0 
     ϕ  = C1*(I1-3)
   else
     J  = sqrt(I3)
@@ -74,21 +131,25 @@ function getϕ(I1, I2, I3, mat::NeoHooke)
   end
   return ϕ
 end
-function getϕ(C11::N where N<:Number, mat::Hooke)
-  ϕ = 0.5mat.E*(C11-1)^2  
+function getϕ(F11::N where N<:Number, mat::Hooke1D)
+  ϕ = (mat.E*(F11-1)^2)/2
 end
+# function getϕ(C11::N where N<:Number, mat::Hooke1D)
+#   ϕ = mat.small ? mat.E*(C11-1) : 0.5mat.E*(C11-1)^2  
+# end
 function getϕ(F::Array{N,2} where N<:Number, mat::Hooke)
 
   if mat.small
-    E = 0.5(F+transpose(F))-I   # the symmetric part of G
+    E = (F+transpose(F)-2I)/2   # the symmetric part of G
   else
-    E = 0.5(transpose(F)F-I)    # the Green-Lagrange strain tensor
+    E = (transpose(F)F-I)/2   # the Green-Lagrange strain tensor
   end
 
   ν, Es = mat.ν, mat.E
   λ = Es*ν/(1+ν)/(1-2ν) 
   μ = Es/2/(1+ν) 
 
+<<<<<<< HEAD
   if size(F) == (3,3)
     ϕ =  (μ+λ/2) * (E[1]^2   + E[5]^2   + E[9]^2)
     ϕ += λ       * (E[1]E[5] + E[5]E[9] + E[9]E[1])
@@ -99,18 +160,58 @@ function getϕ(F::Array{N,2} where N<:Number, mat::Hooke)
   end
 
   return ϕ
+=======
+  ϕ =  (μ+λ/2) * (E[1]^2   + E[5]^2   + E[9]^2)
+  ϕ += λ       * (E[1]E[5] + E[5]E[9] + E[9]E[1])
+  ϕ += 2μ      * (E[2]^2   + E[3]^2   + E[6]^2)
+
+  return ϕ
+end
+function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{T,:plane_strain} where T)
+
+  if mat.small
+    E = (F+transpose(F)-2I)/2   # the symmetric part of G
+  else
+    E = (transpose(F)F-I)/2   # the Green-Lagrange strain tensor
+  end
+
+  ν, Es = mat.ν, mat.E
+  λ = Es*ν/(1+ν)/(1-2ν) 
+  μ = Es/2/(1+ν) 
+
+  (μ+λ/2)*(E[1]^2+E[4]^2) + λ*E[1]E[4] + 2μ*E[2]^2
+end
+function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{T,:plane_stress} where T)
+
+  if mat.small
+    E = (F+transpose(F)-2I)/2   # the symmetric part of G
+  else
+    E = (transpose(F)F-I)/2   # the Green-Lagrange strain tensor
+  end
+
+  ν, Es = mat.ν, mat.E
+  # μ = Es/2/(1+ν) 
+
+  (Es/(1-ν^2))*(E[1]^2+E[4]^2+ν*E[1]E[4]) + (Es/(1+ν))*E[2]^2
+>>>>>>> candidate
 end
 # status retrieving functions
-function getP(F::Array{Float64,2}, mat) # 1st PK tensor from F
-  ϕ = getϕ(adiff.D2(F), mat)               
-  reshape(adiff.grad(ϕ), (3,3))
+# function getP(F::Array{Float64,2}, mat) # 1st PK tensor from F
+#   dims_ = dims(mat)
+#   ϕ     = getϕ(adiff.D2(F), mat)               
+#   reshape(adiff.grad(ϕ), (dims_,dims_))
+# end
+function getP(F::Array{Float64,2}, mat::Material) # 1st PK tensor from F
+  # dims_ = dims(mat)
+  ϕ     = getϕ(adiff.D2(F), mat)               
+  reshape(adiff.grad(ϕ), size(F))
 end
-function getσ(F::Array{Float64,2}, mat) # Cauchy stress 
+function getσ(F::Array{Float64,2}, mat::Material) # Cauchy stress 
   J = det(F)
   P = getP(F,mat)         # 1st PK stress
   (P*transpose(F))/J
 end
-function getinfo(F::Array{Float64,2}, mat; info = :ϕ)
+function getinfo(F::Array{Float64,2}, mat::Material; info = :ϕ)
   if info == :ϕ
     getϕ(F, mat)     
   elseif info == :detF 
@@ -123,7 +224,7 @@ function getinfo(F::Array{Float64,2}, mat; info = :ϕ)
     getσ(F, mat)
   elseif info == :σVM
     σ = getσ(F, mat)
-    sqrt(0.5)*sqrt((σ[1]-σ[5])^2+(σ[5]-σ[9])^2+(σ[9]-σ[1])^2+6(σ[4]^2+σ[7]^2+σ[8]^2))
+    sqrt((σ[1]-σ[5])^2+(σ[5]-σ[9])^2+(σ[9]-σ[1])^2+6(σ[4]^2+σ[7]^2+σ[8]^2))/2
   elseif info == :S
     F\getP(F, mat)
   elseif info == :I
@@ -182,11 +283,15 @@ function getInvariants(C, C33)
   
   (I1,I2,I3)
 end
-function getInvariants(C)
-  I1 = C[1]+C[5]+C[9]
-  I2 = C[1]C[5]+C[5]C[9]+C[1]C[9]-C[2]^2-C[3]^2-C[6]^2
-  I3 = C[1]C[5]C[9]+2C[2]C[3]C[6]-C[1]C[6]^2-C[5]C[3]^2-C[9]C[2]^2
-  
-  (I1,I2,I3)
-end
+getI1(C) = C[1]+C[5]+C[9]
+getI2(C) = C[1]C[5]+C[5]C[9]+C[1]C[9]-C[2]^2-C[3]^2-C[6]^2
+getI3(C) = C[1]C[5]C[9]+2C[2]C[3]C[6]-C[1]C[6]^2-C[5]C[3]^2-C[9]C[2]^2
+getInvariants(C) = (getI1(C),getI2(C),getI3(C))
+# function getInvariants(C)
+#   I1 = C[1]+C[5]+C[9]
+#   I2 = C[1]C[5]+C[5]C[9]+C[1]C[9]-C[2]^2-C[3]^2-C[6]^2
+#   I3 = C[1]C[5]C[9]+2C[2]C[3]C[6]-C[1]C[6]^2-C[5]C[3]^2-C[9]C[2]^2
+#   
+#   (I1,I2,I3)
+# end
 end
