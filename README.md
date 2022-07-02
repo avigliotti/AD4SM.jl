@@ -39,5 +39,7 @@ Cite as
      doi  = {10.1007/s11831-019-09396-y}
 }
 ```
+
 ## Examples and tutorials
+
 Examples and tutorials about using AD4SM.jl can be found [here](https://github.com/avigliotti/AD4SM_examples)

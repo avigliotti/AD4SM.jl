@@ -1,6 +1,10 @@
 __precompile__()
 
+<<<<<<< HEAD
+# master branch
+=======
 # new_adiff branch
+>>>>>>> candidate
 
 module adiff
 

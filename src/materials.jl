@@ -149,6 +149,18 @@ function getϕ(F::Array{N,2} where N<:Number, mat::Hooke)
   λ = Es*ν/(1+ν)/(1-2ν) 
   μ = Es/2/(1+ν) 
 
+<<<<<<< HEAD
+  if size(F) == (3,3)
+    ϕ =  (μ+λ/2) * (E[1]^2   + E[5]^2   + E[9]^2)
+    ϕ += λ       * (E[1]E[5] + E[5]E[9] + E[9]E[1])
+    ϕ += 2μ      * (E[2]^2   + E[3]^2   + E[6]^2)
+  else
+    # 2D is plain strain
+    ϕ = (μ+λ/2)*(E[1]^2+E[4]^2) + λ*E[1]E[4] + 2μ*E[2]^2
+  end
+
+  return ϕ
+=======
   ϕ =  (μ+λ/2) * (E[1]^2   + E[5]^2   + E[9]^2)
   ϕ += λ       * (E[1]E[5] + E[5]E[9] + E[9]E[1])
   ϕ += 2μ      * (E[2]^2   + E[3]^2   + E[6]^2)
@@ -181,6 +193,7 @@ function getϕ(F::Array{N,2} where N<:Number, mat::Hooke2D{T,:plane_stress} wher
   # μ = Es/2/(1+ν) 
 
   (Es/(1-ν^2))*(E[1]^2+E[4]^2+ν*E[1]E[4]) + (Es/(1+ν))*E[2]^2
+>>>>>>> candidate
 end
 # status retrieving functions
 # function getP(F::Array{Float64,2}, mat) # 1st PK tensor from F

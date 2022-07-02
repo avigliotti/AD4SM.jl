@@ -1,10 +1,5 @@
 module AD4SM
 
-
-# using LinearAlgebra, Printf
-# using Distributed, SparseArrays
-# using ProgressMeter, Dates#, StatsBase
-
 include("adiff.jl")
 include("materials.jl")
 include("elements.jl")
