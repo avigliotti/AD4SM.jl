@@ -67,9 +67,10 @@ function getϕ(elem::Elements.CElems{P}, u::Array{U,2})  where {U, P}
   end 
   ϕ
 end
-getϕu(elem::Elements.C2D, u::Matrix) = getϕ(elem, adiff.D2(u))
-getϕu(elem::Elements.CAS, u::Matrix) = getϕ(elem, adiff.D2(u))
-getϕu(elem::Union{Elements.Rod,Elements.Beam}, u::Matrix) = getϕ(elem, adiff.D2(u))
+# getϕu(elem::Elements.C2D, u::Matrix) = getϕ(elem, adiff.D2(u))
+# getϕu(elem::Elements.CAS, u::Matrix) = getϕ(elem, adiff.D2(u))
+# getϕu(elem::Union{Elements.Rod,Elements.Beam}, u::Matrix) = getϕ(elem, adiff.D2(u))
+getϕu(elem::Elements.Elems, u::Matrix) = getϕ(elem, adiff.D2(u))
 function getϕu(elem::Elements.C3D{P}, u0::Matrix{T})  where {P,T}
 
   u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
