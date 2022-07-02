@@ -2,13 +2,7 @@ __precompile__()
 
 module Elements
 
-<<<<<<< HEAD
-using LinearAlgebra, Printf
-using Distributed, SparseArrays
-using ProgressMeter, Dates, StatsBase
-=======
 using LinearAlgebra
->>>>>>> candidate
 
 using ..adiff, ..Materials
 # import Base.copy
@@ -221,36 +215,6 @@ function Tet10(nodes::Vector{<:Integer},
   C3D(nodes,Nx,Ny,Nz,V,mat) 
 end
 function Hex08(nodes::Vector{<:Integer}, 
-<<<<<<< HEAD
-               p0::Vector{Vector{T}} where T<:Real;
-               mat=Materials.Hooke())
-  (V, Nx, Ny, Nz, wgt) = begin
-    r        = [-1, 1]*0.577350269189626 # √3/3
-    # N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1+ζ),(1-ξ)*(1-η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1+ζ),
-    #            (1+ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1-ζ),(1+ξ)*(1+η)*(1-ζ),(1+ξ)*(1+η)*(1+ζ)]/8
-    N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1-ζ),(1+ξ)*(1-η)*(1-ζ), (1+ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),
-                (1-ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1+ζ), (1+ξ)*(1+η)*(1+ζ),(1-ξ)*(1+η)*(1+ζ)]/8
-    
-    Nx  = Array{Array{Float64,1},3}(undef,2,2,2)
-    Ny  = Array{Array{Float64,1},3}(undef,2,2,2)
-    Nz  = Array{Array{Float64,1},3}(undef,2,2,2)
-    wgt = Array{Float64,3}(undef,2,2,2)
-    V   = 0
-    for (ii, ξ) in enumerate(r), (jj, η) in enumerate(r), (kk, ζ) in enumerate(r)
-      N0   = N(adiff.D2([ξ,η,ζ])...)
-      p    = sum([N0[ii]p0[ii] for ii in 1:8])
-      J    = [p[ii].g[jj] for jj in 1:3, ii in 1:3]
-      Nxyz = J\hcat(adiff.grad.(N0)...)
-
-      Nx[ii,jj,kk]  = Nxyz[1,:]
-      Ny[ii,jj,kk]  = Nxyz[2,:]
-      Nz[ii,jj,kk]  = Nxyz[3,:]
-      wgt[ii,jj,kk] = det(J)
-
-      V +=wgt[ii,jj,kk]
-    end
-    (V,tuple(Nx...),tuple(Ny...),tuple(Nz...),tuple(wgt...))
-=======
                p0::Vector{Vector{T}};
                GP=((T(-0.577350269189626), one(T)), (T(0.577350269189626), one(T))), # √3/3
                mat=Materials.Hooke()) where T<:Number
@@ -280,7 +244,6 @@ function Hex08(nodes::Vector{<:Integer},
     wgt[ii,jj,kk] = detJ(J)*wξ*wη*wζ
 
     V +=wgt[ii,jj,kk]
->>>>>>> candidate
   end
   C3D(nodes,tuple(Nx...),tuple(Ny...),tuple(Nz...),tuple(wgt...),V,mat) 
 end
@@ -326,12 +289,9 @@ function ASQuad(nodes::Vector{<:Integer},
       Nx[ii,jj]  = Nxy[1,:]
       Ny[ii,jj]  = Nxy[2,:]
       X0[ii,jj]  = p[1].v 
-<<<<<<< HEAD
-      wgt[ii,jj] = det(J)*2π*p[1].v
-=======
+      
       # wgt[ii,jj] = abs(detJ(J))*2π*p[1].v
       wgt[ii,jj] = detJ(J)*2π*p[1].v
->>>>>>> candidate
 
       V +=wgt[ii,jj]
     end
