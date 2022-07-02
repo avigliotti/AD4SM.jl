@@ -14,7 +14,7 @@ import Base: length, getindex, copy, convert, promote_rule
 import Base: +, -, *, /, ^, inv, abs, sqrt, log, exp, zero, conj
 import Base: >, <, ≥, ≤, ==
 import Base: sin, cos, sinh, cosh, tanh
-import LinearAlgebra: norm, dot, svd, transpose, svdvals
+import LinearAlgebra: norm, dot, transpose
 
 #  macros 
 macro swap(x,y)

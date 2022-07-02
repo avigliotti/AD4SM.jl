@@ -11,7 +11,7 @@ using LinearAlgebra
 >>>>>>> candidate
 
 using ..adiff, ..Materials
-import Base.copy
+# import Base.copy
 
 export getF
 
