@@ -7,7 +7,7 @@ include("solvers.jl")
 
 export adiff, Materials, Elements, Solvers
 
-VER = "0.0.3 candidate"
+VER = "0.0.2"
 export VER
 
 
