@@ -121,7 +121,8 @@ function cross(ϕ, F)
 end
 =#
 # elastic energy evaluation functions for models (Array of elements)
-function getϕ(elems::Vector{<:Elements.CElems}, 
+# function getϕ(elems::Vector{<:Elements.CElems}, 
+function getϕ(elems::Vector{<:Elements.Elems}, 
               u::Array{T,2}) where T
   nElems = length(elems)
   N      = length(u[:,elems[1].nodes])

@@ -82,7 +82,7 @@ struct Beam{M,T<:Number,I<:Integer}
   lgwy::Array{Tuple{T,T},1}
   mat::M
 end
-Elems             = Union{Rod, Beam, C2D, C3D, CAS}
+Elems             = Union{Rod, Beam, C1D, C2D, C3D, CAS, C2DP, C3DP}
 CElems{P,M,T,I}   = Union{C2D{P,M,T,I}, C3D{P,M,T,I}, 
                           CAS{P,M,T,I}, C2DP{P,M,T,I}, C3DP{P,M,T,I}}
 CartEls{P,M,T,I}  = Union{C2D{P,M,T,I}, C3D{P,M,T,I}, C3DP{P,M,T,I}, C2DP{P,M,T,I}}
