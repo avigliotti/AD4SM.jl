@@ -39,8 +39,10 @@ end
 struct NeoHooke{T}
   C1   ::T 
   K    ::T
-  NeoHooke(C1::T)       where T<:Number = new{T}(C1, T(-1))
-  NeoHooke(C1::T, K::T) where T<:Number = new{T}(C1, K)
+  ρ    ::T
+  # NeoHooke(C1::T)               where T<:Number = new{T}(C1, T(-1), T(1))
+  # NeoHooke(C1::T,K::T)          where T<:Number = new{T}(C1, K, T(1))
+  NeoHooke(C1::T,K::T,ρ=one(T)) where T<:Number = new{T}(C1, K, ρ)
 end
 struct Ogden{T}
   α   ::T

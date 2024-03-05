@@ -59,8 +59,11 @@ D1(x::AbstractArray{T}) where T<:Number = begin
   [D1(x, grad[ii]) for (ii,x) in enumerate(x)]
 end
 # conversion
-D1(x::D2)                       = D1(x.v, x.g)
-D2(x::D1{N,T}) where {N,T}      = D2{N,(N+1)N÷2,T}(x.v, x.g, zero(Grad{(N+1)N÷2,T})) 
+D1(x::D2)                      = D1(x.v, x.g)
+D2(x::D1{N,T}) where {N,T}     = D2{N,(N+1)N÷2,T}(x.v, x.g, zero(Grad{(N+1)N÷2,T})) 
+convert(::Type{<:Real}, x::D1) = x.v
+convert(::Type{<:Real}, x::D2) = x.v
+#
 # promotion
 promote_rule(::Type{D2{N,M,T}}, ::Type{D1{N}})  where {N,M,T}  = D2{N,M,T}
 promote_rule(::Type{D2{N,M,T}}, ::Type{<:Real}) where {N,M,T}  = D2{N,M,T}
@@ -120,43 +123,45 @@ promote_rule(::Type{D1{N,T}},   ::Type{<:Real}) where {N,T}    = D1{N,T}
 @inline abs(x::D1)              = x.v ≥ 0 ? x : -x
 # @inline dot(x::Array{D1}, y::Array{D1}) = sum(x.*y)
 @inline conj(x::D1{N,<:Real} where N)     = x
-@inline norm(x::Array{D1})      = sqrt(dot(x,x))
+@inline norm(x::Array{<:D1})    = sqrt(dot(x,x))
 # data retrieving methods
 @inline D1eval(f, x)            = f(D1(x))
 @inline Real(x::D1)             = Real(x.v)
 @inline val(x::D1)              = x.v
 @inline grad(x::Real)           = 0  
-@inline grad(x::D1{N,T}) where {N,T} = [x.g[i]   for i in 1:N]
-@inline hess(x::D1{N,T}) where {N,T} = zeros(N,N)
-@inline val(U::Array{D1})            = [u.v for u in U]
+# @inline grad(x::D1{N,T}) where {N,T} = [x.g[i]   for i in 1:N]
+@inline grad(x::D1)             = [x   for x in x.g.v]
+@inline hess(x::D1{N,T}) where {N,T} = zeros(T,N,N)
+@inline val(U::Array{D1})       = [u.v for u in U]
 # D2 operators
-@inline +(x::D2, y::D2)              = D2(x.v+y.v, x.g+y.g, x.h+y.h)
-@inline -(x::D2, y::D2)              = D2(x.v-y.v, x.g-y.g, x.h-y.h)
-@inline -(x::D2)                     = D2(-x.v, -x.g, -x.h)
-@inline *(x::D2, y::D2)              = D2(x.v*y.v, x.v*y.g+y.v*x.g, x.v*y.h+y.v*x.h+x.g*y.g+y.g*x.g)
-@inline inv(x::D2)                   = D2(1/x.v, (-1/x.v^2)*x.g, (2/x.v^3)*(x.g*x.g) - (1/x.v^2)*x.h)
-@inline /(x::D2, y::D2)              = x*inv(y)
-@inline ^(x::D2, n::Number)          = D2(x.v^n, (n*x.v^(n-1))*x.g, (n*(n-1)*x.v^(n-2))*(x.g*x.g)+(n*x.v^(n-1))*x.h)
-@inline ^(x::D2, n::Integer)         = D2(x.v^n, (n*x.v^(n-1))*x.g, (n*(n-1)*x.v^(n-2))*(x.g*x.g)+(n*x.v^(n-1))*x.h)
-@inline log(x::D2)                   = D2(log(x.v), x.g/x.v,      -(x.g*x.g)/x.v^2 + x.h/x.v) 
-@inline exp(x::D2)                   = D2(exp(x.v), exp(x.v)*x.g, exp(x.v)*(x.g*x.g) + exp(x.v)*x.h)
-@inline sin(x::D2)                   = D2(sin(x.v), cos(x.v)*x.g, -sin(x.v)*(x.g*x.g) + cos(x.v)*x.h) 
-# @inline tanh(x::D2)                  = D2(tanh(x.v), (1-tanh(x.v)^2)*x.g, 2(tanh(x.v)^2-1)*tanh(x.v)*(x.g*x.g)+ (1-tanh(x.v)^2)*x.h)
-@inline sinh(x::D2)                  = (1-exp(-2x))/2exp(-x)
-@inline cosh(x::D2)                  = (1+exp(-2x))/2exp(-x)
-@inline tanh(x::D2)                  = (exp(2x)-1)/(exp(2x)+1)
-@inline cos(x::D2)                   = D2(cos(x.v), -sin(x.v)*x.g, -cos(x.v)*(x.g*x.g) - sin(x.v)*x.h) 
-@inline sqrt(x::D2)                  = x^0.5
-@inline abs(x::D2)                   = x.v ≥ 0 ? x : -x
+@inline +(x::D2, y::D2)         = D2(x.v+y.v, x.g+y.g, x.h+y.h)
+@inline -(x::D2, y::D2)         = D2(x.v-y.v, x.g-y.g, x.h-y.h)
+@inline -(x::D2)                = D2(-x.v, -x.g, -x.h)
+@inline *(x::D2, y::D2)         = D2(x.v*y.v, x.v*y.g+y.v*x.g, x.v*y.h+y.v*x.h+x.g*y.g+y.g*x.g)
+@inline inv(x::D2)              = D2(1/x.v, (-1/x.v^2)*x.g, (2/x.v^3)*(x.g*x.g) - (1/x.v^2)*x.h)
+@inline /(x::D2, y::D2)         = x*inv(y)
+@inline ^(x::D2, n::Number)     = D2(x.v^n, (n*x.v^(n-1))*x.g, (n*(n-1)*x.v^(n-2))*(x.g*x.g)+(n*x.v^(n-1))*x.h)
+@inline ^(x::D2, n::Integer)    = D2(x.v^n, (n*x.v^(n-1))*x.g, (n*(n-1)*x.v^(n-2))*(x.g*x.g)+(n*x.v^(n-1))*x.h)
+@inline log(x::D2)              = D2(log(x.v), x.g/x.v,      -(x.g*x.g)/x.v^2 + x.h/x.v) 
+@inline exp(x::D2)              = D2(exp(x.v), exp(x.v)*x.g, exp(x.v)*(x.g*x.g) + exp(x.v)*x.h)
+@inline sin(x::D2)              = D2(sin(x.v), cos(x.v)*x.g, -sin(x.v)*(x.g*x.g) + cos(x.v)*x.h) 
+# @inline tanh(x::D2)             = D2(tanh(x.v), (1-tanh(x.v)^2)*x.g, 2(tanh(x.v)^2-1)*tanh(x.v)*(x.g*x.g)+ (1-tanh(x.v)^2)*x.h)
+@inline sinh(x::D2)             = (1-exp(-2x))/2exp(-x)
+@inline cosh(x::D2)             = (1+exp(-2x))/2exp(-x)
+@inline tanh(x::D2)             = (exp(2x)-1)/(exp(2x)+1)
+@inline cos(x::D2)              = D2(cos(x.v), -sin(x.v)*x.g, -cos(x.v)*(x.g*x.g) - sin(x.v)*x.h) 
+@inline sqrt(x::D2)             = x^0.5
+@inline abs(x::D2)              = x.v ≥ 0 ? x : -x
 @inline conj(x::D2{N,M, <:Real} where {N,M})    = x
 #@inline dot(x::Array{D2{N,M}}, y::Array{D2{N,M}}) where {N,M} = sum(x.*y)
-@inline norm(x::Array{D2{N,M,T}} where {N,M,T})  = sqrt(x⋅x)
+@inline norm(x::Array{<:D2})    = sqrt(x⋅x)
 #
 # data retrieving methods
 @inline D2eval(f::F, x::T)       where {F,T} = f(D2(x))
 @inline Real(x::D2)                          = Real(x.v)
 @inline val(x::D2)                           = x.v
-@inline grad(x::D2{N,M,T})  where {N,M,T}    = [x.g[i]   for i in 1:N]
+# @inline grad(x::D2{N,M,T})  where {N,M,T}    = [x.g[i]   for i in 1:N]
+@inline grad(x::D2)                          = [x        for x in x.g.v]
 @inline hess(x::D2{N,M,T})  where {N,M,T}    = [x.h[i,j] for i in 1:N, j in 1:N]
 
 end

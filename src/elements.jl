@@ -153,14 +153,14 @@ function Quad(nodes::Vector{<:Integer},
   A   = 0
   for (ii, (ξ,wξ)) in enumerate(GP),
     (jj, (η,wη)) in enumerate(GP) 
-    N0  = N(adiff.D2([ξ,η])...)
+    N0  = N(adiff.D1([ξ,η])...)
     p   = sum([N0[ii]p0[ii] for ii in 1:4])
     J   = [p[ii].g[jj] for jj in 1:2, ii in 1:2]
     Nxy = J\hcat(adiff.grad.(N0)...)
 
     Nx[ii,jj]  = Nxy[1,:]
     Ny[ii,jj]  = Nxy[2,:]
-    wgt[ii,jj] = detJ(J)
+    wgt[ii,jj] = detJ(J)*wξ*wη
 
     A += wgt[ii,jj]
   end
@@ -178,10 +178,10 @@ function Tet04(nodes::Vector{<:Integer},
     A[3,2:4] = p0[3]
     A[4,2:4] = p0[4]
     C        = inv(A)
-    V        = detJ(A)/6
+    V        = det(A)/6
     (V,(C[2,:],),(C[3,:],),(C[4,:],))
   end
-  C3D(nodes,Nx,Ny,Nz,(1.0,),V,mat) 
+  C3D(nodes,Nx,Ny,Nz,(V,),V,mat) 
 end
 function Tet10(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}} where T<:Number;
@@ -192,7 +192,8 @@ function Tet10(nodes::Vector{<:Integer},
     La = 0.585410196624968
     Lb = 0.138196601125010
     ξ  = [La, Lb, Lb, Lb] 
-    A  = hcat([[1,p[1],p[2],p[3],p[1]^2,p[2]^2,p[3]^2,p[2]p[3],p[1]p[3],p[1]p[2]] for p in p0]...)
+    A  = hcat([[1,p[1],p[2],p[3],p[1]^2,p[2]^2,p[3]^2,p[2]p[3],p[1]p[3],p[1]p[2]] 
+               for p in p0]...)
     C  = inv(A)
     V  = detJ(A[1:4,1:4])/6
 
@@ -233,7 +234,7 @@ function Hex08(nodes::Vector{<:Integer},
     (jj, (η,wη)) in enumerate(GP), 
     (kk, (ζ,wζ)) in enumerate(GP)
 
-    N0   = N(adiff.D2([ξ,η,ζ])...)
+    N0   = N(adiff.D1([ξ,η,ζ])...)
     p    = sum([N0[ii]p0[ii] for ii in 1:8])
     J    = [p[ii].g[jj] for jj in 1:3, ii in 1:3]
     Nxyz = J\hcat(adiff.grad.(N0)...)
@@ -246,6 +247,40 @@ function Hex08(nodes::Vector{<:Integer},
     V +=wgt[ii,jj,kk]
   end
   C3D(nodes,tuple(Nx...),tuple(Ny...),tuple(Nz...),tuple(wgt...),V,mat) 
+end
+function Wdg06(nodes::Vector{<:Integer}, 
+               p0::Vector{Vector{T}} where T<:Number;
+               mat=Materials.Hooke())
+  N(ξ,η,ζ) = [(1-ζ)*(1-ξ-η), (1-ζ)*ξ, (1-ζ)*η,
+              (1+ζ)*(1-ξ-η), (1+ζ)*ξ, (1+ζ)*η]/2
+
+  GPs =  [([2/3,1/6,√3/3], 1/3), ([2/3,1/6,-√3/3], 1/3),
+          ([1/6,2/3,√3/3], 1/3), ([1/6,2/3,-√3/3], 1/3),
+          ([1/6,1/6,√3/3], 1/3), ([1/6,1/6,-√3/3], 1/3)]
+  nGP = length(GPs)
+
+  Nx  = Array{Array{T,1},1}(undef,nGP)
+  Ny  = Array{Array{T,1},1}(undef,nGP)
+  Nz  = Array{Array{T,1},1}(undef,nGP)
+  wgt = Array{T,1}(undef,nGP)
+  Vol = 0
+
+  for (ii, (Pii, wii)) in enumerate(GPs)
+    Nii      = N(adiff.D1(Pii)...)
+    # p        = sum([N0[ii]p0[ii] for ii in 1:6])
+    p        = transpose(Nii)*p0
+    J        = [p[ii].g[jj] for jj in 1:3, ii in 1:3]
+    Nxyz     = J\hcat(adiff.grad.(Nii)...)
+    wgt[ii]  = det(J)*wii
+    Vol     += wgt[ii]
+
+    Nx[ii]  = Nxyz[1,:]
+    Ny[ii]  = Nxyz[2,:]
+    Nz[ii]  = Nxyz[3,:]
+  end
+
+  C3DP(nodes,tuple(Nx...),tuple(Ny...),
+       tuple(Nz...),tuple(wgt...),Vol,mat) 
 end
 Hex08R(nodes, p0;mat=Materials.Hooke()) = Hex08(nodes, p0, mat=mat, GP=((0.0,1.0),))
 function ASTria(nodes::Vector{<:Integer},
@@ -280,7 +315,7 @@ function ASQuad(nodes::Vector{<:Integer},
     wgt = Array{T,2}(undef,2,2)
     V   = 0
     for (ii, ξ) in enumerate(r), (jj, η) in enumerate(r)
-      Nij = N(adiff.D2([ξ,η])...)
+      Nij = N(adiff.D1([ξ,η])...)
       p   = sum([Nij[ii]p0[ii] for ii in 1:4])
       J   = [p[ii].g[jj] for jj in 1:2, ii in 1:2]
       Nxy = J\hcat(adiff.grad.(Nij)...)
@@ -331,7 +366,7 @@ function QuadP(nodes::Vector{<:Integer},
   A   = 0
   for (ii, (ξ,wξ)) in enumerate(GP),
     (jj, (η,wη)) in enumerate(GP) 
-    Nij = N(adiff.D2([ξ,η])...)
+    Nij = N(adiff.D1([ξ,η])...)
     p   = sum([Nij[ii]p0[ii] for ii in 1:4])
     J   = [p[ii].g[jj] for jj in 1:2, ii in 1:2]
     Nxy = J\hcat(adiff.grad.(Nij)...)
@@ -369,7 +404,7 @@ function Hex08P(nodes::Vector{<:Integer},
     (jj, (η,wη)) in enumerate(GP), 
     (kk, (ζ,wζ)) in enumerate(GP)
 
-    Nijk = N(adiff.D2([ξ,η,ζ])...)
+    Nijk = N(adiff.D1([ξ,η,ζ])...)
     p    = sum([Nijk[ii]p0[ii] for ii in 1:8])
     J    = [p[ii].g[jj] for jj in 1:3, ii in 1:3]
     Nxyz = J\hcat(adiff.grad.(Nijk)...)
@@ -386,6 +421,57 @@ function Hex08P(nodes::Vector{<:Integer},
                 tuple(Nz...),tuple(wgt...),V,mat) 
 end
 Hex08PR(nodes, p0;mat=Materials.Hooke()) = Hex08P(nodes, p0, mat=mat, GP=((0.0,1.0),))
+function Wdg06P(nodes::Vector{<:Integer}, 
+                p0::Vector{Vector{T}};
+                mat=Materials.Hooke())  where T<:Number
+  N(ξ,η,ζ) = [(1-ζ)*(1-ξ-η), (1-ζ)*ξ, (1-ζ)*η,
+              (1+ζ)*(1-ξ-η), (1+ζ)*ξ, (1+ζ)*η]/2
+
+  GPs =  [([2/3,1/6,√3/3], 1/3), ([2/3,1/6,-√3/3], 1/3),
+          ([1/6,2/3,√3/3], 1/3), ([1/6,2/3,-√3/3], 1/3),
+          ([1/6,1/6,√3/3], 1/3), ([1/6,1/6,-√3/3], 1/3)]
+  nGP = length(GPs)
+
+  N0  = Array{Array{T,1},1}(undef,nGP)
+  Nx  = Array{Array{T,1},1}(undef,nGP)
+  Ny  = Array{Array{T,1},1}(undef,nGP)
+  Nz  = Array{Array{T,1},1}(undef,nGP)
+  wgt = Array{T,1}(undef,nGP)
+  Vol = 0
+
+  for (ii, (Pii, wii)) in enumerate(GPs)
+    Nii     = N(adiff.D1(Pii)...)
+    # p       = sum([N0[ii]p0[ii] for ii in 1:6])
+    p       = transpose(Nii)*p0
+    J       = [p[ii].g[jj] for jj in 1:3, ii in 1:3]
+    Nxyz    = J\hcat(adiff.grad.(Nii)...)
+    wgt[ii] = det(J)*wii
+    Vol    += wgt[ii]
+
+    N0[ii]  = adiff.val.(Nii)
+    Nx[ii]  = Nxyz[1,:]
+    Ny[ii]  = Nxyz[2,:]
+    Nz[ii]  = Nxyz[3,:]
+  end
+  C3DP(nodes,tuple(N0...),tuple(Nx...),tuple(Ny...),
+       tuple(Nz...),tuple(wgt...),Vol,mat) 
+end
+function Tet04P(nodes::Vector{<:Integer}, 
+                p0::Vector{Vector{T}} where T<:Number;
+                mat=Materials.Hooke())
+  (V, N0, Nx, Ny, Nz) = begin
+    A        = ones(4,4)
+    A[1,2:4] = p0[1]
+    A[2,2:4] = p0[2]
+    A[3,2:4] = p0[3]
+    A[4,2:4] = p0[4]
+    C        = inv(A)
+    V        = det(A)/6
+    N0       = [1/4, 1/4, 1/4, 1/4]
+    (V,(N0,),(C[2,:],),(C[3,:],),(C[4,:],))
+  end
+  C3DP(nodes,N0,Nx,Ny,Nz,(V,),V,mat) 
+end
 # methods for evaluating def. gradient
 function getF(elem::C3DElems{P,M,T,I} where {M,T,I}, u::Array{D}) where {P,D}
   u0, v0, w0 = u[1:3:end],  u[2:3:end],  u[3:3:end]

@@ -21,11 +21,9 @@ ConstEq(func, iDoFs) = ConstEq(func, iDoFs, adiff.D2)
 #
 # elastic energy evaluation functions for elements
 function getϕ(elem::Elements.Rod,  u::Matrix{<:Number})
-
   l   = norm(elem.r0+u[:,2]-u[:,1])
   F11 = l/elem.l0
   elem.A*elem.l0*getϕ(F11, elem.mat)    
-
 end
 function getϕ(elem::Elements.Beam, u::Matrix{<:Number})
 
