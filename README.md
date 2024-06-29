@@ -21,6 +21,8 @@ Pkg.add("AD4SM")
 
 Examples and tutorials about using AD4SM.jl can be found [here](https://github.com/avigliotti/AD4SM_examples)
 
+## Resources
+
 Details on the implementation of AD4SM.jl can be found in: 
 [Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y](https://rdcu.be/b0yx2).
 Preprint available [here](https://arxiv.org/pdf/2001.07366).
