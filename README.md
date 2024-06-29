@@ -5,7 +5,7 @@ _Automatic Differentiation for Solid Mechanics in Julia_
 
 This repository contains the following modules implementing an automatic differentiation system for the solution of solid mechanics problems in [Julia](https://github.com/JuliaLang/julia):
 
-- adiff.jl		is the module implementing the automatic differentitation system in Julia
+- adiff.jl		is the module implementing the automatic differentitation system
 - materials.jl  is the module implementing the strain energy evaluation functions for the materials
 - elements.jl   is the module implementing the energy evaluation functions for the single elements and for the model, and the functions for solving a finite element problem
 
