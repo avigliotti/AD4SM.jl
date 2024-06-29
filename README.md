@@ -17,6 +17,9 @@ The package can be installed from the Julia prompt as follows:
 using Pkg
 Pkg.add("AD4SM")
 ```
+## Examples and tutorials
+
+Examples and tutorials about using AD4SM.jl can be found [here](https://github.com/avigliotti/AD4SM_examples)
 
 Details on the implementation of AD4SM.jl can be found in: 
 [Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y](https://rdcu.be/b0yx2).
@@ -39,7 +42,3 @@ Cite as
      doi  = {10.1007/s11831-019-09396-y}
 }
 ```
-
-## Examples and tutorials
-
-Examples and tutorials about using AD4SM.jl can be found [here](https://github.com/avigliotti/AD4SM_examples)
