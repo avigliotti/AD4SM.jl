@@ -3,6 +3,17 @@ _Automatic Differentiation for Solid Mechanics in Julia_
 
 <img src=/images/SpringFineMeshNHb.png height=280> <img src=/images/3DSpringFineMeshNHb.png height=300>
 
+This repository implements an alternative approach for the derivation of the Finite Element Method for solid mechanics, which is based on obtaining the residual force vector and the tangent stiffness matrix directly as the gradient and the hessian of the free energy of the body. 
+
+For any given configuration, the free energy of the body is evaluated by means of the same discretization of the traditional Finite Element approaches, by subdividing the domain into elements and using shape functions to interpolate the nodal values of the unknown fields onto the integration points.
+However in the present implementation it is not necessary to explicitly evaluate the entries of the stress tensor or of the stiffness tensor, with significant complexity reduction in programming and debugging. In addition, since this approach is based entirely on the weak form of the equilibrium it is more general, and can also be used in the cases where not strong form of equilibrium is available.
+
+Details on the theory behind this methodology can be found in: 
+[Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y](https://rdcu.be/b0yx2).
+Preprint available [here](https://arxiv.org/pdf/2001.07366).
+
+## Content of the repository
+
 This repository contains the following modules implementing an automatic differentiation system for the solution of solid mechanics problems in [Julia](https://github.com/JuliaLang/julia):
 
 - adiff.jl		is the module implementing the automatic differentitation system
@@ -21,19 +32,10 @@ Pkg.add("AD4SM")
 
 Examples and tutorials about using AD4SM.jl can be found [here](https://github.com/avigliotti/AD4SM_examples)
 
-## Resources
+## Citation info
 
-Details on the implementation of AD4SM.jl can be found in: 
-[Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y](https://rdcu.be/b0yx2).
-Preprint available [here](https://arxiv.org/pdf/2001.07366).
-#### Abstract
-Automatic differentiation (AD) is an ensemble of techniques that allow to evaluate accurate numerical derivatives of a mathematical function expressed in a computer programming language.
-In this study we use AD for stating and solving solid mechanics problems.
-Given a finite element discretization of the domain, we evaluate the free energy of the solid  as the integral of its strain energy density, and we make use of AD for directly obtaining the residual force vector and the tangent stiffness matrix of the problem, as the gradient and the Hessian of the free energy respectively.
-The result is a remarkable simplification in the statement and the solution of complex problems involving non trivial constraints systems and both geometrical and material non linearities.
-Together with the continuum mechanics theoretical basis, and with a description of the specific AD technique adopted, the paper illustrates the solution of a number of solid mechanics problems, with the aim of presenting a convenient numerical implementation approach, made easily available by recent programming languages, to the solid mechanics community.
+If you use the resources in this repository or find it useful for your work, please cite as
 
-Cite as
 ```
 @article{AD4SM,
     title = {Automatic differentiation for solid mechanics},
