@@ -9,7 +9,9 @@ For any given configuration, the free energy of the body is evaluated by means o
 However in the present implementation it is not necessary to explicitly evaluate the entries of the stress tensor or of the stiffness tensor, with significant complexity reduction in programming and debugging. In addition, since this approach is based entirely on the weak form of the equilibrium it is more general, and can also be used in the cases where not strong form of equilibrium is available.
 
 Details on the theory behind this methodology can be found in: 
+
 [Vigliotti A., Auricchio F., "Automatic differentiation for solid mechanics", Archives of Computational Methods in Engineering, 2020, In the press, DOI 10.1007/s11831-019-09396-y](https://rdcu.be/b0yx2).
+
 Preprint available [here](https://arxiv.org/pdf/2001.07366).
 
 ## Content of the repository
