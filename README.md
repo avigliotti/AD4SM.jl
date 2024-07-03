@@ -6,7 +6,10 @@ _Automatic Differentiation for Solid Mechanics in Julia_
 This repository implements an alternative approach for the derivation of the Finite Element Method for solid mechanics, which is based on obtaining the residual force vector and the tangent stiffness matrix directly as the gradient and the hessian of the free energy of the body. 
 
 For any given configuration, the free energy of the body is evaluated by means of the same discretization of the traditional Finite Element approaches, by subdividing the domain into elements and using shape functions to interpolate the nodal values of the unknown fields onto the integration points.
-However in the present implementation it is not necessary to explicitly evaluate the entries of the stress tensor or of the stiffness tensor, with significant complexity reduction in programming and debugging. In addition, since this approach is based entirely on the weak form of the equilibrium it is more general, and can also be used in the cases where not strong form of equilibrium is available.
+
+In the present implementation it is not necessary to explicitly evaluate the entries of the stress tensor or of the stiffness tensor, with significant complexity reduction in programming and debugging. In addition, since this approach is based entirely on the weak form of the equilibrium it is more general, and can also be used in the cases where not strong form of equilibrium is available.
+
+Also, this method accommodates all types of non-linearities—geometric, material, and constraint-based.
 
 Details on the theory behind this methodology can be found in: 
 
