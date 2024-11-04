@@ -110,10 +110,10 @@ promote_rule(::Type{D1{N,T}},   ::Type{<:Real}) where {N,T}    = D1{N,T}
 @inline *(x::D1, y::D1)         = D1(x.v*y.v, x.v*y.g+y.v*x.g)
 @inline inv(x::D1)              = D1(1/x.v, (-1/x.v^2)*x.g)
 @inline /(x::D1, y::D1)         = x*inv(y)
-@inline ^(x::T, n::Integer) where T<:D1 = x.v==0 ? zero(T) : D1(x.v^n, (n*x.v^n/x.v)*x.g)
-@inline ^(x::T, n::Number)  where T<:D1 = x.v==0 ? zero(T) : D1(x.v^n, (n*x.v^n/x.v)*x.g)
-# @inline ^(x::D1, n::Number)     = D1(x.v^n, (n*x.v^n/x.v)*x.g)
-# @inline ^(x::D1, n::Integer)    = D1(x.v^n, (n*x.v^n/x.v)*x.g)
+@inline ^(x::T, n::Number)  where T<:D1 = n==0 ? one(T) :  n==1 ? x : D1(x.v^n, (n*x.v^(n-1))*x.g)
+@inline ^(x::T, n::Integer) where T<:D1 = n==0 ? one(T) :  n==1 ? x : D1(x.v^n, (n*x.v^(n-1))*x.g)
+# @inline ^(x::T, n::Number)  where T<:D1 = n==0 ? one(T) : x.v==0 ? zero(T) : let x2n=x.v^n; D1(x2n, (n*x2n/x.v)*x.g); end
+# @inline ^(x::T, n::Integer) where T<:D1 = n==0 ? one(T) : x.v==0 ? zero(T) : let x2n=x.v^n; D1(x2n, (n*x2n/x.v)*x.g); end
 @inline log(x::D1)              = D1(log(x.v), x.g/x.v)
 @inline exp(x::D1)              = D1(exp(x.v), exp(x.v)*x.g)
 @inline sin(x::D1)              = D1(sin(x.v), cos(x.v)*x.g)
@@ -143,10 +143,10 @@ promote_rule(::Type{D1{N,T}},   ::Type{<:Real}) where {N,T}    = D1{N,T}
 @inline *(x::D2, y::D2)         = D2(x.v*y.v, x.v*y.g+y.v*x.g, x.v*y.h+y.v*x.h+x.g*y.g+y.g*x.g)
 @inline inv(x::D2)              = D2(1/x.v, (-1/x.v^2)*x.g, (2/x.v^3)*(x.g*x.g) - (1/x.v^2)*x.h)
 @inline /(x::D2, y::D2)         = x*inv(y)
-# @inline ^(x::D2, n::Number)     = D2(x.v^n, (n*x.v^(n-1))*x.g, (n*(n-1)*x.v^(n-2))*(x.g*x.g)+(n*x.v^(n-1))*x.h)
-# @inline ^(x::D2, n::Integer)    = D2(x.v^n, (n*x.v^(n-1))*x.g, (n*(n-1)*x.v^(n-2))*(x.g*x.g)+(n*x.v^(n-1))*x.h)
-@inline ^(x::T, n::Number)  where T<:D2 = x.v==0 ? zero(T) : D2(x.v^n, (n*x.v^n/x.v)*x.g, (n*(n-1)*(x.v^n/x.v^2))*(x.g*x.g)+(n*x.v^n/x.v)*x.h)
-@inline ^(x::T, n::Integer) where T<:D2 = x.v==0 ? zero(T) : D2(x.v^n, (n*x.v^n/x.v)*x.g, (n*(n-1)*(x.v^n/x.v^2))*(x.g*x.g)+(n*x.v^n/x.v)*x.h)
+@inline ^(x::T, n::Number)  where T<:D2 = n==0 ? one(T) :  n==1 ? x : D2(x.v^n, (n*x.v^(n-1))*x.g, (n*(n-1)*x.v^(n-2))*(x.g*x.g)+(n*x.v^(n-1))*x.h)
+@inline ^(x::T, n::Integer) where T<:D2 = n==0 ? one(T) :  n==1 ? x : D2(x.v^n, (n*x.v^(n-1))*x.g, (n*(n-1)*x.v^(n-2))*(x.g*x.g)+(n*x.v^(n-1))*x.h)
+# @inline ^(x::T, n::Number)  where T<:D2 = n==0 ? one(T) : x.v==0 ? zero(T) : let x2n=x.v^n; D2(x2n, (n*x2n/x.v)*x.g, (n*(n-1)*(x2n/x.v^2))*(x.g*x.g)+(n*x2n/x.v)*x.h); end
+# @inline ^(x::T, n::Integer) where T<:D2 = n==0 ? one(T) : x.v==0 ? zero(T) : let x2n=x.v^n; D2(x2n, (n*x2n/x.v)*x.g, (n*(n-1)*(x2n/x.v^2))*(x.g*x.g)+(n*x2n/x.v)*x.h); end
 @inline log(x::D2)              = D2(log(x.v), x.g/x.v,      -(x.g*x.g)/x.v^2 + x.h/x.v) 
 @inline exp(x::D2)              = D2(exp(x.v), exp(x.v)*x.g, exp(x.v)*(x.g*x.g) + exp(x.v)*x.h)
 @inline sin(x::D2)              = D2(sin(x.v), cos(x.v)*x.g, -sin(x.v)*(x.g*x.g) + cos(x.v)*x.h) 
