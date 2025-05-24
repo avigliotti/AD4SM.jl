@@ -193,13 +193,15 @@ function getϕ(elem::CPElems{P}, u0::Matrix, d0::Vector, ϕmax::Vector) where P
   ϕ
 end
 #
-# calling getϕ with dual numbers
+# calling getϕ with dual numbers on 3D elements
+#
 # these functions are optimized in case getϕ is called with a dual type for 
 # the displacement field trough the use of the × operators for the chain 
-# derivative
+# derivative, the other use the standard implementation common for all
+# on newer CPU this might disppear
 #
 # without history
-function getϕ(elem::CPElems{P}, u0::Matrix{D}, d0::Vector) where {P,D<:adiff.D1}
+function getϕ(elem::C3DP{P}, u0::Matrix{D}, d0::Vector) where {P,D<:adiff.D1}
 
   ϕ = zero(D) 
   @inline for ii=1:P
@@ -211,7 +213,7 @@ function getϕ(elem::CPElems{P}, u0::Matrix{D}, d0::Vector) where {P,D<:adiff.D1
   end
   ϕ
 end
-function getϕ(elem::CPElems{P}, u0::Matrix{D}, d0::Vector) where {P,D<:adiff.D2}
+function getϕ(elem::C3DP{P}, u0::Matrix{D}, d0::Vector) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
   ϕ  = zero(D) 
@@ -226,7 +228,7 @@ function getϕ(elem::CPElems{P}, u0::Matrix{D}, d0::Vector) where {P,D<:adiff.D2
 end
 #
 # with history
-function getϕ(elem::CPElems{P}, u0::Matrix{D}, d0::Vector, ϕmax::Vector) where {P,D<:adiff.D1}
+function getϕ(elem::C3DP{P}, u0::Matrix{D}, d0::Vector, ϕmax::Vector) where {P,D<:adiff.D1}
 
   ϕ = zero(D) 
   @inline for ii=1:P
@@ -238,7 +240,7 @@ function getϕ(elem::CPElems{P}, u0::Matrix{D}, d0::Vector, ϕmax::Vector) where
   end
   ϕ
 end
-function getϕ(elem::CPElems{P}, u0::Matrix{D}, d0::Vector, ϕmax::Vector) where {P,D<:adiff.D2}
+function getϕ(elem::C3DP{P}, u0::Matrix{D}, d0::Vector, ϕmax::Vector) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
   ϕ  = zero(D) 
@@ -287,16 +289,6 @@ end
 # 
 # functions for array of elements
 # 
-function getϕ(elems::Vector{<:CPElems},  u::Matrix, d::Matrix)
-  nElems = length(elems)
-
-  Φ = Vector(undef, nElems)
-  Threads.@threads for ii=1:nElems
-    Φ[ii] = getϕ(elems[ii], u[:,elems[ii].nodes], d[elems[ii].nodes])
-  end
-
-  return Φ
-end
 function makeϕrKt(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}) where T
   nElems = length(elems)
   N      = length(u[:,elems[1].nodes])

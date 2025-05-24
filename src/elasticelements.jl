@@ -191,9 +191,6 @@ function Wdg06(nodes::Vector{<:Integer},
        tuple(Nz...),tuple(wgt...),Vol,mat) 
 end
 Hex08R(nodes, p0;mat=Materials.Hooke()) = Hex08(nodes, p0, mat=mat, GP=((0.0,1.0),))
-#
-#   Axial symmetric elements
-#
 function ASTria(nodes::Vector{<:Integer},
                 p0::Vector{Vector{T}} where T<:Number;
                 mat=Materials.Hooke())
@@ -248,13 +245,12 @@ end
 #
 # elastic energy evaluation functions for elements
 #
-# structural elements
-function getϕ(elem::Elements.Rod,  u::Matrix{<:Number})
+function getϕ(elem::Rod,  u::Matrix{<:Number})
   l   = norm(elem.r0+u[:,2]-u[:,1])
   F11 = l/elem.l0
   elem.A*elem.l0*getϕ(F11, elem.mat)    
 end
-function getϕ(elem::Elements.Beam, u::Matrix{<:Number})
+function getϕ(elem::Beam, u::Matrix{<:Number})
 
   L, r0, t, w = elem.L, elem.r0, elem.t, elem.w
   T    = [r0[1] r0[2]; -r0[2] r0[1]]
@@ -285,9 +281,7 @@ function getϕ(elem::Elements.Beam, u::Matrix{<:Number})
   end
   return ϕ
 end
-#
-# continuous elemets
-function getϕ(elem::Elements.CElems{P}, u::Array{U,2})  where {U, P}
+function getϕ(elem::CElems{P}, u::Array{U,2})  where {U, P}
   ϕ = zero(U)
   for ii=1:P
     F  = getF(elem,u,ii)
@@ -296,20 +290,25 @@ function getϕ(elem::Elements.CElems{P}, u::Array{U,2})  where {U, P}
   ϕ
 end
 #
-# calling getϕ with dual numbers
+# calling getϕ with dual numbers on 3D elements
 #
-function getϕ(elem::CElems{P,M,T,I} where {M,T,I}, u0::Matrix{D}) where {P,D<:adiff.D1}
+# these functions are optimized in case getϕ is called with a dual type for 
+# the displacement field trough the use of the × operators for the chain 
+# derivative, the other use the standard implementation common for all
+# on newer CPU this might disppear
+#
+function getϕ(elem::C3D{P,M,T,I} where {M,T,I}, u0::Matrix{D}) where {P,D<:adiff.D1}
 
   ϕ   = zero(D) 
   for ii=1:P
-    F    = Elements.getF(elem, u0, ii)
+    F    = getF(elem, u0, ii)
     valF = adiff.val.(F)
     δϕ   = getϕ(adiff.D1(valF), elem.mat)
     ϕ   += elem.wgt[ii]δϕ×F
   end
   ϕ
 end
-function getϕ(elem::CElems{P,M,T,I} where {M,T,I}, u0::Matrix{D}) where {P,D<:adiff.D2}
+function getϕ(elem::C3D{P,M,T,I} where {M,T,I}, u0::Matrix{D}) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
   ϕ  = zero(D) 
@@ -322,18 +321,28 @@ function getϕ(elem::CElems{P,M,T,I} where {M,T,I}, u0::Matrix{D}) where {P,D<:a
   ϕ
 end
 #
+# functions for evaluating the residual and the tangent stiffness matrix over
+# and array of elements
 #
-function makeϕrKt(elems::Array{<:Elems}, u::Array{<:Number})
+function makeϕrKt(elems::Array{<:Elems}, u::Array{T}) where T
 
-  Φ  = getδϕ(elems, u)
+  nElems = length(elems)
+  N      = length(u[:,elems[1].nodes])
+  M      = (N+1)N÷2
+
+  Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
+  Threads.@threads for ii=1:nElems
+    Φ[ii] = getϕ(elems[ii], adiff.D2(u[:,elems[ii].nodes]))
+  end
+
   makeϕrKt(Φ, elems, u)
 end
-getδϕ(elem::Elements.Elems, u::Matrix{<:Number}) = getϕ(elem, adiff.D2(u))
 #
-# function getδϕ(elem::Elements.C3D{P}, u0::Matrix{T})  where {P,T}  
+# function getδϕ(elem::C3D{P}, u0::Matrix{T})  where {P,T}  
 # evaluates the strain energy density as a dual D2 number 
 #
-function getδϕ(elem::Elements.C3D{P}, u0::Matrix{T})  where {P,T}
+getδϕ(elem::Elems, u::Matrix{<:Number}) = getϕ(elem, adiff.D2(u))
+function getδϕ(elem::C3D{P}, u0::Matrix{T})  where {P,T}
 
   u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
   N       = lastindex(u0)  
@@ -364,9 +373,7 @@ function getδϕ(elem::Elements.C3D{P}, u0::Matrix{T})  where {P,T}
 
   adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
 end
-#
-# elastic energy evaluation functions for models (Array of elements)
-function getδϕ(elems::Vector{<:Elements.Elems}, u::Array{T,2}) where T
+function getδϕ(elems::Vector{<:Elems}, u::Array{T,2}) where T
   nElems = length(elems)
   N      = length(u[:,elems[1].nodes])
   M      = (N+1)N÷2

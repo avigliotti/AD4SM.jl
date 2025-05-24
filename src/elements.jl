@@ -230,54 +230,54 @@ function getF(elem::CAS,   u::Array{D}, ii::Int64)  where D
   [u0x  u0y   my0;
    v0x  v0y   my0;
    my0  my0   w0z] + I
- end
- function detJ(F)
-   if (length(F)==9)
-     # F[1]F[5]F[9]-F[1]F[6]F[8]-F[2]F[4]F[9]+F[2]F[6]F[7]+F[3]F[4]F[8]-F[3]F[5]F[7]
-     F[1]*(F[5]F[9]-F[6]F[8])-F[2]*(F[4]F[9]-F[6]F[7])+F[3]*(F[4]F[8]-F[5]F[7])
-   else
-     F[1]F[4]-F[2]F[3]
-   end
- end
- detJ(elem,u,ii)  = detJ(getF(elem, u, ii))
- getV(elem,u)     = sum([elem.wgt[ii]detJ(elem,u,ii) for ii in 1:length(elem.wgt)])
- detJ(elem,u)     = getV(elem,u)/elem.V
- getI3(elem,u,ii) = detJ(getF(elem, u, ii))^2
- getI3(elem,u)    = sum([elem.wgt[ii]getI3(elem,u,ii) for ii in 1:length(elem.wgt)])/elem.V
- #
- function getinfo(elem::CElems{P}, u::Matrix{<:Number}; info=:detF) where P
-   F = sum([getF(elem, u, ii) for ii=1:P])/P
-   Materials.getinfo(F, elem.mat, info=info)
- end
- getinfo(elems::Array, u; info=:detF) =  [getinfo(elem, u[:,elem.nodes], info=info) for elem in elems]
- # helper functions
- # find the Gauss-Legendre quadrature points and weights
- function lgwt(N::Integer; a=0, b=1)
+end
+function detJ(F)
+  if (length(F)==9)
+    # F[1]F[5]F[9]-F[1]F[6]F[8]-F[2]F[4]F[9]+F[2]F[6]F[7]+F[3]F[4]F[8]-F[3]F[5]F[7]
+    F[1]*(F[5]F[9]-F[6]F[8])-F[2]*(F[4]F[9]-F[6]F[7])+F[3]*(F[4]F[8]-F[5]F[7])
+  else
+    F[1]F[4]-F[2]F[3]
+  end
+end
+detJ(elem,u,ii)  = detJ(getF(elem, u, ii))
+getV(elem,u)     = sum([elem.wgt[ii]detJ(elem,u,ii) for ii in 1:length(elem.wgt)])
+detJ(elem,u)     = getV(elem,u)/elem.V
+getI3(elem,u,ii) = detJ(getF(elem, u, ii))^2
+getI3(elem,u)    = sum([elem.wgt[ii]getI3(elem,u,ii) for ii in 1:length(elem.wgt)])/elem.V
+#
+function getinfo(elem::CElems{P}, u::Matrix{<:Number}; info=:detF) where P
+  F = sum([getF(elem, u, ii) for ii=1:P])/P
+  Materials.getinfo(F, elem.mat, info=info)
+end
+getinfo(elems::Array, u; info=:detF) =  [getinfo(elem, u[:,elem.nodes], info=info) for elem in elems]
+# helper functions
+# find the Gauss-Legendre quadrature points and weights
+function lgwt(N::Integer; a=0, b=1)
 
-   N, N1, N2 = N-1, N, N+1
-   xu   = range(-1, stop=1,length=N1)
-   y    = cos.((2collect(0:N) .+ 1)*pi/(2N+2)) .+ (0.27/N1)*sin.(π*xu*N/N2)
-   L    = zeros(N1,N2)
-   dTol = 1e-16
-   y0   = 2
+  N, N1, N2 = N-1, N, N+1
+  xu   = range(-1, stop=1,length=N1)
+  y    = cos.((2collect(0:N) .+ 1)*pi/(2N+2)) .+ (0.27/N1)*sin.(π*xu*N/N2)
+  L    = zeros(N1,N2)
+  dTol = 1e-16
+  y0   = 2
 
-   while maximum(abs.(y.-y0)) > dTol
-     L[:,1] .= 1
-     L[:,2] .= y
-     for k = 2:N1
-       L[:,k+1]=((2k-1)*y.*L[:,k] .- (k-1)*L[:,k-1])/k
-     end
-     global Lp = N2*(L[:,N1] .- y .* L[:,N2])./(1 .- y.^2)
-     y0 = y
-     y  = y0 .- L[:,N2]./Lp        
-   end
+  while maximum(abs.(y.-y0)) > dTol
+    L[:,1] .= 1
+    L[:,2] .= y
+    for k = 2:N1
+      L[:,k+1]=((2k-1)*y.*L[:,k] .- (k-1)*L[:,k-1])/k
+    end
+    global Lp = N2*(L[:,N1] .- y .* L[:,N2])./(1 .- y.^2)
+    y0 = y
+    y  = y0 .- L[:,N2]./Lp        
+  end
 
-   x = (a.*(1 .- y) .+ b.* (1 .+ y))./2
-   w = (b-a)./((1 .- y.^2).*Lp.^2).*(N2/N1)^2
+  x = (a.*(1 .- y) .+ b.* (1 .+ y))./2
+  w = (b-a)./((1 .- y.^2).*Lp.^2).*(N2/N1)^2
 
-   return [(x[ii], w[ii]) for ii ∈ 1:N1]
-   # (x,w)
- end
+  return [(x[ii], w[ii]) for ii ∈ 1:N1]
+  # (x,w)
+end
 
 end
 
