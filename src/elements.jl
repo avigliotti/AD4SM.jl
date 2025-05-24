@@ -11,7 +11,10 @@ import ..Materials.getϕ
 export makeϕrKt
 export getF, getϕ, getδϕ
 
-# continous elements 
+# continous elements
+# these elements hold the tools to evaluate the gradient of a function at the 
+# integration points, this is done trough the Nx,Ny,Nz vectors, one for each
+# integration point
 struct C1D{P,M,T<:Number,I<:Integer}
   nodes::Vector{I}
   Nx::NTuple{P,Vector{T}}
@@ -67,6 +70,17 @@ struct Beam{M,T<:Number,I<:Integer}
 end
 #
 # continous elements with phase
+# these elements also hold the mean to evaluate the value of the function at 
+# the integration point, not only its gradient this is done trough 
+# the N0 arrays
+struct C1DP{P,M,T<:Number,I<:Integer}
+  nodes::Vector{I}
+  N0::NTuple{P,Vector{T}}
+  Nx::NTuple{P,Vector{T}}
+  wgt::NTuple{P,T}
+  V::T
+  mat::M
+end
 struct C2DP{P,M,T<:Number,I<:Integer}
   nodes::Vector{I}
   N0::NTuple{P,Vector{T}}
@@ -87,11 +101,13 @@ struct C3DP{P,M,T<:Number,I<:Integer}
   mat::M
 end
 
-Elems             = Union{Rod, Beam, C1D, C2D, C3D, CAS, C2DP, C3DP}
-CElems{P,M,T,I}   = Union{C2D{P,M,T,I}, C3D{P,M,T,I}, CAS{P,M,T,I}, C2DP{P,M,T,I}, C3DP{P,M,T,I}} # where {P,M,T,I}
-C2DElems{P,M,T,I} = Union{C2D{P,M,T,I}, C2DP{P,M,T,I}} # where {P,M,T,I}
-C3DElems{P,M,T,I} = Union{C3D{P,M,T,I}, C3DP{P,M,T,I}} # where {P,M,T,I}
-CPElems{P,M,T,I}  = Union{C2DP{P,M,T,I}, C3DP{P,M,T,I}, CAS{P,M,T,I}} # where {P,M,T,I}
+C1DElems{P,M,T,I} = Union{C1D{P,M,T,I}, C1DP{P,M,T,I}}
+C2DElems{P,M,T,I} = Union{C2D{P,M,T,I}, C2DP{P,M,T,I}}
+C3DElems{P,M,T,I} = Union{C3D{P,M,T,I}, C3DP{P,M,T,I}}
+CElems{P,M,T,I}   = Union{C2D{P,M,T,I}, C3D{P,M,T,I}, CAS{P,M,T,I}, 
+                          C2DP{P,M,T,I}, C3DP{P,M,T,I}}
+CPElems{P,M,T,I}  = Union{C2DP{P,M,T,I}, C3DP{P,M,T,I}, CAS{P,M,T,I}}
+Elems             = Union{Rod, Beam, CElems}
 
 export C3DP, C3D, C2DP, C2D, CElems, Rod
 export C2DElems, C3DElems, CAS, CPElems, Elems
@@ -102,8 +118,36 @@ include("phasefieldelements.jl")
 # parameters retriving functions 
 getP(::CElems{P,M,T,I}) where {P,M,T,I} = P
 getM(::CElems{P,M,T,I}) where {P,M,T,I} = M
+#
+# × operator
+# this operator allows to use the chain rule decoupling the calculation of
+# the free energy density from the degrees of freedom of the displacement
+#
+function ×(ϕ::adiff.D2{N,M,T},F::Array{adiff.D1{P,T}}) where {N,M,P,T}
+  val  = ϕ.v
+  grad = adiff.Grad(zeros(T,P))
+  hess = adiff.Grad(zeros(T,(P+1)P÷2))
+  for ii=1:N
+    grad += ϕ.g[ii]*F[ii].g
+  end
+  for ii=2:N, jj=1:ii-1
+    hess += ϕ.h[ii,jj]*(F[ii].g*F[jj].g + F[jj].g*F[ii].g)
+  end  
+  for ii=1:N
+    hess += ϕ.h[ii,ii]F[ii].g*F[ii].g
+  end
+  adiff.D2(val, grad, hess)
+end
+function ×(ϕ::adiff.D1{N,T},F::Array{adiff.D1{P,T}}) where {N,P,T}
+  val  = ϕ.v
+  grad = adiff.Grad(zeros(T,P))
+  for ii=1:N
+    grad += ϕ.g[ii]*F[ii].g
+  end  
+  adiff.D1(val, grad)
+end
 # functions for calculating residuals and stiffness matrix
-function makeϕrKt(Φ::Vector{<:adiff.D2}, elems::Vector{<:CPElems}, u)
+function makeϕrKt(Φ::Vector{<:adiff.D2}, elems::Vector{<:Elems}, u)
 
   N  = length(u) 
   Nt = 0
@@ -135,41 +179,6 @@ function makeϕrKt(Φ::Vector{<:adiff.D2}, elems::Vector{<:CPElems}, u)
   end
 
   ϕ, r, dropzeros(sparse(II,JJ,Kt,N,N))
-end
-
-function makeϕrKt(elems::Array{<:Elems}, u::Array{<:Number})
-
-  Φ  = getδϕ(elems, u)
-  makeϕrKt(Φ, elems, u)
-end
-
-#=
-function renumber!(nodes, elems)
-
-  unodes   = sort(unique(vcat([elem.nodes for elem in elems]...)))
-  el_nodes = hcat([elem.nodes for elem in elems]...)
-  shift    = maximum(unodes) + 1
-
-  el_nodes .+= shift
-  for (ii, nodeid) in enumerate(unodes)
-    nodeid += shift
-    el_nodes[el_nodes .== nodeid] .= ii
-  end
-  nodes = nodes[unodes]
-
-  for (ii,elem) in enumerate(elems)
-    elem.nodes[:] .= el_nodes[:,ii]
-  end
-  (nodes, elems)
-end
-=#
-function split(N::Int64, p::Int64)
-  n    = Int64(floor(N/p))
-  nEls = ones(Int64, p)*n
-  nEls[1:N-p*n] .+= 1
-
-  slice = [ range(sum(nEls[1:ii-1])+1, length=nEls[ii])
-           for ii in 1:p]
 end
 #
 # methods for evaluating the deformation gradient at integration points
@@ -269,61 +278,6 @@ function getF(elem::CAS,   u::Array{D}, ii::Int64)  where D
    return [(x[ii], w[ii]) for ii ∈ 1:N1]
    # (x,w)
  end
-
-
-#=
-getδϕδu(elem::Elems, u::Matrix{<:Number}, d0::Vector{<:Number}) = getϕ(elem, adiff.D2(u), d0)
-getδϕδd(elem::Elems, u::Matrix{<:Number}, d0::Vector{<:Number}) = getϕ(elem, d0, adiff.D2(d0))
-#
-# function getδϕ(elem::C3D{P}, u0::Matrix{T})  where {P,T}  
-# evaluates the strain energy density as a dual D2 number 
-#
-function getδϕ(elem::C3D{P}, u0::Matrix{T})  where {P,T}
-
-  u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
-  N       = lastindex(u0)  
-  wgt     = elem.wgt
-  val     = zero(T)
-  grad    = zeros(T,N)
-  hess    = zeros(T,(N+1)N÷2)
-  δF      = zeros(T,N,9)
-
-  @inbounds for ii=1:P
-    Nx,Ny,Nz    = elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
-    δF[1:3:N,1] = δF[2:3:N,2] = δF[3:3:N,3] = Nx
-    δF[1:3:N,4] = δF[2:3:N,5] = δF[3:3:N,6] = Ny
-    δF[1:3:N,7] = δF[2:3:N,8] = δF[3:3:N,9] = Nz
-
-    F    = [Nx⋅u Ny⋅u Nz⋅u;
-            Nx⋅v Ny⋅v Nz⋅v;
-            Nx⋅w Ny⋅w Nz⋅w ] + I
-    ϕ    = getϕ(adiff.D2(F), elem.mat)::adiff.D2{9, 45, T}
-    val += wgt[ii]ϕ.v
-    @inbounds for jj=1:9,i1=1:N
-      grad[i1] += wgt[ii]*ϕ.g[jj]*δF[i1,jj]
-      @inbounds  for kk=1:9,i2=1:i1
-        hess[(i1-1)i1÷2+i2] += wgt[ii]*ϕ.h[jj,kk]*δF[i1,jj]*δF[i2,kk]
-      end   
-    end
-  end
-
-  adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
-end
-#
-# elastic energy evaluation functions for models (Array of elements)
-function getδϕ(elems::Vector{<:Elems}, u::Array{T,2}) where T
-  nElems = length(elems)
-  N      = length(u[:,elems[1].nodes])
-  M      = (N+1)N÷2
-
-  Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
-  Threads.@threads for ii=1:nElems
-    Φ[ii] = getδϕ(elems[ii], u[:,elems[ii].nodes])
-  end
-  Φ
-end 
-
-=#
 
 end
 

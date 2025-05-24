@@ -1,5 +1,5 @@
 
-export getδϕδuu, getδϕδdd
+export makeϕrKt, makeϕrKt_d
 
 #
 # elements with support for phase field
@@ -160,7 +160,7 @@ function getdand∇d(elem::Union{C2DP,CAS}, d0::Vector{D}, ii) where D
 end
 #
 # get the average of d over the element
-function getd(elem::CElems{P}, d0::Vector{T}) where {P,T}
+function getd(elem::CPElems{P}, d0::Vector{T}) where {P,T}
   d       = zero(T)
   for ii=1:P
     d += elem.wgt[ii]*(elem.N0[ii]⋅d0)
@@ -168,24 +168,23 @@ function getd(elem::CElems{P}, d0::Vector{T}) where {P,T}
   d/elem.V
 end
 #
-# without history
-function getϕ(elem::CElems{P}, u0::Matrix, d0::Vector) where P
+# get free energy density for the elment without history
+function getϕ(elem::CPElems{P}, u0::Matrix, d0::Vector) where P
 
-  wgt = elem.wgt
-  ϕ   = 0
-  for ii=1:P
+  ϕ = 0
+  @inline for ii=1:P
     F    = getF(elem, u0, ii)
     d,∇d = getdand∇d(elem,d0,ii)
-    ϕ   += wgt[ii]getϕ(F, d, ∇d, elem.mat)
+    ϕ   += elem.wgt[ii]getϕ(F, d, ∇d, elem.mat)
   end
   ϕ
 end
-# with history
-function getϕ(elem::CElems{P}, u0::Matrix, d0::Vector, ϕmax::Vector) where P
+# get free energy density for the elment with history
+function getϕ(elem::CPElems{P}, u0::Matrix, d0::Vector, ϕmax::Vector) where P
 
   wgt = elem.wgt
   ϕ   = 0
-  for ii=1:P
+  @inline for ii=1:P
     F    = getF(elem, u0, ii)
     d,∇d = getdand∇d(elem,d0,ii)
     ϕii,ϕmax[ii] = getϕ(F, d, ∇d, elem.mat, ϕmax[ii])
@@ -193,104 +192,67 @@ function getϕ(elem::CElems{P}, u0::Matrix, d0::Vector, ϕmax::Vector) where P
   end
   ϕ
 end
-
 #
 # calling getϕ with dual numbers
+# these functions are optimized in case getϕ is called with a dual type for 
+# the displacement field trough the use of the × operators for the chain 
+# derivative
 #
-function getϕ(elem::CElems{P,M,T,I} where {M,T,I}, u0::Matrix{D}, d0::Vector{T} where T) where {P,D<:adiff.D1}
+# without history
+function getϕ(elem::CPElems{P}, u0::Matrix{D}, d0::Vector) where {P,D<:adiff.D1}
 
-  wgt = elem.wgt
-  ϕ   = zero(D) 
-  for ii=1:P
+  ϕ = zero(D) 
+  @inline for ii=1:P
     F    = getF(elem, u0, ii)
     d,∇d = getdand∇d(elem,d0, ii)
     valF = adiff.val.(F)
     δϕ   = getϕ(adiff.D1(valF), d, ∇d, elem.mat)
-    ϕ   += wgt[ii]δϕ×F
+    ϕ   += elem.wgt[ii]δϕ×F
   end
   ϕ
 end
-function getϕ(elem::CElems{P,M,T,I} where {M,T,I}, u0::Matrix{D}, d0::Vector{T} where T) where {P,D<:adiff.D2}
+function getϕ(elem::CPElems{P}, u0::Matrix{D}, d0::Vector) where {P,D<:adiff.D2}
 
-  u0  = adiff.D1.(u0)
-  wgt = elem.wgt
-  ϕ   = zero(D) 
-  for ii=1:P
+  u0 = adiff.D1.(u0)
+  ϕ  = zero(D) 
+  @inline for ii=1:P
     F    = getF(elem, u0, ii)
     d,∇d = getdand∇d(elem,d0, ii)
     valF = adiff.val.(F)
     δϕ   = getϕ(adiff.D2(valF), d, ∇d, elem.mat)
-    ϕ   += wgt[ii]δϕ×F
+    ϕ   += elem.wgt[ii]δϕ×F
   end
   ϕ
 end
-# Axial Symmatric elements
-#=
-function getϕ(elem::CAS{P,<:PhaseField}, u0::Matrix{U}, d0::Vector{D}) where {P,U,D}
-  wgt = elem.wgt
-  T   = promote_type(U,D)
-  ϕ   = zero(T)
-  for ii=1:P
-    N0,Nx,Ny = elem.N0[ii],elem.Nx[ii],elem.Ny[ii]
-    F  = getF(elem, u0, ii)
-    d  = N0⋅d0
-    ∇d = [Nx⋅d0, Ny⋅d0]
-    ϕ += wgt[ii]getϕ(F, d, ∇d, elem.mat)::T
-  end
-  return ϕ
-end
-function getϕ(elem::CAS{P,<:PhaseField}, u0::Matrix{U}, d0::Vector{D},
-              ϕmax::Vector) where {P,U,D}
-  wgt = elem.wgt
-  T   = promote_type(U,D)
-  ϕ   = zero(T)
-  for ii=1:P
-    N0,Nx,Ny = elem.N0[ii],elem.Nx[ii],elem.Ny[ii]
-    F  = getF(elem, u0, ii)
-    d  = N0⋅d0
-    ∇d = [Nx⋅d0, Ny⋅d0]
-    ϕii, ϕmax[ii] = getϕ(F, d, ∇d, elem.mat, ϕmax[ii])
-    ϕ += wgt[ii]ϕii::T
-  end
-  return ϕ
-end
-=#
-# 2D elements
-function getϕ(elem::C2DElems{P,<:PhaseField}, u0::Matrix{U}, d0::Vector{D}) where {P,U,D}
-  @views u, v = u0[1:2:end], u0[2:2:end]
-  wgt = elem.wgt
-  T   = promote_type(U,D)
-  ϕ   = zero(T)
-  for ii=1:P
-    N0,Nx,Ny = elem.N0[ii],elem.Nx[ii],elem.Ny[ii]
-    F  = [1+Nx⋅u Ny⋅u;
-          Nx⋅v  1+Ny⋅v]
+#
+# with history
+function getϕ(elem::CPElems{P}, u0::Matrix{D}, d0::Vector, ϕmax::Vector) where {P,D<:adiff.D1}
 
-    d  = N0⋅d0
-    ∇d = [Nx⋅d0, Ny⋅d0]
-    ϕ += wgt[ii]getϕ(F, d, ∇d, elem.mat)::T
+  ϕ = zero(D) 
+  @inline for ii=1:P
+    F    = getF(elem, u0, ii)
+    d,∇d = getdand∇d(elem,d0, ii)
+    valF = adiff.val.(F)
+    δϕ,ϕmax[ii] = getϕ(adiff.D1(valF), d, ∇d, elem.mat, ϕmax[ii])
+    ϕ   += elem.wgt[ii]δϕ×F
   end
-  return ϕ
+  ϕ
 end
-function getϕ(elem::C2DElems{P,<:PhaseField}, u0::Matrix{U}, d0::Vector{D},
-              ϕmax::Vector) where {P,U,D}
-  @views u, v = u0[1:2:end], u0[2:2:end]
-  wgt = elem.wgt
-  T   = promote_type(U,D)
-  ϕ   = zero(T)
-  for ii=1:P
-    N0,Nx,Ny = elem.N0[ii],elem.Nx[ii],elem.Ny[ii]
-    F  = [1+Nx⋅u Ny⋅u;
-          Nx⋅v  1+Ny⋅v]
+function getϕ(elem::CPElems{P}, u0::Matrix{D}, d0::Vector, ϕmax::Vector) where {P,D<:adiff.D2}
 
-    d  = N0⋅d0
-    ∇d = [Nx⋅d0, Ny⋅d0]
-    ϕii, ϕmax[ii] = getϕ(F, d, ∇d, elem.mat, ϕmax[ii])
-    ϕ += wgt[ii]ϕii::T
+  u0 = adiff.D1.(u0)
+  ϕ  = zero(D) 
+  @inline for ii=1:P
+    F    = getF(elem, u0, ii)
+    d,∇d = getdand∇d(elem,d0, ii)
+    valF = adiff.val.(F)
+    δϕ,ϕmax[ii] = getϕ(adiff.D2(valF), d, ∇d, elem.mat, ϕmax[ii])
+    ϕ   += elem.wgt[ii]δϕ×F
   end
-  return ϕ
+  ϕ
 end
-# 1D elements
+#
+# structural  elements
 function getϕ(elem::Rod{<:PhaseField{<:Hooke,:ATn}}, u::Matrix{U}, d0::Vector{D}) where {U<:Number,D<:Number}
   mat     = elem.mat
   l0,Gc,n = mat.l0,mat.Gc,mat.n
@@ -335,8 +297,7 @@ function getϕ(elems::Vector{<:CPElems},  u::Matrix, d::Matrix)
 
   return Φ
 end
-
-function getδϕδuu(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}) where T
+function makeϕrKt(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}) where T
   nElems = length(elems)
   N      = length(u[:,elems[1].nodes])
   M      = (N+1)N÷2
@@ -348,7 +309,7 @@ function getδϕδuu(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}) where
 
   makeϕrKt(Φ, elems, u)
 end
-function getδϕδdd(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}) where T
+function makeϕrKt_d(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}) where T
 
   nElems = length(elems)
   N      = length(d[elems[1].nodes])
@@ -361,7 +322,8 @@ function getδϕδdd(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}) where
   end
   makeϕrKt(Φ, elems, d)
 end
-function getδϕδdd(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}, ϕmax::Vector) where T
+# with history
+function makeϕrKt_d(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}, ϕmax::Vector) where T
 
   nElems = length(elems)
   N      = length(d[elems[1].nodes])

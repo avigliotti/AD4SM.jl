@@ -296,61 +296,38 @@ function getϕ(elem::Elements.CElems{P}, u::Array{U,2})  where {U, P}
   ϕ
 end
 #
-# × operator
-function ×(ϕ::adiff.D2{N,M,T},F::Array{adiff.D1{P,T}}) where {N,M,P,T}
-  val  = ϕ.v
-  grad = adiff.Grad(zeros(T,P))
-  hess = adiff.Grad(zeros(T,(P+1)P÷2))
-  for ii=1:N
-    grad += ϕ.g[ii]*F[ii].g
-  end
-  for ii=2:N, jj=1:ii-1
-    hess += ϕ.h[ii,jj]*(F[ii].g*F[jj].g + F[jj].g*F[ii].g)
-  end  
-  for ii=1:N
-    hess += ϕ.h[ii,ii]F[ii].g*F[ii].g
-  end
-  adiff.D2(val, grad, hess)
-end
-function ×(ϕ::adiff.D1{N,T},F::Array{adiff.D1{P,T}}) where {N,P,T}
-  val  = ϕ.v
-  grad = adiff.Grad(zeros(T,P))
-  for ii=1:N
-    grad += ϕ.g[ii]*F[ii].g
-  end  
-  adiff.D1(val, grad)
-end
-#
 # calling getϕ with dual numbers
 #
 function getϕ(elem::CElems{P,M,T,I} where {M,T,I}, u0::Matrix{D}) where {P,D<:adiff.D1}
 
-  wgt = elem.wgt
   ϕ   = zero(D) 
   for ii=1:P
     F    = Elements.getF(elem, u0, ii)
     valF = adiff.val.(F)
-    ∂ϕ   = getϕ(adiff.D1(valF), elem.mat)
-    ϕ   += wgt[ii]∂ϕ×F
+    δϕ   = getϕ(adiff.D1(valF), elem.mat)
+    ϕ   += elem.wgt[ii]δϕ×F
   end
   ϕ
 end
 function getϕ(elem::CElems{P,M,T,I} where {M,T,I}, u0::Matrix{D}) where {P,D<:adiff.D2}
 
-  u0    = adiff.D1.(u0)
-  u,v,w = u0[1:3:end],u0[2:3:end],u0[3:3:end]
-  wgt = elem.wgt
-  ϕ   = zero(D) 
+  u0 = adiff.D1.(u0)
+  ϕ  = zero(D) 
   for ii=1:P
     F    = getF(elem, u0, ii)
     valF = adiff.val.(F)
-    ∂ϕ   = getϕ(adiff.D2(valF), elem.mat)
-    ϕ   += wgt[ii]∂ϕ×F
+    δϕ   = getϕ(adiff.D2(valF), elem.mat)
+    ϕ   += elem.wgt[ii]δϕ×F
   end
   ϕ
 end
 #
 #
+function makeϕrKt(elems::Array{<:Elems}, u::Array{<:Number})
+
+  Φ  = getδϕ(elems, u)
+  makeϕrKt(Φ, elems, u)
+end
 getδϕ(elem::Elements.Elems, u::Matrix{<:Number}) = getϕ(elem, adiff.D2(u))
 #
 # function getδϕ(elem::Elements.C3D{P}, u0::Matrix{T})  where {P,T}  

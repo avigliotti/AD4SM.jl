@@ -23,6 +23,15 @@ ConstEq(func, iDoFs) = ConstEq(func, iDoFs, adiff.D2)
 #
 function makeϕrKt(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64})
 
+  function split(N::Int64, p::Int64)
+    n    = Int64(floor(N/p))
+    nEls = ones(Int64, p)*n
+    nEls[1:N-p*n] .+= 1
+
+    slice = [ range(sum(nEls[1:ii-1])+1, length=nEls[ii])
+             for ii in 1:p]
+  end
+
   nEqs   = length(eqns)
   if p==1 || nEqs<=p
     (veqs, reqs, Keqs) = makeϕrKt(eqns, u, λ, 1:nEqs)
@@ -62,7 +71,6 @@ function makeϕrKt(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64}, 
   end
   (veqs, reqs, Keqs)  
 end
-
 #
 # solvers 
 #
