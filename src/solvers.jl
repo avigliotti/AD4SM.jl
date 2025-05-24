@@ -5,7 +5,9 @@ using Distributed, SparseArrays
  
 using ..adiff, ..Materials, ..Elements 
 
-import ..Materials.getϕ
+import ..Elements.makeϕrKt
+
+export makeϕrKt, ConstEq, solve, solvestep!
 
 p = Int64(nworkers())
 function setp(x)
@@ -19,139 +21,18 @@ struct ConstEq
 end
 ConstEq(func, iDoFs) = ConstEq(func, iDoFs, adiff.D2)
 #
-# elastic energy evaluation functions for elements
-function getϕ(elem::Elements.Rod,  u::Matrix{<:Number})
-  l   = norm(elem.r0+u[:,2]-u[:,1])
-  F11 = l/elem.l0
-  elem.A*elem.l0*getϕ(F11, elem.mat)    
-end
-function getϕ(elem::Elements.Beam, u::Matrix{<:Number})
-
-  L, r0, t, w = elem.L, elem.r0, elem.t, elem.w
-  T    = [r0[1] r0[2]; -r0[2] r0[1]]
-  u0   = vcat(T*u[1:2,1], u[3,1], T*u[1:2,2], u[3,2])
-  u0_x = (u0[4]-u0[1])/L
-
-  ϕ  = 0
-  for (r,wr) in elem.lgwx
-    x, dx     = r*L, wr*L
-
-    v0_x  = (-6x/L^2 + 6x^2/L^3)u0[2] +
-    (1 - 4x/L + 3x^2/L^2)u0[3] +
-    (6x/L^2 - 6x^2/L^3)u0[5] +
-    (-2x/L + 3x^2/L^2)u0[6]
-
-    v0_xx = (-6/L^2 + 12x/L^3)u0[2] + 
-    (-4/L + 6x/L^2)u0[3] + 
-    (6/L^2 - 12x/L^3)u0[5] + 
-    (-2/L + 6x/L^2)u0[6]
-
-    for (s,ws) in elem.lgwy
-      y, dy  = s*elem.t, ws*elem.t
-
-      dV   = dx*dy*elem.w
-      C11 = (1+u0_x-v0_xx*y)^2 + v0_x^2
-      ϕ   += getϕ(C11, elem.mat)*dV
-    end
-  end
-  return ϕ
-end
-function getϕ(elem::Elements.CElems{P}, u::Array{U,2})  where {U, P}
-  ϕ = zero(U)
-  for ii=1:P
-    F  = getF(elem,u,ii)
-    ϕ += elem.wgt[ii]getϕ(F,elem.mat)
-  end 
-  ϕ
-end
-getϕu(elem::Elements.Elems, u::Matrix) = getϕ(elem, adiff.D2(u))
-function getϕu(elem::Elements.C3D{P}, u0::Matrix{T})  where {P,T}
-
-  u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
-  N       = lastindex(u0)  
-  wgt     = elem.wgt
-  val     = zero(T)
-  grad    = zeros(T,N)
-  hess    = zeros(T,(N+1)N÷2)
-  δF      = zeros(T,N,9)
-
-  @inbounds for ii=1:P
-    Nx,Ny,Nz    = elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
-    δF[1:3:N,1] = δF[2:3:N,2] = δF[3:3:N,3] = Nx
-    δF[1:3:N,4] = δF[2:3:N,5] = δF[3:3:N,6] = Ny
-    δF[1:3:N,7] = δF[2:3:N,8] = δF[3:3:N,9] = Nz
-
-    F    = [Nx⋅u Ny⋅u Nz⋅u;
-            Nx⋅v Ny⋅v Nz⋅v;
-            Nx⋅w Ny⋅w Nz⋅w ] + I
-    ϕ    = getϕ(adiff.D2(F), elem.mat)::adiff.D2{9, 45, T}
-    val += wgt[ii]ϕ.v
-    @inbounds for jj=1:9,i1=1:N
-      grad[i1] += wgt[ii]*ϕ.g[jj]*δF[i1,jj]
-      @inbounds  for kk=1:9,i2=1:i1
-        hess[(i1-1)i1÷2+i2] += wgt[ii]*ϕ.h[jj,kk]*δF[i1,jj]*δF[i2,kk]
-      end   
-    end
-  end
-
-  adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
-end
-# elastic energy evaluation functions for models (Array of elements)
-function getϕ(elems::Vector{<:Elements.Elems}, 
-              u::Array{T,2}) where T
-  nElems = length(elems)
-  N      = length(u[:,elems[1].nodes])
-  M      = (N+1)N÷2
-
-  Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
-  Threads.@threads for ii=1:nElems
-    Φ[ii] = getϕu(elems[ii], u[:,elems[ii].nodes])
-  end
-  makeϕrKt(Φ, elems, u)
-end 
-function makeϕrKt(Φ::Array{adiff.D2{N,M,T}, 1} where {N,M}, elems, u) where T
-  N  = length(u) 
-  Nt = 0
-  for ϕ in Φ
-    Nt += length(ϕ.g.v)*length(ϕ.g.v)
-  end
-
-  I  = zeros(T, Nt)
-  J  = zeros(T, Nt)  
-  Kt = zeros(T, Nt)  
-  r  = zeros(T, N)
-  ϕ  = 0
-  indxs  = LinearIndices(u)
-
-  N1 = 1
-  for (ii,elem) in enumerate(elems)    
-    idxii     = indxs[:, elem.nodes][:]    
-    ϕ        += adiff.val(Φ[ii]) 
-    r[idxii] += adiff.grad(Φ[ii]) 
-    nii       = length(idxii)
-    Nii       = nii*nii
-    oneii     = ones(nii)
-    idd       = N1:N1+Nii-1
-    I[idd]    = idxii * transpose(oneii)
-    J[idd]    = oneii * transpose(idxii)
-    Kt[idd]   = adiff.hess(Φ[ii])
-    N1       += Nii
-  end
-
-  ϕ, r, sparse(I,J,Kt,N,N)
-end
-function getϕ(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64})
+function makeϕrKt(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64})
 
   nEqs   = length(eqns)
   if p==1 || nEqs<=p
-    (veqs, reqs, Keqs) = getϕ(eqns, u, λ, 1:nEqs)
+    (veqs, reqs, Keqs) = makeϕrKt(eqns, u, λ, 1:nEqs)
   else
     nDoFs  = length(u)
     veqs   = zeros(nEqs)
     reqs   = spzeros(nDoFs, nEqs)
     Keqs   = spzeros(nDoFs, nDoFs)
     chunks = split(nEqs, Elements.p)
-    procs  = [@spawn getϕ(eqns, u, λ, chunk)  for chunk in chunks]
+    procs  = [@spawn makeϕrKt(eqns, u, λ, chunk)  for chunk in chunks]
 
     for ii in 1:p 
       retval  = fetch(procs[ii])
@@ -162,7 +43,7 @@ function getϕ(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64})
   end
   (veqs, reqs, Keqs)
 end
-function getϕ(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64}, chunk)
+function makeϕrKt(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64}, chunk)
 
   nEqs  = length(eqns)
   nDoFs = length(u)
@@ -181,35 +62,10 @@ function getϕ(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64}, chun
   end
   (veqs, reqs, Keqs)  
 end
-#=
-function renumber!(nodes, elems)
 
-  unodes   = sort(unique(vcat([elem.nodes for elem in elems]...)))
-  el_nodes = hcat([elem.nodes for elem in elems]...)
-  shift    = maximum(unodes) + 1
-
-  el_nodes .+= shift
-  for (ii, nodeid) in enumerate(unodes)
-    nodeid += shift
-    el_nodes[el_nodes .== nodeid] .= ii
-  end
-  nodes = nodes[unodes]
-
-  for (ii,elem) in enumerate(elems)
-    elem.nodes[:] .= el_nodes[:,ii]
-  end
-  (nodes, elems)
-end
-=#
-function split(N::Int64, p::Int64)
-  n    = Int64(floor(N/p))
-  nEls = ones(Int64, p)*n
-  nEls[1:N-p*n] .+= 1
-
-  slice = [ range(sum(nEls[1:ii-1])+1, length=nEls[ii])
-           for ii in 1:p]
-end
+#
 # solvers 
+#
 function solve(elems, u;
                N          = 11,
                LF         = range(1e-4, stop=1, length=N), 
@@ -323,7 +179,7 @@ function solvestep!(elems, uold, unew, bfreeu;
   if bpredict
     deltat = @elapsed begin
       Δucnst    = unew[icnstu]-uold[icnstu]
-      (Φ,fi,Kt) = getϕ(elems, uold)
+      (Φ,fi,Kt) = makeϕrKt(elems, uold)
       if nEqs == 0
         res              = fi[ifreeu]-fe[ifreeu]
         res[:]         .-= Kt[ifreeu,icnstu]*Δucnst
@@ -332,7 +188,7 @@ function solvestep!(elems, uold, unew, bfreeu;
         unew[ifreeu]    .= uold[ifreeu] .+ updt 
         normupdt         = maximum(abs.(updt))
       else
-        (vEqs,rEqs,KEqs) = getϕ(eqns, uold, λ)
+        (vEqs,rEqs,KEqs) = makeϕrKt(eqns, uold, λ)
         resu             = fi[ifreeu]-fe[ifreeu]-rEqs[ifreeu,:]*λ
         resu[:]        .-= (Kt[ifreeu,icnstu]-KEqs[ifreeu,icnstu])*Δucnst
         rese             = -vEqs
@@ -358,9 +214,9 @@ function solvestep!(elems, uold, unew, bfreeu;
   # corrector loop
   while !bdone & !bfailed 
     global normru
-    oldupdt = copy(updt)
-    tic     = Base.time_ns()
-    (Φ,fi,Kt) = getϕ(elems, unew)
+    oldupdt   = copy(updt)
+    tic       = Base.time_ns()
+    (Φ,fi,Kt) = makeϕrKt(elems, unew)
 
     if nEqs == 0
       res    = fe[ifreeu]-fi[ifreeu]      
@@ -368,7 +224,7 @@ function solvestep!(elems, uold, unew, bfreeu;
       normru = norm0  > dTolu ? norm(res)/nfreeu/norm0  : norm(res)/nfreeu
       bdone  = (normru<dTolu)
     else
-      (vEqs,rEqs,KEqs) = getϕ(eqns, unew, λ)
+      (vEqs,rEqs,KEqs) = makeϕrKt(eqns, unew, λ)
       resu   = fi[ifreeu]-fe[ifreeu]-rEqs[ifreeu,:]*λ
       rese   = -vEqs
       res    = -vcat(resu, rese)
