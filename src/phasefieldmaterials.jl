@@ -1,7 +1,7 @@
 # CPElems{P,M,T,I}  = Union{C2DP{P,M,T,I}, C3DP{P,M,T,I}, CAS{P,M,T,I}}
 ## Phase field
 #
-struct PhaseField{M,AT}
+struct PhaseField{M,AT}<:Material
   l0::Number 
   Gc::Number 
   mat::M
@@ -33,7 +33,7 @@ function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{M,:ATn} wher
 
   ψ + Gc/2l0*γ
 end
-function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{<:NeoHooke,:ATn}) where {D<:Number,U<:Number,V<:Number}
+function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{NeoHooke,:ATn}) where {D<:Number,U<:Number,V<:Number}
 
   l0,Gc,n = mat.l0,mat.Gc,mat.n
   C1,K    = mat.mat.C1,mat.mat.K 
@@ -90,7 +90,7 @@ function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{M,:ATn} wher
 
   ψ + Gc/2l0*γ, ϕmax
 end
-function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{<:NeoHooke,:ATn}, ϕmax::Number) where {D<:Number,U<:Number,V<:Number}
+function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{NeoHooke,:ATn}, ϕmax::Number) where {D<:Number,U<:Number,V<:Number}
 
   l0,Gc,n = mat.l0,mat.Gc,mat.n
   C1,K    = mat.mat.C1,mat.mat.K 

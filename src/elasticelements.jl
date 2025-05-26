@@ -281,11 +281,22 @@ function getϕ(elem::Beam, u::Matrix{<:Number})
   end
   return ϕ
 end
-function getϕ(elem::CElems{P}, u::Array{U,2})  where {U, P}
-  ϕ = zero(U)
+#=
+function getϕ(elem::CElems{P}, u::Matrix{D}) where {P,D}
+  ϕ = zero(D)
   for ii=1:P
     F  = getF(elem,u,ii)
     ϕ += elem.wgt[ii]getϕ(F,elem.mat)
+  end 
+  ϕ
+end
+=#
+function getϕ(elem::CElems{P}, u::Matrix{D}) where {P,D}
+  ϕ = zero(D)
+  F = getF(elem,u)
+
+  @inline for ii=1:P
+    ϕ += elem.wgt[ii]getϕ(F[ii],elem.mat)
   end 
   ϕ
 end
@@ -297,22 +308,11 @@ end
 # derivative, the other use the standard implementation common for all
 # on newer CPU this might disppear
 #
-function getϕ(elem::C3D{P,M,T,I} where {M,T,I}, u0::Matrix{D}) where {P,D<:adiff.D1}
-
-  ϕ   = zero(D) 
-  for ii=1:P
-    F    = getF(elem, u0, ii)
-    valF = adiff.val.(F)
-    δϕ   = getϕ(adiff.D1(valF), elem.mat)
-    ϕ   += elem.wgt[ii]δϕ×F
-  end
-  ϕ
-end
-function getϕ(elem::C3D{P,M,T,I} where {M,T,I}, u0::Matrix{D}) where {P,D<:adiff.D2}
+function getϕ(elem::C3D{P}, u0::Matrix{D}) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
   ϕ  = zero(D) 
-  for ii=1:P
+  @inline for ii=1:P
     F    = getF(elem, u0, ii)
     valF = adiff.val.(F)
     δϕ   = getϕ(adiff.D2(valF), elem.mat)

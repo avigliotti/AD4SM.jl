@@ -201,18 +201,6 @@ end
 # on newer CPU this might disppear
 #
 # without history
-function getϕ(elem::C3DP{P}, u0::Matrix{D}, d0::Vector) where {P,D<:adiff.D1}
-
-  ϕ = zero(D) 
-  @inline for ii=1:P
-    F    = getF(elem, u0, ii)
-    d,∇d = getdand∇d(elem,d0, ii)
-    valF = adiff.val.(F)
-    δϕ   = getϕ(adiff.D1(valF), d, ∇d, elem.mat)
-    ϕ   += elem.wgt[ii]δϕ×F
-  end
-  ϕ
-end
 function getϕ(elem::C3DP{P}, u0::Matrix{D}, d0::Vector) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
@@ -228,18 +216,6 @@ function getϕ(elem::C3DP{P}, u0::Matrix{D}, d0::Vector) where {P,D<:adiff.D2}
 end
 #
 # with history
-function getϕ(elem::C3DP{P}, u0::Matrix{D}, d0::Vector, ϕmax::Vector) where {P,D<:adiff.D1}
-
-  ϕ = zero(D) 
-  @inline for ii=1:P
-    F    = getF(elem, u0, ii)
-    d,∇d = getdand∇d(elem,d0, ii)
-    valF = adiff.val.(F)
-    δϕ,ϕmax[ii] = getϕ(adiff.D1(valF), d, ∇d, elem.mat, ϕmax[ii])
-    ϕ   += elem.wgt[ii]δϕ×F
-  end
-  ϕ
-end
 function getϕ(elem::C3DP{P}, u0::Matrix{D}, d0::Vector, ϕmax::Vector) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
