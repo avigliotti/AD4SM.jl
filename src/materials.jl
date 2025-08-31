@@ -131,6 +131,16 @@ end
 # get1stinvariants 
 # I1    is the first invariant of F
 # I1sq  is the first invariant of C=transpose(F)F
+#=
+function get1stinvariants(F::Array{<:Number,2}, mat::Material)
+
+  E    = (transpose(F)F-I)/2   # the Green-Lagrange strain 
+  I1   = E[1]+E[5]+E[9]
+  I1sq = E[1]^2+E[5]^2+E[9]^2+2*(E[2]^2+E[3]^2+E[6]^2)
+
+  return I1, I1sq
+end
+=#
 function get1stinvariants(F::Array{<:Number,2}, mat::Material)
 
   if mat.small

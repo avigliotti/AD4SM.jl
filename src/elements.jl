@@ -9,7 +9,7 @@ using ..adiff, ..Materials
 import ..Materials.getϕ
 
 export makeϕrKt
-export getF, getϕ, getδϕ
+export getF, getϕ, getδϕ, getδϕu, getδϕd, getVd, getd, getT, getJ
 
 # continous elements
 # these elements hold the tools to evaluate the gradient of a function at the 
@@ -244,6 +244,74 @@ getV(elem,u)     = sum([elem.wgt[ii]detJ(elem,u,ii) for ii in 1:length(elem.wgt)
 detJ(elem,u)     = getV(elem,u)/elem.V
 getI3(elem,u,ii) = detJ(getF(elem, u, ii))^2
 getI3(elem,u)    = sum([elem.wgt[ii]getI3(elem,u,ii) for ii in 1:length(elem.wgt)])/elem.V
+
+"""
+function getJ(elem::C3DElems{P}, u0::Matrix{U})  where {P, U}
+
+finds the average J=det(F) for the element
+
+"""
+function getJ(elem::C3DElems{P}, u0::Matrix{U})  where {P, U}
+
+  @views u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
+  wgt = elem.wgt
+  F   = zeros(3,3) # is the weigthed average
+  for ii=1:P
+    N0,Nx,Ny,Nz = elem.N0[ii],elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
+    F  += [1+Nx⋅u Ny⋅u  Nz⋅u;
+           Nx⋅v  1+Ny⋅v Nz⋅v;
+           Nx⋅w   Ny⋅w 1+Nz⋅w ]*wgt[ii]
+  end
+
+  F = F/elem.V
+
+  J = F[1]F[5]F[9]-F[1]F[6]F[8]-
+      F[2]F[4]F[9]+F[2]F[6]F[7]+
+      F[3]F[4]F[8]-F[3]F[5]F[7]
+  return J
+end
+#
+# function for inertia and mass matrices
+function getT(elem::C3DElems{P}, udot0::Matrix{T}) where {T,P}
+  ϕ   = zero(T) 
+  for ii=1:P
+    N0 = elem.N0[ii]
+    d  = [N0⋅udot0[1:3:end], N0⋅udot0[2:3:end], N0⋅udot0[3:3:end]]
+    ϕ += elem.mat.mat.ρ*elem.wgt[ii]* (d⋅d)
+  end
+  ϕ
+end
+function getT(elem::Rod{<:PhaseField},
+              udot0::Matrix{T}) where T
+  udot = (udot0[:,1]+udot0[:,2])/2
+  Vol  = elem.A*elem.l0
+  elem.mat.mat.ρ*Vol/2*(udot⋅udot)
+end
+function getT(elem::C2DElems{P,M} where M,
+              udot0::Matrix{T}) where {T,P}
+  ϕ   = zero(T) 
+  for ii=1:P
+    N0 = elem.N0[ii]
+    d  = [N0⋅udot0[1:2:end], N0⋅udot0[2:2:end]]
+    ϕ += elem.mat.mat.ρ*elem.wgt[ii]* (d⋅d)
+  end
+  ϕ
+end
+function getT(elems::Vector{<:Elems}, 
+              udot::Matrix{T}) where T
+  nElems = length(elems)
+  # N      = length(udot[:,elems[1].nodes])
+  # M      = (N+1)N÷2
+
+  # Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
+  Φ = Vector{adiff.D2}(undef, nElems)
+  Threads.@threads for ii=1:nElems
+    Φ[ii] = getT(elems[ii], adiff.D2(udot[:,elems[ii].nodes]))
+  end
+
+  # Φ = [getϕ(elem, adiff.D2(u[:,elem.nodes]), d[elem.nodes]) for elem in elems]
+  makeϕrKt(Φ, elems, udot)
+end
 #
 function getinfo(elem::CElems{P}, u::Matrix{<:Number}; info=:detF) where P
   F = sum([getF(elem, u, ii) for ii=1:P])/P

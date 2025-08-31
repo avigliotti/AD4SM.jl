@@ -23,26 +23,28 @@ struct Hooke2D{T,P} <: Mat2D
   new{T,:plane_strain}(E,ν,ρ,small)
 end
 struct MooneyRivlin{T} <: Mat3D
-  C1  ::T
-  C2  ::T
-  K   ::T
-  MooneyRivlin(C1::T, C2::T)       where T<:Number = new{T}(C1, C2, T(-1))
-  MooneyRivlin(C1::T, C2::T, K::T) where T<:Number = new{T}(C1, C2, K) 
+  C1    ::T
+  C2    ::T
+  K     ::T
+  small ::Bool
+  MooneyRivlin(C1::T, C2::T)       where T<:Number = new{T}(C1, C2, T(-1), false)
+  MooneyRivlin(C1::T, C2::T, K::T) where T<:Number = new{T}(C1, C2, K, false) 
 end
 struct NeoHooke{T} <: Mat3D
-  C1   ::T 
-  K    ::T
-  ρ    ::T
-  # NeoHooke(C1::T)               where T<:Number = new{T}(C1, T(-1), T(1))
-  # NeoHooke(C1::T,K::T)          where T<:Number = new{T}(C1, K, T(1))
-  NeoHooke(C1::T,K::T,ρ=one(T)) where T<:Number = new{T}(C1, K, ρ)
+  C1    ::T 
+  K     ::T
+  ρ     ::T
+  small ::Bool
+  # NeoHooke(C1::T)               where T<:Number = new{T}(C1, T(-1), T(1), false)
+  # NeoHooke(C1::T,K::T)          where T<:Number = new{T}(C1, K, T(1), false)
+  NeoHooke(C1::T,K::T,ρ=one(T)) where T<:Number = new{T}(C1, K, ρ, false)
 end
 struct Ogden{T} <: Mat3D
   α   ::T
   μ   ::T
   K   ::T
-  Ogden(α::T, μ::T)       where T<:Number = new{T}(α, μ, T(-1)) 
-  Ogden(α::T, μ::T, K::T) where T<:Number = new{T}(α, μ, K) 
+  Ogden(α::T, μ::T)       where T<:Number = new{T}(α, μ, T(-1), false) 
+  Ogden(α::T, μ::T, K::T) where T<:Number = new{T}(α, μ, K, false) 
 end
 #
 

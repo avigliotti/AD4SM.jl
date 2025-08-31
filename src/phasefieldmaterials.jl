@@ -16,7 +16,7 @@ PhaseField(l0::T,Gc::T,mat::M,n::Number) where {T<:Number,M} = PhaseField{M,:ATn
 
 # phase field functions
 # withuot history
-function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{M,:ATn} where M) where {D,U,V}
+function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{<:Material,:ATn}) where {D,U,V}
 
   l0,Gc,n   = mat.l0,mat.Gc,mat.n
   I1,I1sq   = get1stinvariants(F, mat.mat)
@@ -33,7 +33,7 @@ function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{M,:ATn} wher
 
   ψ + Gc/2l0*γ
 end
-function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{NeoHooke,:ATn}) where {D<:Number,U<:Number,V<:Number}
+function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{<:NeoHooke,:ATn}) where {D<:Number,U<:Number,V<:Number}
 
   l0,Gc,n = mat.l0,mat.Gc,mat.n
   C1,K    = mat.mat.C1,mat.mat.K 
@@ -71,7 +71,7 @@ function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{M,:DHn} wher
 end
 #
 # with history
-function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{M,:ATn} where M, ϕmax::Tuple{Number,Number}) where {D,U,V}
+function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{<:Material,:ATn}, ϕmax::Tuple{Number,Number}) where {D,U,V}
 
   l0,Gc,n   = mat.l0,mat.Gc,mat.n
   I1,I1sq   = get1stinvariants(F, mat.mat)
@@ -113,7 +113,7 @@ function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{NeoHooke,:AT
   ψ + Gc/2l0*γ, ϕmax
 end
 # deviatoric/hydrostatic
-function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{M,:DHn} where M, ϕmax::Tuple{Number,Number}) where {D,U,V}
+function getϕ(F::Matrix{D}, d::U, ∇d::Vector{V}, mat::PhaseField{<:Material,:DHn}, ϕmax::Tuple{Number,Number}) where {D,U,V}
 
   l0,Gc,n   = mat.l0,mat.Gc,mat.n
   I1,ϵd     = gethyddevdecomp(F, mat.mat)
