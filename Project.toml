@@ -1,7 +1,7 @@
 name = "AD4SM"
 uuid = "7861f83d-ce22-4070-aa20-44578e274a9b"
 authors = ["andrea <andrea.vigliotti@gmail.com>"]
-version = "0.0.5"
+version = "0.0.7"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
