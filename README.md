@@ -195,7 +195,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgments
 
 This work was supported by:
-- The Italian Ministry of Education, University and Research (MIUR)
+- The Italian Aerospace Research Program (PRORA)
 
 ---
 
