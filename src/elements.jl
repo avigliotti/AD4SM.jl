@@ -5,7 +5,6 @@ module Elements
 using LinearAlgebra, SparseArrays
 
 using ..adiff, ..Materials
-# import Base.copy
 import ..Materials.getϕ
 
 export makeϕrKt
