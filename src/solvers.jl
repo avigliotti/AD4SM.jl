@@ -71,6 +71,25 @@ function makeϕrKt(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64}, 
   end
   (veqs, reqs, Keqs)  
 end
+
+"""
+    secs2hms(secs)
+
+Convert seconds to HH:MM:SS formatted string.
+
+# Arguments
+- `secs`: Time in seconds
+
+# Returns
+Formatted time string
+"""
+function secs2hms(secs)
+  h, r = divrem(secs, 3600)
+  m, s = divrem(r, 60)
+  @sprintf("%02i:%02i:%02i",h, m, s)
+end
+
+
 #
 # solvers 
 #
@@ -144,8 +163,7 @@ function solve(elems, u;
     end
     becho && flush(stdout)
   end
-  becho && @printf("completed in %i seconds\n",(Base.time_ns()-t0)÷1e9)
-  becho && flush(stdout)
+  becho && @printf("completed in %s \n",secs2hms((time_ns()-t0)÷1e9)); flush(stdout)
 
   ballus ? allu : unew
 end  

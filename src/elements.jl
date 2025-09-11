@@ -8,7 +8,7 @@ using ..adiff, ..Materials
 import ..Materials.getϕ
 
 export makeϕrKt
-export getF, getϕ, getδϕ, getδϕu, getδϕd, getVd, getd, getT, detJ
+export getF, getϕ, getδϕ, getδϕu, getδϕd, getVd, getd, getT, detJ, getV
 
 # continous elements
 # these elements hold the tools to evaluate the gradient of a function at the 
