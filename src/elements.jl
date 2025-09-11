@@ -256,7 +256,8 @@ function getJ(elem::C3DElems{P}, u0::Matrix{U})  where {P, U}
   wgt = elem.wgt
   F   = zeros(3,3) # is the weigthed average
   for ii=1:P
-    N0,Nx,Ny,Nz = elem.N0[ii],elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
+    # N0,Nx,Ny,Nz = elem.N0[ii],elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
+    Nx,Ny,Nz = elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
     F  += [1+Nx⋅u Ny⋅u  Nz⋅u;
            Nx⋅v  1+Ny⋅v Nz⋅v;
            Nx⋅w   Ny⋅w 1+Nz⋅w ]*wgt[ii]

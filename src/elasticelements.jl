@@ -281,16 +281,6 @@ function getϕ(elem::Beam, u::Matrix{<:Number})
   end
   return ϕ
 end
-#=
-function getϕ(elem::CElems{P}, u::Matrix{D}) where {P,D}
-  ϕ = zero(D)
-  for ii=1:P
-    F  = getF(elem,u,ii)
-    ϕ += elem.wgt[ii]getϕ(F,elem.mat)
-  end 
-  ϕ
-end
-=#
 function getϕ(elem::CElems{P}, u::Matrix{D}) where {P,D}
   ϕ = zero(D)
   F = getF(elem,u)
