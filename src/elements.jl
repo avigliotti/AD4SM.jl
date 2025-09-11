@@ -8,7 +8,7 @@ using ..adiff, ..Materials
 import ..Materials.getϕ
 
 export makeϕrKt
-export getF, getϕ, getδϕ, getδϕu, getδϕd, getVd, getd, getT, getJ
+export getF, getϕ, getδϕ, getδϕu, getδϕd, getVd, getd, getT, detJ
 
 # continous elements
 # these elements hold the tools to evaluate the gradient of a function at the 
@@ -239,18 +239,17 @@ function detJ(F)
   end
 end
 detJ(elem,u,ii)  = detJ(getF(elem, u, ii))
-getV(elem,u)     = sum([elem.wgt[ii]detJ(elem,u,ii) for ii in 1:length(elem.wgt)])
 detJ(elem,u)     = getV(elem,u)/elem.V
 getI3(elem,u,ii) = detJ(getF(elem, u, ii))^2
 getI3(elem,u)    = sum([elem.wgt[ii]getI3(elem,u,ii) for ii in 1:length(elem.wgt)])/elem.V
 
 """
-function getJ(elem::C3DElems{P}, u0::Matrix{U})  where {P, U}
+function detJ(elem::C3DElems{P}, u0::Matrix{U})  where {P, U}
 
 finds the average J=det(F) for the element
 
 """
-function getJ(elem::C3DElems{P}, u0::Matrix{U})  where {P, U}
+function detJ(elem::C3DElems{P}, u0::Matrix{U})  where {P, U}
 
   @views u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
   wgt = elem.wgt
@@ -270,6 +269,10 @@ function getJ(elem::C3DElems{P}, u0::Matrix{U})  where {P, U}
       F[3]F[4]F[8]-F[3]F[5]F[7]
   return J
 end
+detJ(elems::Vector, u::Matrix) = [detJ(elem, u[:,elem.nodes]) for elem in elems]
+
+getV(elem,u) = sum([elem.wgt[ii]detJ(elem,u,ii) for ii in 1:length(elem.wgt)])
+getV(elems::Vector, u::Matrix) = sum([getV(elem, u[:,elem.nodes]) for elem in elems])
 #
 # function for inertia and mass matrices
 function getT(elem::C3DElems{P}, udot0::Matrix{T}) where {T,P}
