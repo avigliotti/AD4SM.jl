@@ -142,6 +142,12 @@ function solve(elems, u;
                  bpredict  = bpredict,
                  maxupdt   = maxupdt)
     catch
+      error_msg = sprint(showerror, e)
+      st        = sprint((io,v) -> show(io, "text/plain", v), 
+                         stacktrace(catch_backtrace()))
+      @warn "Trouble doing things:\n$(error_msg)\n$(st)" 
+      println(" quitting." ); flush(stdout)
+
       (true, Inf, 0)
     end
     if bfailed 
@@ -236,6 +242,7 @@ function solvestep!(elems, uold, unew, bfreeu;
     becho && @printf("with normupdt: %.2e, starting corrector loop\n", normupdt); flush(stdout)
   else
     unew[ifreeu] .= uold[ifreeu]
+    becho && println()
   end
   # corrector loop
   while !bdone & !bfailed 
