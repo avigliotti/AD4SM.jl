@@ -146,6 +146,7 @@ function ×(ϕ::adiff.D1{N,T},F::Array{adiff.D1{P,T}}) where {N,P,T}
   adiff.D1(val, grad)
 end
 # functions for calculating residuals and stiffness matrix
+getϕ(elems::Array{<:CElems}, u::Array) = [getϕ(elem, u[:,elem.nodes]) for elem in elems]
 function makeϕrKt(Φ::Vector{<:adiff.D2}, elems::Vector{<:Elems}, u)
 
   N  = length(u) 
@@ -179,19 +180,28 @@ function makeϕrKt(Φ::Vector{<:adiff.D2}, elems::Vector{<:Elems}, u)
 
   ϕ, r, dropzeros(sparse(II,JJ,Kt,N,N))
 end
+function makeϕr(Φ::Vector{<:adiff.Duals}, elems::Vector{<:Elems}, u)
+
+  indxs = LinearIndices(u)  
+  r     = zeros(length(u))
+  ϕ     = 0
+  for (ii,elem) in enumerate(elems)    
+    idxii     = indxs[:, elem.nodes][:]    
+    ϕ        += adiff.val(Φ[ii]) 
+    r[idxii] += adiff.grad(Φ[ii]) 
+  end
+  ϕ, r
+end
 #
 # methods for evaluating the deformation gradient at integration points
 #
-function getF(elem::C3DElems{P,M,T,I} where {M,T,I}, u::Array{D}) where {P,D}
-  u0, v0, w0 = u[1:3:end],  u[2:3:end],  u[3:3:end]
-  F = fill(Array{D,2}(undef,3,3), P)
-  @inbounds for ii = 1:P
-    Nx, Ny, Nz = elem.Nx[ii], elem.Ny[ii], elem.Nz[ii]
-    F[ii] = [Nx⋅u0 Ny⋅u0 Nz⋅u0;
-             Nx⋅v0 Ny⋅v0 Nz⋅v0;
-             Nx⋅w0 Ny⋅w0 Nz⋅w0 ] + I
+getF(elems::Array{<:CElems}, u::Array) = [getF(elem, u[:,elem.nodes]) for elem in elems]
+function getF(elem::C3DElems{P}, u::Array{D}) where {P,D}
+  F = zeros(D,3,3)
+  for ii=1:P
+    @inline F .+= elem.wgt[ii]*getF(elem, u, ii)
   end
-  F
+  F/elem.V
 end
 function getF(elem::C3DElems, u::Matrix, ii::Integer)
   Nx, Ny, Nz = elem.Nx[ii], elem.Ny[ii], elem.Nz[ii]
@@ -201,15 +211,12 @@ function getF(elem::C3DElems, u::Matrix, ii::Integer)
    Nx⋅v0 Ny⋅v0 Nz⋅v0;
    Nx⋅w0 Ny⋅w0 Nz⋅w0 ] + I
 end
-function getF(elem::C2DElems{P,M,T,I} where {M,T,I}, u::Array{D}) where {P,D}
-  u0, v0 = u[1:2:end],  u[2:2:end]
-  F = fill(Array{D,2}(undef,2,2), P)
-  @inbounds for ii = 1:P
-    Nx, Ny = elem.Nx[ii], elem.Ny[ii]
-    F[ii]  = [Nx⋅u0 Ny⋅u0;
-              Nx⋅v0 Ny⋅v0] + I
+function getF(elem::C2DElems{P}, u::Array{D}) where {P,D}
+  F = zeros(D,2,2)
+  for ii=1:P
+    @inline F .+= elem.wgt[ii]*getF(elem, u, ii)
   end
-  F
+  F/elem.V
 end
 function getF(elem::C2DElems{P,M,T,I} where {M,T,I}, u::Array{D}, ii::Integer) where {P,D}
   u0, v0 = u[1:2:end],  u[2:2:end]
@@ -241,7 +248,7 @@ end
 detJ(elem,u,ii)  = detJ(getF(elem, u, ii))
 detJ(elem,u)     = getV(elem,u)/elem.V
 getI3(elem,u,ii) = detJ(getF(elem, u, ii))^2
-getI3(elem,u)    = sum([elem.wgt[ii]getI3(elem,u,ii) for ii in 1:length(elem.wgt)])/elem.V
+getI3(elem,u)    = sum(elem.wgt[ii]getI3(elem,u,ii) for ii in 1:length(elem.wgt))/elem.V
 
 """
 function detJ(elem::C3DElems{P}, u0::Matrix{U})  where {P, U}
@@ -269,10 +276,45 @@ function detJ(elem::C3DElems{P}, u0::Matrix{U})  where {P, U}
       F[3]F[4]F[8]-F[3]F[5]F[7]
   return J
 end
-detJ(elems::Vector, u::Matrix) = [detJ(elem, u[:,elem.nodes]) for elem in elems]
+detJ(elems::Vector, u::Array) = [detJ(elem, u[:,elem.nodes]) for elem in elems]
 
 getV(elem,u) = sum([elem.wgt[ii]detJ(elem,u,ii) for ii in 1:length(elem.wgt)])
-getV(elems::Vector, u::Matrix) = sum([getV(elem, u[:,elem.nodes]) for elem in elems])
+getV(elems::Vector, u::Array) = sum([getV(elem, u[:,elem.nodes]) for elem in elems])
+# function for retriving stress
+"""
+# getσ(elem, u)
+
+Calculates the volume average Cauchy Stress in the element
+"""
+function getσ(elem::C3DElems{P}, u::Array{M}) where {P,M}
+  σ = zeros(M,3,3)
+  @inline for ii=1:P
+    σ .+= elem.wgt[ii]*getσ(elem, u, ii)
+  end
+  σ/elem.V
+end
+function getσ(elem::C2DElems{P}, u::Array{M}) where {P,M}
+  σ = zeros(M,2,2)
+  @inline for ii=1:P
+    σ .+= elem.wgt[ii]*getσ(elem, u, ii)
+  end
+  σ/elem.V
+end
+"""
+# getσ(elem, u, ii)
+
+Calculates the Cauchy Stress at the integration point ii
+"""
+function getσ(elem::CElems, u::Array, ii::Int)
+
+  F  = getF(elem, u, ii)
+  δϕ = getϕ(adiff.D1(F), elem.mat)
+  P  = reshape(adiff.grad(δϕ), size(F))
+  J  = getJ(F,elem.mat)
+
+  return 1/J*P*F'
+end
+getσ(elems::Array{<:CElems}, u::Array) = [getσ(elem, u[:,elem.nodes]) for elem in elems]
 #
 # function for inertia and mass matrices
 function getT(elem::C3DElems{P}, udot0::Matrix{T}) where {T,P}

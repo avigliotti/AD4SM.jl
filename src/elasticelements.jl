@@ -281,7 +281,7 @@ function getϕ(elem::Beam, u::Matrix{<:Number})
   end
   return ϕ
 end
-function getϕ(elem::CElems{P}, u::Matrix{D}) where {P,D}
+function getϕ(elem::CElems{P}, u::Array{D}) where {P,D}
   ϕ = zero(D)
   F = getF(elem,u)
 
@@ -298,7 +298,7 @@ end
 # derivative, the other use the standard implementation common for all
 # on newer CPU this might disppear
 #
-function getϕ(elem::C3D{P}, u0::Matrix{D}) where {P,D<:adiff.D2}
+function getϕ(elem::C3D{P}, u0::Array{D}) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
   ϕ  = zero(D) 
@@ -328,11 +328,11 @@ function makeϕrKt(elems::Array{<:Elems}, u::Array{T}) where T
   makeϕrKt(Φ, elems, u)
 end
 #
-# function getδϕ(elem::C3D{P}, u0::Matrix{T})  where {P,T}  
+# function getδϕ(elem::C3D{P}, u0::Array{T})  where {P,T}  
 # evaluates the strain energy density as a dual D2 number 
 #
-getδϕ(elem::Elems, u::Matrix{<:Number}) = getϕ(elem, adiff.D2(u))
-function getδϕ(elem::C3D{P}, u0::Matrix{T})  where {P,T}
+getδϕ(elem::Elems, u::Array{<:Number}) = getϕ(elem, adiff.D2(u))
+function getδϕ(elem::C3D{P}, u0::Array{T})  where {P,T}
 
   u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
   N       = lastindex(u0)  

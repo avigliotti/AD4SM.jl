@@ -169,7 +169,7 @@ function getd(elem::CPElems{P}, d0::Vector{T}) where {P,T}
 end
 #
 # get free energy density for the elment without history
-function getϕ(elem::CPElems{P}, u0::Matrix, d0::Vector) where P
+function getϕ(elem::CPElems{P}, u0::Array, d0::Vector) where P
 
   ϕ = 0
   @inline for ii=1:P
@@ -180,7 +180,7 @@ function getϕ(elem::CPElems{P}, u0::Matrix, d0::Vector) where P
   ϕ
 end
 # get free energy density for the elment with history
-function getϕ(elem::CPElems{P}, u0::Matrix, d0::Vector, ϕmax::Vector) where P
+function getϕ(elem::CPElems{P}, u0::Array, d0::Array, ϕmax::Vector) where P
 
   wgt = elem.wgt
   ϕ   = 0
@@ -201,7 +201,7 @@ end
 # on newer CPU this might disppear
 #
 # without history
-function getϕ(elem::C3DP{P}, u0::Matrix{D}, d0::Vector) where {P,D<:adiff.D2}
+function getϕ(elem::C3DP{P}, u0::Array{D}, d0::Array) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
   ϕ  = zero(D) 
@@ -216,7 +216,7 @@ function getϕ(elem::C3DP{P}, u0::Matrix{D}, d0::Vector) where {P,D<:adiff.D2}
 end
 #
 # with history
-function getϕ(elem::C3DP{P}, u0::Matrix{D}, d0::Vector, ϕmax::Vector) where {P,D<:adiff.D2}
+function getϕ(elem::C3DP{P}, u0::Array{D}, d0::Array, ϕmax::Array) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
   ϕ  = zero(D) 
@@ -265,7 +265,7 @@ end
 # 
 # functions for array of elements
 # 
-function makeϕrKt(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}) where T
+function makeϕrKt(elems::Vector{<:CPElems}, u::Array{T}, d::Array{T}) where T
   nElems = length(elems)
   N      = length(u[:,elems[1].nodes])
   M      = (N+1)N÷2
@@ -277,7 +277,7 @@ function makeϕrKt(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}) where T
 
   makeϕrKt(Φ, elems, u)
 end
-function makeϕrKt_d(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}) where T
+function makeϕrKt_d(elems::Vector{<:CPElems}, u::Array{T}, d::Array{T}) where T
 
   nElems = length(elems)
   N      = length(d[elems[1].nodes])
@@ -291,7 +291,7 @@ function makeϕrKt_d(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}) where
   makeϕrKt(Φ, elems, d)
 end
 # with history
-function makeϕrKt_d(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}, ϕmax::Vector) where T
+function makeϕrKt_d(elems::Vector{<:CPElems}, u::Array{T}, d::Array{T}, ϕmax::Array) where T
 
   nElems = length(elems)
   N      = length(d[elems[1].nodes])
@@ -306,7 +306,7 @@ function makeϕrKt_d(elems::Vector{<:CPElems}, u::Matrix{T}, d::Matrix{T}, ϕmax
 end
 #
 #
-function getδϕu(elem::C3DP{P,<:PhaseField}, u0::Matrix{T}, d0::Vector{T})  where {P,T}
+function getδϕu(elem::C3DP{P,<:PhaseField}, u0::Array{T}, d0::Array{T})  where {P,T}
 
   u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
   N       = lastindex(u0)  
@@ -340,12 +340,12 @@ function getδϕu(elem::C3DP{P,<:PhaseField}, u0::Matrix{T}, d0::Vector{T})  whe
   adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
 end
 #
-getδϕd(elem::C3DElems{P,<:PhaseField}, u0::Matrix, d0::Vector) where P = getϕ(elem, u0, adiff.D2(d0))
-getδϕd(elem::C2DElems{P,<:PhaseField}, u0::Matrix, d0::Vector) where P = getϕ(elem,u0,adiff.D2(d0))
-getδϕd(elem::Rod{<:PhaseField}, u0::Matrix, d0::Vector)                = getϕ(elem,u0,adiff.D2(d0))
-getδϕu(elem::Rod{<:PhaseField}, u0::Matrix, d0::Vector)               = getϕ(elem,adiff.D2(u0),d0)
+getδϕd(elem::C3DElems{P,<:PhaseField}, u0::Array, d0::Array) where P = getϕ(elem, u0, adiff.D2(d0))
+getδϕd(elem::C2DElems{P,<:PhaseField}, u0::Array, d0::Array) where P = getϕ(elem,u0,adiff.D2(d0))
+getδϕd(elem::Rod{<:PhaseField}, u0::Array, d0::Array)                = getϕ(elem,u0,adiff.D2(d0))
+getδϕu(elem::Rod{<:PhaseField}, u0::Array, d0::Array)               = getϕ(elem,adiff.D2(u0),d0)
 #
-function getd(elem::CElems{P}, d0::Vector{T}) where {P,T}
+function getd(elem::CElems{P}, d0::Array{T}) where {P,T}
   d       = zero(T)
   for ii=1:P
     d += elem.wgt[ii]*(elem.N0[ii]⋅d0)
@@ -353,14 +353,14 @@ function getd(elem::CElems{P}, d0::Vector{T}) where {P,T}
   d/elem.V
 end
 # getVd
-function getVd(elem::CPElems{P}, d0::Vector{T}) where {T, P}
+function getVd(elem::CPElems{P}, d0::Array{T}) where {T, P}
   Vd = zero(T)
   for ii=1:P
     Vd += elem.wgt[ii]elem.N0[ii]⋅d0
   end
   Vd
 end
-function getVd(elems::Vector{<:CPElems}, d::Matrix{T}) where T
+function getVd(elems::Vector{<:CPElems}, d::Array{T}) where T
   Vd = zero(T)
   for elem in elems
     Vd += getVd(elem, d[elem.nodes])

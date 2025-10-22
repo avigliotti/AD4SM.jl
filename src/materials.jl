@@ -23,7 +23,7 @@ include("phasefieldmaterials.jl")
 
 export Material, Mat3D, Mat2D, Mat1D
 export Hooke,Hooke1D,Hooke2D,MooneyRivlin,NeoHooke,Ogden,PhaseField
-export getϕ
+export getϕ, getJ
 
 # status retrieving functions
 function getP(F::Array{Float64,2}, mat::Material) # 1st PK tensor from F
@@ -107,7 +107,11 @@ function getInvariants(C, C33)
   
   (I1,I2,I3)
 end
-#
+# functions for evaluating the determinat of F 
+getJ(F, mat::Materials.Mat2D) = F[1]F[4]-F[2]F[3]
+getJ(F, mat::Materials.Mat3D) = F[1]F[5]F[9]-F[1]F[6]F[8]-
+                                F[2]F[4]F[9]+F[2]F[6]F[7]+
+                                F[3]F[4]F[8]-F[3]F[5]F[7]
 # these functions assume C is symmetrical
 getI1(C)         = C[1]+C[5]+C[9]
 getI2(C)         = C[1]C[5]+C[5]C[9]+C[1]C[9]-C[2]^2-C[3]^2-C[6]^2

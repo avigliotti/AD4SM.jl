@@ -12,10 +12,10 @@ Fields
 
 Notes
 The Lamé parameters used internally are
-\begin{align*}
-\lambda &= \dfrac{E\nu}{(1+\nu)(1-2\nu)},\quad
-\mu=\dfrac{E}{2(1+\nu)}.
-\end{align*}
+\\begin{align*}
+\\lambda &= \\dfrac{E\nu}{(1+\\nu)(1-2\\nu)},\\quad
+\\mu=\\dfrac{E}{2(1+\\nu)}.
+\\end{align*}
 The struct implements a simple container for linear elasticity parameters and
 controls whether small- or large-strain formulas are evaluated by `getϕ`.
 """
@@ -48,8 +48,8 @@ end
 Hooke2D(E,ν;ρ=1;small=true,plane_stress=true)
 
 Two-dimensional (plane) linear elastic material. The second type parameter is
-used internally to distinguish `$:\\text{plane\_stress}$` and
-`$:\\text{plane\_strain}$` variants.
+used internally to distinguish `plane_stress` and
+`plane_strain` variants.
 
 Fields
 - `E` : Young's modulus.
@@ -267,7 +267,7 @@ Compute hydrostatic/deviatoric contributions required for 2D plane elasticity.
 
 For plane-strain and plane-stress Hooke types this function reconstructs the
 out-of-plane strain component consistent with the chosen kinematic assumption
-and returns the first invariant `$I_1$` and the squared sum `$I_1^2$` (used in
+and returns the first invariant `I_1` and the squared sum `I_1^2` (used in
 energy expressions).
 
 Arguments
