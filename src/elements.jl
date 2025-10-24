@@ -7,13 +7,42 @@ using LinearAlgebra, SparseArrays
 using ..adiff, ..Materials
 import ..Materials.getϕ
 
-export makeϕrKt
-export getF, getϕ, getδϕ, getδϕu, getδϕd, getVd, getd, getT, detJ, getV
+"""
+Elements
 
-# continous elements
-# these elements hold the tools to evaluate the gradient of a function at the 
-# integration points, this is done trough the Nx,Ny,Nz vectors, one for each
-# integration point
+Finite-element kernel for continuum and structural elements used within the
+larger FE + automatic-differentiation framework.
+
+This module provides:
+- concrete element data types (C1D/C2D/C3D and their phase-field variants),
+  structural element types (Rod, Beam),
+- element-level kinematics: evaluation of deformation gradient F at
+  quadrature points, Jacobians, and volume measures,
+- utilities to assemble element contributions into global residuals and
+  tangent (stiffness) matrices using adiff.D2 objects,
+- helper routines for quadrature generation and element-level inertial terms.
+
+Conventions and notes
+- `u` fields are arranged columnwise per node: rows correspond to local DOFs,
+  columns to nodes. Linear indexing (`vec(u)` / `LinearIndices(u)`) is used
+  in assembly routines.
+- Shape-function derivative arrays (Nx, Ny, Nz) are stored per integration
+  point and used to compute ∇u and F = I + ∇u.
+- Functions returning energies and derivatives typically return `adiff.D1` or
+  `adiff.D2` objects which are processed by `makeϕrKt` to obtain scalars,
+  residual vectors, and sparse stiffness matrices.
+"""
+# ------------------------------------------------------------------
+# Element types
+# ------------------------------------------------------------------
+
+"""
+C1D{P,M,T,I}
+
+One-dimensional continuous element type storing node indices, shape-function
+derivatives at P integration points, quadrature weights, element volume `V`,
+and material `mat`.
+"""
 struct C1D{P,M,T<:Number,I<:Integer}
   nodes::Vector{I}
   Nx::NTuple{P,Vector{T}}
@@ -21,6 +50,14 @@ struct C1D{P,M,T<:Number,I<:Integer}
   V::T
   mat::M
 end
+
+"""
+C2D{P,M,T,I}
+
+Two-dimensional continuous element type. Stores node indices, per-quadrature
+shape-function derivatives `Nx`, `Ny`, weights `wgt`, element volume `V`,
+and material `mat`.
+"""
 struct C2D{P,M,T<:Number,I<:Integer}
   nodes::Vector{I}
   Nx::NTuple{P,Vector{T}}
@@ -29,6 +66,13 @@ struct C2D{P,M,T<:Number,I<:Integer}
   V::T
   mat::M
 end
+
+"""
+C3D{P,M,T,I}
+
+Three-dimensional continuous element type with per-point shape-function
+derivatives `Nx`, `Ny`, `Nz`, quadrature weights `wgt`, volume `V`, and `mat`.
+"""
 struct C3D{P,M,T<:Number,I<:Integer}
   nodes::Vector{I}
   Nx::NTuple{P,Vector{T}}
@@ -38,6 +82,15 @@ struct C3D{P,M,T<:Number,I<:Integer}
   V::T
   mat::M
 end
+
+"""
+CAS{P,M,T,I}
+
+Axisymmetric continuous element with shape-function values `N0` and
+derivatives `Nx`, `Ny`. `X0` stores radius-related reference values used
+in axisymmetric kinematics. `wgt` are quadrature weights, `V` element volume,
+and `mat` material.
+"""
 struct CAS{P,M,T<:Number,I<:Integer}
   nodes::Vector{I}
   N0::NTuple{P,Vector{T}}
@@ -48,8 +101,13 @@ struct CAS{P,M,T<:Number,I<:Integer}
   V::T
   mat::M
 end
-#
-#  structural elements
+
+"""
+Rod{M,T,I}
+
+One-dimensional structural rod element with end-node coordinates `r0`,
+reference length `l0`, cross-sectional area `A` and material `mat`.
+"""
 struct Rod{M,T<:Number,I<:Integer}
   nodes::Vector{I}
   r0::Vector{T}
@@ -57,6 +115,13 @@ struct Rod{M,T<:Number,I<:Integer}
   A::T
   mat::M
 end
+
+"""
+Beam{M,T,I}
+
+Beam element storing geometry `r0`, length `L`, thickness `t`, width `w`,
+and integration rules (`lgwx`, `lgwy`) for bending; `mat` is the constitutive model.
+"""
 struct Beam{M,T<:Number,I<:Integer}
   nodes::Vector{I}
   r0::Vector{T}
@@ -67,11 +132,15 @@ struct Beam{M,T<:Number,I<:Integer}
   lgwy::Array{Tuple{T,T},1}
   mat::M
 end
-#
-# continous elements with phase
-# these elements also hold the mean to evaluate the value of the function at 
-# the integration point, not only its gradient this is done trough 
-# the N0 arrays
+
+"""
+C1DP, C2DP, C3DP
+
+Phase-field variants of continuous elements. They store shape-function values
+`N0` (for approximating the scalar phase/field variable) in addition to the
+gradient derivatives and quadrature data. Useful when an additional scalar
+field (phase, concentration) is coupled to the mechanics.
+"""
 struct C1DP{P,M,T<:Number,I<:Integer}
   nodes::Vector{I}
   N0::NTuple{P,Vector{T}}
@@ -103,7 +172,7 @@ end
 C1DElems{P,M,T,I} = Union{C1D{P,M,T,I}, C1DP{P,M,T,I}}
 C2DElems{P,M,T,I} = Union{C2D{P,M,T,I}, C2DP{P,M,T,I}}
 C3DElems{P,M,T,I} = Union{C3D{P,M,T,I}, C3DP{P,M,T,I}}
-CElems{P,M,T,I}   = Union{C2D{P,M,T,I}, C3D{P,M,T,I}, CAS{P,M,T,I}, 
+CElems{P,M,T,I}   = Union{C2D{P,M,T,I}, C3D{P,M,T,I}, CAS{P,M,T,I},
                           C2DP{P,M,T,I}, C3DP{P,M,T,I}}
 CPElems{P,M,T,I}  = Union{C2DP{P,M,T,I}, C3DP{P,M,T,I}, CAS{P,M,T,I}}
 Elems             = Union{Rod, Beam, CElems}
@@ -114,14 +183,38 @@ export C2DElems, C3DElems, CAS, CPElems, Elems
 include("elasticelements.jl")
 include("phasefieldelements.jl")
 
-# parameters retriving functions 
+# ------------------------------------------------------------------
+# Parameter accessors
+# ------------------------------------------------------------------
+
+"""
+getP(elem)
+
+Return the number of quadrature points `P` associated with a continuous element.
+"""
 getP(::CElems{P,M,T,I}) where {P,M,T,I} = P
+
+"""
+getM(elem)
+
+Return the material type parameter stored in the element.
+"""
 getM(::CElems{P,M,T,I}) where {P,M,T,I} = M
-#
-# × operator
-# this operator allows to use the chain rule decoupling the calculation of
-# the free energy density from the degrees of freedom of the displacement
-#
+
+# ------------------------------------------------------------------
+# Operator × for chaining AD quantities
+# ------------------------------------------------------------------
+
+"""
+×(ϕ::adiff.D2{N,M,T}, F::Array{adiff.D1{P,T}})
+
+Chain an `adiff.D2` free-energy object `ϕ` with a set of deformation-gradient
+AD objects `F` to produce a new `adiff.D2` representing the scalar energy
+evaluated as a function of the underlying nodal DOFs.
+
+This implements the necessary chain-rule accumulation of first and second
+derivatives for element-level assembly.
+"""
 function ×(ϕ::adiff.D2{N,M,T},F::Array{adiff.D1{P,T}}) where {N,M,P,T}
   val  = ϕ.v
   grad = adiff.Grad(zeros(T,P))
@@ -137,37 +230,69 @@ function ×(ϕ::adiff.D2{N,M,T},F::Array{adiff.D1{P,T}}) where {N,M,P,T}
   end
   adiff.D2(val, grad, hess)
 end
+
+"""
+×(ϕ::adiff.D1{N,T}, F::Array{adiff.D1{P,T}})
+
+Chain an `adiff.D1` scalar object with deformation-gradient AD objects `F`.
+Returns an `adiff.D1` with propagated first derivatives.
+"""
 function ×(ϕ::adiff.D1{N,T},F::Array{adiff.D1{P,T}}) where {N,P,T}
   val  = ϕ.v
   grad = adiff.Grad(zeros(T,P))
   for ii=1:N
     grad += ϕ.g[ii]*F[ii].g
-  end  
+  end
   adiff.D1(val, grad)
 end
-# functions for calculating residuals and stiffness matrix
+
+# ------------------------------------------------------------------
+# Assembly helpers: form residual and (sparse) stiffness from AD objects
+# ------------------------------------------------------------------
+
+"""
+getϕ(elems, u)
+
+Evaluate element-level free-energy `ϕ` objects for a collection of continuous
+elements given the full nodal DOF matrix `u`. Returns a vector of `adiff.D2`
+or `adiff.D1` objects (depending on the element/energy).
+"""
 getϕ(elems::Array{<:CElems}, u::Array) = [getϕ(elem, u[:,elem.nodes]) for elem in elems]
+
+"""
+makeϕrKt(Φ, elems, u) -> (ϕ, r, Kt)
+
+Assemble contributions from a vector `Φ` of `adiff.D2` element energies and a
+matching vector of `elems` into:
+- scalar energy `ϕ` (sum of element energies),
+- residual vector `r` (assembled internal forces),
+- sparse tangent `Kt` (global stiffness) as a sparse matrix.
+
+Notes
+- `u` is the global DOF matrix used for indexing; linear indices into `u` are
+  generated via `LinearIndices(u)` and used for assembly.
+- This routine expects `Φ[ii]` to correspond to `elems[ii]`.
+"""
 function makeϕrKt(Φ::Vector{<:adiff.D2}, elems::Vector{<:Elems}, u)
 
-  N  = length(u) 
+  N  = length(u)
   Nt = 0
   for ϕ in Φ
-    # Nt += length(ϕ.g)*length(ϕ.g)
     Nt += length(ϕ.g.v)*length(ϕ.g.v)
   end
 
   II = zeros(Int, Nt)
-  JJ = zeros(Int, Nt)  
-  Kt = zeros(Nt)  
+  JJ = zeros(Int, Nt)
+  Kt = zeros(Nt)
   r  = zeros(N)
   ϕ  = 0
   indxs  = LinearIndices(u)
 
   N1 = 1
-  for (ii,elem) in enumerate(elems)    
+  for (ii,elem) in enumerate(elems)
     idxii     = indxs[:, elem.nodes][:]    
-    ϕ        += adiff.val(Φ[ii]) 
-    r[idxii] += adiff.grad(Φ[ii]) 
+    ϕ        += adiff.val(Φ[ii])
+    r[idxii] += adiff.grad(Φ[ii])
     nii       = length(idxii)
     Nii       = nii*nii
     oneii     = ones(nii)
@@ -180,22 +305,46 @@ function makeϕrKt(Φ::Vector{<:adiff.D2}, elems::Vector{<:Elems}, u)
 
   ϕ, r, dropzeros(sparse(II,JJ,Kt,N,N))
 end
+
+"""
+makeϕr(Φ, elems, u) -> (ϕ, r)
+
+Assemble scalar energy `ϕ` and residual vector `r` from a vector `Φ` of AD
+objects (without forming a stiffness). Useful for quasi-static checks or when
+only residual is required.
+"""
 function makeϕr(Φ::Vector{<:adiff.Duals}, elems::Vector{<:Elems}, u)
 
-  indxs = LinearIndices(u)  
+  indxs = LinearIndices(u)
   r     = zeros(length(u))
   ϕ     = 0
-  for (ii,elem) in enumerate(elems)    
+  for (ii,elem) in enumerate(elems)
     idxii     = indxs[:, elem.nodes][:]    
-    ϕ        += adiff.val(Φ[ii]) 
-    r[idxii] += adiff.grad(Φ[ii]) 
+    ϕ        += adiff.val(Φ[ii])
+    r[idxii] += adiff.grad(Φ[ii])
   end
   ϕ, r
 end
-#
-# methods for evaluating the deformation gradient at integration points
-#
+
+# ------------------------------------------------------------------
+# Deformation gradient evaluation at integration points
+# ------------------------------------------------------------------
+
+"""
+getF(elems, u)
+
+Return a vector of element-wise averaged deformation gradients for a list of
+continuous elements evaluated from nodal DOFs `u`.
+"""
 getF(elems::Array{<:CElems}, u::Array) = [getF(elem, u[:,elem.nodes]) for elem in elems]
+
+"""
+getF(elem::C3DElems{P}, u)
+
+Compute the volume-averaged deformation gradient F for a 3D element from the
+local nodal DOFs `u`. The returned array has shape (D,3,3) where D is the
+number of DOFs per node (commonly 3 for displacements).
+"""
 function getF(elem::C3DElems{P}, u::Array{D}) where {P,D}
   F = zeros(D,3,3)
   for ii=1:P
@@ -203,6 +352,15 @@ function getF(elem::C3DElems{P}, u::Array{D}) where {P,D}
   end
   F/elem.V
 end
+
+"""
+getF(elem::C3DElems, u, ii)
+
+Compute the deformation gradient F at integration point `ii` for a 3D element.
+Shape-function derivatives Nx,Ny,Nz are contracted with nodal displacement
+components to form the standard small/finite-strain kinematic measure; the
+identity `I` is added (i.e. F = I + ∇u).
+"""
 function getF(elem::C3DElems, u::Matrix, ii::Integer)
   Nx, Ny, Nz = elem.Nx[ii], elem.Ny[ii], elem.Nz[ii]
   u0, v0, w0 = u[1:3:end],  u[2:3:end],  u[3:3:end]
@@ -211,6 +369,13 @@ function getF(elem::C3DElems, u::Matrix, ii::Integer)
    Nx⋅v0 Ny⋅v0 Nz⋅v0;
    Nx⋅w0 Ny⋅w0 Nz⋅w0 ] + I
 end
+
+"""
+getF(elem::C2DElems{P}, u)
+
+Compute the volume-averaged deformation gradient F for a 2D element.
+Returns a D×2×2 tensor where D is DOFs per node (typically 2).
+"""
 function getF(elem::C2DElems{P}, u::Array{D}) where {P,D}
   F = zeros(D,2,2)
   for ii=1:P
@@ -218,16 +383,32 @@ function getF(elem::C2DElems{P}, u::Array{D}) where {P,D}
   end
   F/elem.V
 end
+
+"""
+getF(elem::C2DElems, u, ii)
+
+Deformation gradient at integration point `ii` for a 2D element. The routine
+constructs F = I + ∇u from shape-function derivatives `Nx`, `Ny`.
+"""
 function getF(elem::C2DElems{P,M,T,I} where {M,T,I}, u::Array{D}, ii::Integer) where {P,D}
   u0, v0 = u[1:2:end],  u[2:2:end]
   Nx, Ny = elem.Nx[ii], elem.Ny[ii]
   [Nx⋅u0 Ny⋅u0;
    Nx⋅v0 Ny⋅v0] + I
 end
+
+"""
+getF(elem::CAS, u, ii)
+
+Compute the deformation gradient at integration point `ii` for an axisymmetric
+element. The axial/radial coupling and the out-of-plane stretch are included
+according to axisymmetric kinematics; `N0` and `X0` are used to compute the
+circumferential contribution.
+"""
 function getF(elem::CAS,   u::Array{D}, ii::Int64)  where D
   Nx,  Ny   = elem.Nx[ii], elem.Ny[ii]
   N0,  X0   = elem.N0[ii], elem.X0[ii]
-  u0,  v0   = u[1:2:end],  u[2:2:end] 
+  u0,  v0   = u[1:2:end],  u[2:2:end]
   u0x, u0y  = Nx⋅u0, Ny⋅u0
   v0x, v0y  = Nx⋅v0, Ny⋅v0
   w0z       = N0⋅u0/X0
@@ -237,54 +418,83 @@ function getF(elem::CAS,   u::Array{D}, ii::Int64)  where D
    v0x  v0y   my0;
    my0  my0   w0z] + I
 end
+
+# ------------------------------------------------------------------
+# Jacobian, determinant, and volume utilities
+# ------------------------------------------------------------------
+
+"""
+detJ(F)
+
+Compute the determinant of the deformation gradient `F`. Supports 2×2 and
+3×3 `F` stored in vector form (length 4 or 9) or as matrices; returns scalar J.
+"""
 function detJ(F)
   if (length(F)==9)
-    # F[1]F[5]F[9]-F[1]F[6]F[8]-F[2]F[4]F[9]+F[2]F[6]F[7]+F[3]F[4]F[8]-F[3]F[5]F[7]
-    F[1]*(F[5]F[9]-F[6]F[8])-F[2]*(F[4]F[9]-F[6]F[7])+F[3]*(F[4]F[8]-F[5]F[7])
-  else
+    F[1]*(F[5]F[9]-F[6]F[8])-
+    F[2]*(F[4]F[9]-F[6]F[7])+
+    F[3]*(F[4]F[8]-F[5]F[7])
+  elseif length(F)==4
     F[1]F[4]-F[2]F[3]
+  else
+    throw(ArgumentError("detJ: unsupported matrix size $(size(F))"))
   end
 end
+
 detJ(elem,u,ii)  = detJ(getF(elem, u, ii))
-detJ(elem,u)     = getV(elem,u)/elem.V
+
+"""
+detJ(elem::C3DElems{P}, u0)
+
+Compute the averaged Jacobian determinant J = det(F) for a 3D element.
+"""
+function detJ(elem::CElems{P}, u0::Matrix{U})  where {P, U}
+
+  wgt = elem.wgt
+  J   = zero(U)
+  @inbounds for ii=1:P
+    F  = getF(elem, u0, ii)
+    J += detJ(F)*wgt[ii]
+  end
+  return J/elem.V
+end
+
+"""
+detJ(elems, u)
+
+Return element-wise determinants for a collection of elements evaluated at
+their averaged deformation gradients.
+"""
+detJ(elems::Vector, u::Array) = [detJ(elem, u[:,elem.nodes]) for elem in elems]
+
+"""
+getI3(elem, u, ii)
+
+Return the squared determinant of F at integration point `ii` (I3 = det(F)^2),
+useful for invariants in some material models.
+"""
 getI3(elem,u,ii) = detJ(getF(elem, u, ii))^2
 getI3(elem,u)    = sum(elem.wgt[ii]getI3(elem,u,ii) for ii in 1:length(elem.wgt))/elem.V
 
 """
-function detJ(elem::C3DElems{P}, u0::Matrix{U})  where {P, U}
+getV(elem, u)
 
-finds the average J=det(F) for the element
-
+Compute the element volume/area as the quadrature-weighted sum of det(F)
+over integration points.
 """
-function detJ(elem::C3DElems{P}, u0::Matrix{U})  where {P, U}
-
-  @views u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
-  wgt = elem.wgt
-  F   = zeros(3,3) # is the weigthed average
-  for ii=1:P
-    # N0,Nx,Ny,Nz = elem.N0[ii],elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
-    Nx,Ny,Nz = elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
-    F  += [1+Nx⋅u Ny⋅u  Nz⋅u;
-           Nx⋅v  1+Ny⋅v Nz⋅v;
-           Nx⋅w   Ny⋅w 1+Nz⋅w ]*wgt[ii]
-  end
-
-  F = F/elem.V
-
-  J = F[1]F[5]F[9]-F[1]F[6]F[8]-
-      F[2]F[4]F[9]+F[2]F[6]F[7]+
-      F[3]F[4]F[8]-F[3]F[5]F[7]
-  return J
-end
-detJ(elems::Vector, u::Array) = [detJ(elem, u[:,elem.nodes]) for elem in elems]
-
 getV(elem,u) = sum([elem.wgt[ii]detJ(elem,u,ii) for ii in 1:length(elem.wgt)])
 getV(elems::Vector, u::Array) = sum([getV(elem, u[:,elem.nodes]) for elem in elems])
-# function for retriving stress
-"""
-# getσ(elem, u)
 
-Calculates the volume average Cauchy Stress in the element
+# ------------------------------------------------------------------
+# Stress evaluation
+# ------------------------------------------------------------------
+
+"""
+getσ(elem, u)
+
+Compute the volume-averaged Cauchy stress tensor for an element by averaging
+the pointwise Cauchy stress over quadrature points. The function dispatches
+to the appropriate typed implementation depending on element dimension.
 """
 function getσ(elem::C3DElems{P}, u::Array{M}) where {P,M}
   σ = zeros(M,3,3)
@@ -300,10 +510,13 @@ function getσ(elem::C2DElems{P}, u::Array{M}) where {P,M}
   end
   σ/elem.V
 end
-"""
-# getσ(elem, u, ii)
 
-Calculates the Cauchy Stress at the integration point ii
+"""
+getσ(elem::CElems, u, ii)
+
+Compute the Cauchy stress at integration point `ii` for generic continuous
+elements. Uses material routine `getϕ` to obtain the first Piola or energy,
+then forms P = ∂ϕ/∂F and σ = J^{-1} P F^T.
 """
 function getσ(elem::CElems, u::Array, ii::Int)
 
@@ -315,10 +528,19 @@ function getσ(elem::CElems, u::Array, ii::Int)
   return 1/J*P*F'
 end
 getσ(elems::Array{<:CElems}, u::Array) = [getσ(elem, u[:,elem.nodes]) for elem in elems]
-#
-# function for inertia and mass matrices
+
+# ------------------------------------------------------------------
+# Inertia / kinetic energy contributions
+# ------------------------------------------------------------------
+
+"""
+getT(elem, udot0)
+
+Compute the kinetic energy contribution (scalar) for an element given nodal
+velocity field `udot0`. Implemented for C3D, C2D, and Rod element variants.
+"""
 function getT(elem::C3DElems{P}, udot0::Matrix{T}) where {T,P}
-  ϕ   = zero(T) 
+  ϕ   = zero(T)
   for ii=1:P
     N0 = elem.N0[ii]
     d  = [N0⋅udot0[1:3:end], N0⋅udot0[2:3:end], N0⋅udot0[3:3:end]]
@@ -334,7 +556,7 @@ function getT(elem::Rod{<:PhaseField},
 end
 function getT(elem::C2DElems{P,M} where M,
               udot0::Matrix{T}) where {T,P}
-  ϕ   = zero(T) 
+  ϕ   = zero(T)
   for ii=1:P
     N0 = elem.N0[ii]
     d  = [N0⋅udot0[1:2:end], N0⋅udot0[2:2:end]]
@@ -342,29 +564,51 @@ function getT(elem::C2DElems{P,M} where M,
   end
   ϕ
 end
-function getT(elems::Vector{<:Elems}, 
+
+"""
+getT(elems, udot)
+
+Assemble kinetic-energy contributions into global residual and tangent using
+`makeϕrKt`. Parallelized with `Threads.@threads` over elements.
+"""
+function getT(elems::Vector{<:Elems},
               udot::Matrix{T}) where T
   nElems = length(elems)
-  # N      = length(udot[:,elems[1].nodes])
-  # M      = (N+1)N÷2
-
-  # Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
   Φ = Vector{adiff.D2}(undef, nElems)
   Threads.@threads for ii=1:nElems
     Φ[ii] = getT(elems[ii], adiff.D2(udot[:,elems[ii].nodes]))
   end
-
-  # Φ = [getϕ(elem, adiff.D2(u[:,elem.nodes]), d[elem.nodes]) for elem in elems]
   makeϕrKt(Φ, elems, udot)
 end
-#
+
+# ------------------------------------------------------------------
+# Utility: element info retrieval
+# ------------------------------------------------------------------
+
+"""
+getinfo(elem, u; info=:detF)
+
+Return requested per-element scalar information (e.g., :detF or other measures)
+by computing the averaged deformation gradient and dispatching to
+`Materials.getinfo`. The `info` keyword selects what quantity to return.
+"""
 function getinfo(elem::CElems{P}, u::Matrix{<:Number}; info=:detF) where P
   F = sum([getF(elem, u, ii) for ii=1:P])/P
   Materials.getinfo(F, elem.mat, info=info)
 end
 getinfo(elems::Array, u; info=:detF) =  [getinfo(elem, u[:,elem.nodes], info=info) for elem in elems]
-# helper functions
-# find the Gauss-Legendre quadrature points and weights
+
+# ------------------------------------------------------------------
+# Quadrature helper
+# ------------------------------------------------------------------
+
+"""
+lgwt(N; a=0, b=1)
+
+Compute Gauss-Legendre nodes and weights for N points on interval [a,b].
+
+Returns a vector of tuples `(x,w)` for each quadrature point.
+"""
 function lgwt(N::Integer; a=0, b=1)
 
   N, N1, N2 = N-1, N, N+1
@@ -382,15 +626,13 @@ function lgwt(N::Integer; a=0, b=1)
     end
     global Lp = N2*(L[:,N1] .- y .* L[:,N2])./(1 .- y.^2)
     y0 = y
-    y  = y0 .- L[:,N2]./Lp        
+    y  = y0 .- L[:,N2]./Lp
   end
 
   x = (a.*(1 .- y) .+ b.* (1 .+ y))./2
   w = (b-a)./((1 .- y.^2).*Lp.^2).*(N2/N1)^2
 
   return [(x[ii], w[ii]) for ii ∈ 1:N1]
-  # (x,w)
 end
 
 end
-
