@@ -69,7 +69,8 @@ function Quad(nodes::Vector{<:Integer},
 
     Nx[ii,jj]  = Nxy[1,:]
     Ny[ii,jj]  = Nxy[2,:]
-    wgt[ii,jj] = detJ(J)*wξ*wη
+    F          = SMatrix{2,2}(J)
+    wgt[ii,jj] = detJ(F)*wξ*wη
 
     A += wgt[ii,jj]
   end
@@ -151,7 +152,8 @@ function Hex08(nodes::Vector{<:Integer},
     Nx[ii,jj,kk]  = Nxyz[1,:]
     Ny[ii,jj,kk]  = Nxyz[2,:]
     Nz[ii,jj,kk]  = Nxyz[3,:]
-    wgt[ii,jj,kk] = detJ(J)*wξ*wη*wζ
+    F             = SMatrix{3,3}(J)
+    wgt[ii,jj,kk] = detJ(F)*wξ*wη*wζ
 
     V +=wgt[ii,jj,kk]
   end
@@ -245,7 +247,7 @@ function ASQuad(nodes::Vector{<:Integer},
 end
 #
 # elastic energy evaluation functions for elements
-#
+#=
 function getϕ(elem::Rod,  u::Matrix{<:Number})
   l   = norm(elem.r0+u[:,2]-u[:,1])
   F11 = l/elem.l0
@@ -282,9 +284,9 @@ function getϕ(elem::Beam, u::Matrix{<:Number})
   end
   return ϕ
 end
-
-# General CElems energy integrator (works with CElem/CPElem)
-function getϕ(elem::CElems{P}, u::Array{D}) where {P,D}
+=#
+# General CElem energy integrator (works with CElem/CPElem)
+function getϕ(elem::CElem{P}, u::Array{D}) where {P,D}
   ϕ = zero(D)
   for ii=1:P
     Fii = getF(elem, u, ii)
@@ -300,7 +302,7 @@ end
 # the displacement field trough the use of the × operators for the chain 
 # derivative, the other use the standard implementation common for all
 # on newer CPU this might disppear
-#
+#=
 function getϕ(elem::C3D{P}, u0::Array{D}) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
@@ -313,11 +315,11 @@ function getϕ(elem::C3D{P}, u0::Array{D}) where {P,D<:adiff.D2}
   end
   ϕ
 end
-
+=#
 #
 # functions for evaluating the residual and the tangent stiffness matrix over
 # an array of elements
-#
+#=
 function makeϕrKt(elems::Array{<:Elems}, u::Array{T}) where T
 
   nElems = length(elems)
@@ -331,12 +333,12 @@ function makeϕrKt(elems::Array{<:Elems}, u::Array{T}) where T
 
   makeϕrKt(Φ, elems, u)
 end
-
+=#
 #
 # function getδϕ(elem::C3D{P}, u0::Array{T})  where {P,T}  
 # evaluates the strain energy density as a dual D2 number 
 #
-getδϕ(elem::Elems, u::Array{<:Number}) = getϕ(elem, adiff.D2(u))
+getδϕ(elem::AbstractElement, u::Array{<:Number}) = getϕ(elem, adiff.D2(u))
 
 function getδϕ(elem::C3D{P}, u0::Array{T})  where {P,T}
   #
@@ -429,7 +431,7 @@ function getδϕ(elem::C3D{P}, u0::Array{T})  where {P,T}
   adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
 end
 
-function getδϕ(elems::Vector{<:Elems}, u::Array{T,2}) where T
+function getδϕ(elems::Vector{<:CElem}, u::Array{T,2}) where T
   nElems = length(elems)
   N      = length(u[:,elems[1].nodes])
   M      = (N+1)N÷2

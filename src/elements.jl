@@ -1,7 +1,23 @@
 module Elements
 
-using StaticArrays
+using AD4SM.adiff
 
+using StaticArrays
+using LinearAlgebra:I
+
+# ---------------------------------------------------------------------------
+# Inline static dot product
+# ---------------------------------------------------------------------------
+
+@inline function dot(a::SVector{N,T}, b::SVector{N,T}) where {N,T}
+    s = zero(T)
+    @inbounds @simd for ii in 1:N
+        s += a[ii] * b[ii]
+    end
+    return s
+end
+
+const ⋅ = dot
 # ---------------------------------------------------------------------------
 # Abstract type hierarchy
 # ---------------------------------------------------------------------------
@@ -10,216 +26,173 @@ abstract type AbstractElement end
 abstract type AbstractContinuumElem <: AbstractElement end
 
 # ---------------------------------------------------------------------------
-# Continuum mechanical element definition (CElem)
+# CElem — Mechanical elements
 # ---------------------------------------------------------------------------
 
 """
-CElem{D,P,M,T,I}
+CElem{D,P,M,T,N}
 
-Generic D-dimensional continuum finite element (mechanical only).
+Generic D-dimensional continuum finite element for displacement-based
+mechanical analysis.
+
+Type parameters:
+- `D` : spatial dimension (1, 2, or 3)
+- `P` : number of quadrature points
+- `M` : material model type
+- `T` : numeric type
+- `N` : number of element nodes
 
 Fields:
-- `nodes` : vector of nodal IDs
+- `nodes` : vector of nodal IDs (any integer type)
 - `∇N`    : NTuple{D,NTuple{P,SVector{N,T}}} — shape-function derivatives
 - `wgt`   : NTuple{P,T} — quadrature weights
-- `V`     : reference element volume/area/length
+- `V`     : reference volume/area/length
 - `mat`   : material model
 """
-struct CElem{D,P,M,T<:Number,I<:Integer} <: AbstractContinuumElem
-  nodes::Vector{I}
-  ∇N::NTuple{D,NTuple{P,SVector{N,T}}} where {N}
-  wgt::NTuple{P,T}
-  V::T
-  mat::M
+struct CElem{D,P,M,T,N} <: AbstractContinuumElem
+    nodes::Vector{I} where I
+    ∇N::NTuple{D,NTuple{P,SVector{N,T}}}
+    wgt::NTuple{P,T}
+    V::T
+    mat::M
 end
 
 # ---------------------------------------------------------------------------
-# Phase-field element definition (CPElem)
+# CPElem — Phase-field / scalar-field elements
 # ---------------------------------------------------------------------------
 
 """
-CPElem{D,P,M,T,I}
+CPElem{D,P,M,T,N}
 
-Generic D-dimensional continuum finite element carrying a scalar field
-(e.g. phase, concentration, or temperature).
+Generic D-dimensional continuum finite element for scalar fields
+(e.g., phase, concentration, or temperature).
+
+Type parameters:
+- `D` : spatial dimension (1, 2, or 3)
+- `P` : number of quadrature points
+- `M` : material model type
+- `T` : numeric type
+- `N` : number of element nodes
 
 Fields:
-- `nodes` : vector of nodal IDs
+- `nodes` : vector of nodal IDs (any integer type)
 - `N`     : NTuple{P,SVector{N,T}} — shape-function values
 - `∇N`    : NTuple{D,NTuple{P,SVector{N,T}}} — shape-function derivatives
 - `wgt`   : NTuple{P,T} — quadrature weights
-- `V`     : reference element volume/area/length
+- `V`     : reference volume/area/length
 - `mat`   : material model
 """
-struct CPElem{D,P,M,T<:Number,I<:Integer} <: AbstractContinuumElem
-  nodes::Vector{I}
-  N::NTuple{P,SVector{N,T}} where {N}
-  ∇N::NTuple{D,NTuple{P,SVector{N,T}}} where {N}
-  wgt::NTuple{P,T}
-  V::T
-  mat::M
+struct CPElem{D,P,M,T,N} <: AbstractContinuumElem
+    nodes::Vector{I} where I
+    N::NTuple{P,SVector{N,T}}
+    ∇N::NTuple{D,NTuple{P,SVector{N,T}}}
+    wgt::NTuple{P,T}
+    V::T
+    mat::M
 end
 
 # ---------------------------------------------------------------------------
-# Constructors for CElem (mechanical)
+# Type aliases for convenience
 # ---------------------------------------------------------------------------
 
-C1D(nodes, Nx, wgt, V, mat) =
-CElem(nodes,
-      (ntuple(p -> SVector{length(Nx[p])}(Nx[p]), length(wgt)), ),
-      wgt, V, mat)
+const C1D{P,M,T,N}  = CElem{1,P,M,T,N}
+const C2D{P,M,T,N}  = CElem{2,P,M,T,N}
+const C3D{P,M,T,N}  = CElem{3,P,M,T,N}
 
-C2D(nodes, Nx, Ny, wgt, V, mat) =
-CElem(nodes,
-      (ntuple(p -> SVector{length(Nx[p])}(Nx[p]), length(wgt)),
-       ntuple(p -> SVector{length(Ny[p])}(Ny[p]), length(wgt)) ),
-      wgt, V, mat)
-
-C3D(nodes, Nx, Ny, Nz, wgt, V, mat) =
-CElem(nodes,
-      (ntuple(p -> SVector{length(Nx[p])}(Nx[p]), length(wgt)),
-       ntuple(p -> SVector{length(Ny[p])}(Ny[p]), length(wgt)),
-       ntuple(p -> SVector{length(Nz[p])}(Nz[p]), length(wgt)) ),
-      wgt, V, mat)
+const C1DP{P,M,T,N} = CPElem{1,P,M,T,N}
+const C2DP{P,M,T,N} = CPElem{2,P,M,T,N}
+const C3DP{P,M,T,N} = CPElem{3,P,M,T,N}
 
 # ---------------------------------------------------------------------------
-# Constructors for CPElem (phase-field)
-# ---------------------------------------------------------------------------
-
-C1DP(nodes, N, Nx, wgt, V, mat) =
-CPElem(nodes,
-       ntuple(p -> SVector{length(N[p])}(N[p]), length(wgt)),
-       (ntuple(p -> SVector{length(Nx[p])}(Nx[p]), length(wgt)), ),
-       wgt, V, mat)
-
-C2DP(nodes, N, Nx, Ny, wgt, V, mat) =
-CPElem(nodes,
-       ntuple(p -> SVector{length(N[p])}(N[p]), length(wgt)),
-       (ntuple(p -> SVector{length(Nx[p])}(Nx[p]), length(wgt)),
-        ntuple(p -> SVector{length(Ny[p])}(Ny[p]), length(wgt)) ),
-       wgt, V, mat)
-
-C3DP(nodes, N, Nx, Ny, Nz, wgt, V, mat) =
-CPElem(nodes,
-       ntuple(p -> SVector{length(N[p])}(N[p]), length(wgt)),
-       (ntuple(p -> SVector{length(Nx[p])}(Nx[p]), length(wgt)),
-        ntuple(p -> SVector{length(Ny[p])}(Ny[p]), length(wgt)),
-        ntuple(p -> SVector{length(Nz[p])}(Nz[p]), length(wgt)) ),
-       wgt, V, mat)
-
-# ------------------------------------------------------------------
-# Operator × for chaining AD quantities
-# ------------------------------------------------------------------
-
-"""
-×(ϕ::adiff.D2{N,M,T}, F::Array{adiff.D1{P,T}})
-
-Chain an `adiff.D2` free-energy object `ϕ` with a set of deformation-gradient
-AD objects `F` to produce a new `adiff.D2` representing the scalar energy
-evaluated as a function of the underlying nodal DOFs.
-
-This implements the necessary chain-rule accumulation of first and second
-derivatives for element-level assembly.
-"""
-function ×(ϕ::adiff.D2{N,M,T},F::Array{adiff.D1{P,T}}) where {N,M,P,T}
-  val  = ϕ.v
-  grad = adiff.Grad(zeros(T,P))
-  hess = adiff.Grad(zeros(T,(P+1)P÷2))
-  for ii=1:N
-    grad += ϕ.g[ii]*F[ii].g
-  end
-  for ii=2:N, jj=1:ii-1
-    hess += ϕ.h[ii,jj]*(F[ii].g*F[jj].g + F[jj].g*F[ii].g)
-  end  
-  for ii=1:N
-    hess += ϕ.h[ii,ii]F[ii].g*F[ii].g
-  end
-  adiff.D2(val, grad, hess)
-end
-
-"""
-×(ϕ::adiff.D1{N,T}, F::Array{adiff.D1{P,T}})
-
-Chain an `adiff.D1` scalar object with deformation-gradient AD objects `F`.
-Returns an `adiff.D1` with propagated first derivatives.
-"""
-function ×(ϕ::adiff.D1{N,T},F::Array{adiff.D1{P,T}}) where {N,P,T}
-  val  = ϕ.v
-  grad = adiff.Grad(zeros(T,P))
-  for ii=1:N
-    grad += ϕ.g[ii]*F[ii].g
-  end
-  adiff.D1(val, grad)
-end
-
-# ---------------------------------------------------------------------------
-# Mechanical evaluation functions (F, J)
+# Constructors for CElem
 # ---------------------------------------------------------------------------
 
 """
-Compute the deformation gradient **F** = I + ∇u at Gauss point `ii`.
+Create a 1D mechanical element.
 """
-@inline function getF(elem::CElem{D,P}, u::Matrix{T}, ii::Integer) where {D,P,T}
-  ∇u = @MMatrix zeros(T, D, D)
-  @inbounds for α in 1:D, β in 1:D
-    ∇u[α,β] = elem.∇N[β][ii] ⋅ @SVector(u[α:D:end])
-  end
-  return SMatrix{D,D,T}(∇u) + I
+function C1D(nodes, Nx, wgt, V, mat)
+    P  = length(wgt)
+    Nn = length(Nx[1])
+    return CElem{1,P,typeof(mat),eltype(wgt),Nn}(
+        nodes,
+        (ntuple(ii -> SVector{Nn}(Nx[ii]), P),),
+        wgt, V, mat)
 end
 
 """
-Compute determinant of **F** (Jacobian) for 2D or 3D elements.
+Create a 2D mechanical element.
 """
-@inline detJ(F::SMatrix{2,2,T}) where {T} = F[1,1]*F[2,2] - F[1,2]*F[2,1]
-@inline detJ(F::SMatrix{3,3,T}) where {T} = F[1,1]*(F[2,2]*F[3,3] - F[2,3]*F[3,2]) -
-F[1,2]*(F[2,1]*F[3,3] - F[2,3]*F[3,1]) +
-F[1,3]*(F[2,1]*F[3,2] - F[2,2]*F[3,1])
+function C2D(nodes, Nx, Ny, wgt, V, mat)
+    P = length(wgt)
+    Nn = length(Nx[1])
+    return CElem{2,P,typeof(mat),eltype(wgt),Nn}(
+        nodes,
+        ( ntuple(ii -> SVector{Nn}(Nx[ii]), P),
+          ntuple(ii -> SVector{Nn}(Ny[ii]), P) ),
+        wgt, V, mat)
+end
 
 """
-Compute the integrated volume (or area/length) change of an element.
+Create a 3D mechanical element.
 """
-@inline function getV(elem::CElem{D,P}, u::Matrix{T}) where {D,P,T}
-  s = zero(T)
-  @inbounds for ii in 1:P
-    s += elem.wgt[ii] * detJ(getF(elem, u, ii))
-  end
-  return s
+function C3D(nodes, Nx, Ny, Nz, wgt, V, mat)
+    P = length(wgt)
+    Nn = length(Nx[1])
+    return CElem{3,P,typeof(mat),eltype(wgt),Nn}(
+        nodes,
+        ( ntuple(ii -> SVector{Nn}(Nx[ii]), P),
+          ntuple(ii -> SVector{Nn}(Ny[ii]), P),
+          ntuple(ii -> SVector{Nn}(Nz[ii]), P) ),
+        wgt, V, mat)
 end
 
 # ---------------------------------------------------------------------------
-# Phase-field evaluation functions (d, ∇d)
+# Constructors for CPElem
 # ---------------------------------------------------------------------------
 
 """
-Compute scalar field value `d` at Gauss point `ii`.
+Create a 1D scalar-field element.
 """
-@inline function get_d(elem::CPElem{D,P}, d::Vector{T}, ii::Integer) where {D,P,T}
-  return dot(elem.N[ii], @SVector(d[elem.nodes]))
+function C1DP(nodes, N, Nx, wgt, V, mat)
+    P = length(wgt)
+    Nn = length(N[1])
+    return CPElem{1,P,typeof(mat),eltype(wgt),Nn}(
+        nodes,
+        ntuple(ii -> SVector{Nn}(N[ii]), P),
+        (ntuple(ii -> SVector{Nn}(Nx[ii]), P),),
+        wgt, V, mat)
 end
 
 """
-Compute scalar field gradient ∇d at Gauss point `ii`.
+Create a 2D scalar-field element.
 """
-@inline function get_∇d(elem::CPElem{D,P}, d::Vector{T}, ii::Integer) where {D,P,T}
-  ∇d = @MVector zeros(T, D)
-  nodal_d = @SVector(d[elem.nodes])
-  @inbounds for j in 1:D
-    ∇d[j] = dot(elem.∇N[j][ii], nodal_d)
-  end
-  return SVector{D,T}(∇d)
+function C2DP(nodes, N, Nx, Ny, wgt, V, mat)
+    P = length(wgt)
+    Nn = length(N[1])
+    return CPElem{2,P,typeof(mat),eltype(wgt),Nn}(
+        nodes,
+        ntuple(ii -> SVector{Nn}(N[ii]), P),
+        ( ntuple(ii -> SVector{Nn}(Nx[ii]), P),
+          ntuple(ii -> SVector{Nn}(Ny[ii]), P) ),
+        wgt, V, mat)
 end
 
 """
-Compute both scalar field value and gradient `(d, ∇d)` at Gauss point `ii`.
+Create a 3D scalar-field element.
 """
-@inline function get_d_and_∇d(elem::CPElem{D,P}, d::Vector{T}, ii::Integer) where {D,P,T}
-  nodal_d = @SVector(d[elem.nodes])
-  d_val = dot(elem.N[ii], nodal_d)
-  ∇d = @MVector zeros(T, D)
-  @inbounds for j in 1:D
-    ∇d[j] = dot(elem.∇N[j][ii], nodal_d)
-  end
-  return d_val, SVector{D,T}(∇d)
+function C3DP(nodes, N, Nx, Ny, Nz, wgt, V, mat)
+    P = length(wgt)
+    Nn = length(N[1])
+    return CPElem{3,P,typeof(mat),eltype(wgt),Nn}(
+        nodes,
+        ntuple(ii -> SVector{Nn}(N[ii]), P),
+        ( ntuple(ii -> SVector{Nn}(Nx[ii]), P),
+          ntuple(ii -> SVector{Nn}(Ny[ii]), P),
+          ntuple(ii -> SVector{Nn}(Nz[ii]), P) ),
+        wgt, V, mat)
 end
+
+include("./elements.toolkit.jl")
+include("./elasticelements.jl")
 
 end # module Elements
