@@ -63,7 +63,7 @@ function Quad(nodes::Vector{<:Integer},
   for (ii, (ξ,wξ)) in enumerate(GP),
     (jj, (η,wη)) in enumerate(GP) 
     N0  = N(adiff.D1([ξ,η])...)
-    p   = sum([N0[ii]p0[ii] for ii in 1:4])
+    p   = sum(N0[ii]p0[ii] for ii in 1:4)
     J   = [p[ii].g[jj] for jj in 1:2, ii in 1:2]
     Nxy = J\hcat(adiff.grad.(N0)...)
 
@@ -302,7 +302,7 @@ end
 # the displacement field trough the use of the × operators for the chain 
 # derivative, the other use the standard implementation common for all
 # on newer CPU this might disppear
-#=
+#
 function getϕ(elem::C3D{P}, u0::Array{D}) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
@@ -315,15 +315,15 @@ function getϕ(elem::C3D{P}, u0::Array{D}) where {P,D<:adiff.D2}
   end
   ϕ
 end
-=#
+#
 #
 # functions for evaluating the residual and the tangent stiffness matrix over
 # an array of elements
-#=
-function makeϕrKt(elems::Array{<:Elems}, u::Array{T}) where T
+#
+function makeϕrKt(elems::Array{<:CElem{D,P,M,S,L}} where {P,M,S}, u::Array{T}) where {D,L,T}
 
   nElems = length(elems)
-  N      = length(u[:,elems[1].nodes])
+  N      = D*L # length(u[:,elems[1].nodes])
   M      = (N+1)N÷2
 
   Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
@@ -333,7 +333,7 @@ function makeϕrKt(elems::Array{<:Elems}, u::Array{T}) where T
 
   makeϕrKt(Φ, elems, u)
 end
-=#
+#
 #
 # function getδϕ(elem::C3D{P}, u0::Array{T})  where {P,T}  
 # evaluates the strain energy density as a dual D2 number 

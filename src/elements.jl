@@ -1,6 +1,11 @@
+__precompile__()
+
 module Elements
 
-using AD4SM.adiff
+export getϕ
+
+using ..AD4SM.adiff
+import ..Materials.getϕ
 
 using StaticArrays
 using LinearAlgebra:I

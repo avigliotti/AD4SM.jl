@@ -5,7 +5,8 @@
 """
 Compute deformation gradient F = I + ∇u at Gauss point `ii`.
 """
-@inline getF(elem::CElem{D,P,M,T,N}, u::Matrix{T}, ii::Integer) where {D,P,M,T,N} = get∇u(elem,u,ii) + I
+@inline getF(elem::CElem, u::Matrix, ii::Integer) = get∇u(elem,u,ii) + I
+@inline getF(elem::CElem, u::Matrix)              = get∇u(elem,u) + I
 @inline function get∇u(elem::CElem{D,P,M,T,N}, u::Matrix{T}, ii::Integer) where {D,P,M,T,N}
     ∇u = @MMatrix zeros(T, D, D)
     u = SMatrix{D,N}(u)
@@ -16,6 +17,16 @@ Compute deformation gradient F = I + ∇u at Gauss point `ii`.
     end
     return SMatrix{D,D,T}(∇u)
 end
+function get∇u(elem::CElem{D,P,M,T,N}, u::Matrix{T}) where {D,P,M,T,N}
+    ∇u = @MMatrix zeros(T, D, D)
+    for ii=1:P
+      ∇u .+= get∇u(elem, u, ii)
+    end
+    return SMatrix{D,D,T}(∇u/P)
+end
+get∇u(elems::Array{<:CElem}, u::Matrix) = [get∇u(elem, u[:,elem.nodes]) for elem in elems]
+getF(elems::Array{<:CElem}, u::Matrix)  = [getF(elem, u[:,elem.nodes]) for elem in elems]
+
 """
 Compute determinant of deformation gradient J = det(F).
 """
