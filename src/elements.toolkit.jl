@@ -7,9 +7,9 @@ Compute deformation gradient F = I + ∇u at Gauss point `ii`.
 """
 @inline getF(elem::CElem, u::Matrix, ii::Integer) = get∇u(elem,u,ii) + I
 @inline getF(elem::CElem, u::Matrix)              = get∇u(elem,u) + I
-@inline function get∇u(elem::CElem{D,P,M,T,N}, u::Matrix{T}, ii::Integer) where {D,P,M,T,N}
+@inline function get∇u(elem::CElem{D,P,M,S,N} where S, u::Matrix{T}, ii::Integer) where {D,P,M,T,N}
     ∇u = @MMatrix zeros(T, D, D)
-    u = SMatrix{D,N}(u)
+    u = SMatrix{D,N}(u[1:D,:])
     @inbounds for jj in 1:D
         for kk in 1:D
           ∇u[jj, kk] = elem.∇N[kk][ii]⋅u[kk,:]
@@ -44,6 +44,36 @@ Compute total integrated Jacobian over the element (useful for volume change).
         total += elem.wgt[ii] * detJ(getF(elem, u, ii))
     end
     return total
+end
+
+# function for retriving stress
+"""
+# getσ(elem, u)
+
+Calculates the volume average Cauchy Stress in the element
+"""
+function getσ(elem::CElem{D,P,M,S,N} where {S,M}, u::AbstractArray{T}) where {P,D,N,T}
+  u = SMatrix{D,N,T}(u)
+  σ = @MMatrix zeros(T, D, D)
+  @inline for ii=1:P
+    σ .+= elem.wgt[ii]*getσ(elem, u, ii)
+  end
+  SMatrix{D,D}(σ/elem.V)
+end
+"""
+# getσ(elem, u, ii)
+
+Calculates the Cauchy Stress at the integration point ii
+"""
+function getσ(elem::CElem{D,P,M,S,N} where {P,S,M}, u::AbstractArray{T}, ii::Int) where {D,N,T}
+
+  u  = SMatrix{D,N,T}(u)
+  F  = getF(elem, u, ii)
+  δϕ = getϕ(adiff.D1(F), elem.mat)
+  P  = reshape(adiff.grad(δϕ), size(F))
+  J  = detJ(F)
+
+  return 1/J*P*F'
 end
 
 # ---------------------------------------------------------------------------
@@ -82,6 +112,51 @@ Return scalar field value and gradient `(d, ∇d)` at Gauss point `ii`.
     return d_val, SVector{D,T}(∇d)
 end
 
+function makeϕrKt(Φ::Vector{<:adiff.D2}, elems::Vector{<:AbstractContinuumElem}, u)
+
+  N  = length(u) 
+  Nt = 0
+  for ϕ in Φ
+    # Nt += length(ϕ.g)*length(ϕ.g)
+    Nt += length(ϕ.g.v)*length(ϕ.g.v)
+  end
+
+  II = zeros(Int, Nt)
+  JJ = zeros(Int, Nt)  
+  Kt = zeros(Nt)  
+  r  = zeros(N)
+  ϕ  = 0
+  indxs  = LinearIndices(u)
+
+  N1 = 1
+  for (ii,elem) in enumerate(elems)    
+    idxii     = indxs[:, elem.nodes][:]    
+    ϕ        += adiff.val(Φ[ii]) 
+    r[idxii] += adiff.grad(Φ[ii]) 
+    nii       = length(idxii)
+    Nii       = nii*nii
+    oneii     = ones(nii)
+    idd       = N1:N1+Nii-1
+    II[idd]   = idxii * transpose(oneii)
+    JJ[idd]   = oneii * transpose(idxii)
+    Kt[idd]   = adiff.hess(Φ[ii])
+    N1       += Nii
+  end
+
+  ϕ, r, dropzeros(sparse(II,JJ,Kt,N,N))
+end
+function makeϕr(Φ::Vector{<:adiff.Duals}, elems::Vector{<:AbstractContinuumElem}, u)
+
+  indxs = LinearIndices(u)  
+  r     = zeros(length(u))
+  ϕ     = 0
+  for (ii,elem) in enumerate(elems)    
+    idxii     = indxs[:, elem.nodes][:]    
+    ϕ        += adiff.val(Φ[ii]) 
+    r[idxii] += adiff.grad(Φ[ii]) 
+  end
+  ϕ, r
+end
 
 # ------------------------------------------------------------------
 # Operator × for chaining AD quantities

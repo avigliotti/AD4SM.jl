@@ -2,19 +2,21 @@ __precompile__()
 
 module Elements
 
-export getϕ
+export CElem, CPElem, C1D, C2D, C3D, C1DP, C2DP, C3DP,
+       C1DElem, C2DElem, C3DElem
+export getϕ, getσ 
 
 using ..AD4SM.adiff
 import ..Materials.getϕ
 
-using StaticArrays
+using StaticArrays, SparseArrays
 using LinearAlgebra:I
 
 # ---------------------------------------------------------------------------
 # Inline static dot product
 # ---------------------------------------------------------------------------
 
-@inline function dot(a::SVector{N,T}, b::SVector{N,T}) where {N,T}
+@inline function dot(a::SVector{N,S}, b::SVector{N,T}) where {N,S,T}
     s = zero(T)
     @inbounds @simd for ii in 1:N
         s += a[ii] * b[ii]
@@ -108,6 +110,10 @@ const C1DP{P,M,T,N} = CPElem{1,P,M,T,N}
 const C2DP{P,M,T,N} = CPElem{2,P,M,T,N}
 const C3DP{P,M,T,N} = CPElem{3,P,M,T,N}
 
+const C1DElem = Union{C1D,C1DP}
+const C2DElem = Union{C2D,C2DP}
+const C3DElem = Union{C3D,C3DP}
+
 # ---------------------------------------------------------------------------
 # Constructors for CElem
 # ---------------------------------------------------------------------------
@@ -128,7 +134,7 @@ end
 Create a 2D mechanical element.
 """
 function C2D(nodes, Nx, Ny, wgt, V, mat)
-    P = length(wgt)
+    P  = length(wgt)
     Nn = length(Nx[1])
     return CElem{2,P,typeof(mat),eltype(wgt),Nn}(
         nodes,
@@ -199,5 +205,6 @@ end
 
 include("./elements.toolkit.jl")
 include("./elasticelements.jl")
+include("./phasefieldelements.jl")
 
 end # module Elements

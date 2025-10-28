@@ -1,6 +1,7 @@
-# CPElems{P,M,T,I}  = Union{C2DP{P,M,T,I}, C3DP{P,M,T,I}, CAS{P,M,T,I}}
-## Phase field
-#
+
+export PhaseField
+
+
 struct PhaseField{M,AT}<:Material
   l0::Number 
   Gc::Number 
@@ -8,7 +9,7 @@ struct PhaseField{M,AT}<:Material
   n::Number
 end
 
-Material = Union{Material,PhaseField}
+# Material = Union{Material,PhaseField}
 #
 # constructor
 #

@@ -2,7 +2,10 @@ __precompile__()
 
 module Materials
 
-using LinearAlgebra 
+export Material, Mat3D, Mat2D, Mat1D
+export getϕ, getJ
+
+using LinearAlgebra, StaticArrays 
 using ..adiff
 
 # union of all materials
@@ -11,19 +14,11 @@ abstract type Mat3D <: Material end
 abstract type Mat2D <: Material end
 abstract type Mat1D <: Material end
 
-dims(mat::Mat3D) = 3
-dims(mat::Mat2D) = 2
-dims(mat::Mat1D) = 1
-
 # support for elastic materials
 include("elasticmaterials.jl")
 
 # support for phase field materials
 include("phasefieldmaterials.jl")
-
-export Material, Mat3D, Mat2D, Mat1D
-export Hooke,Hooke1D,Hooke2D,MooneyRivlin,NeoHooke,Ogden,PhaseField
-export getϕ, getJ
 
 # status retrieving functions
 function getP(F::Array{Float64,2}, mat::Material) # 1st PK tensor from F
@@ -79,7 +74,7 @@ function getϕ(F11::Number, mat::M where M <: HyperEla; binc=true)
 
   return ϕ
 end
-function getL3(func, L3)
+function getL3(func, L3; maxiter=30, dTol=1e-7)
   iter   = 0 
   bdone  = false
   while !bdone
@@ -104,7 +99,7 @@ function getInvariants(C, C33)
   I1 = C[1]+C[4]+C33
   I2 = C[1]C[4]+C[4]C33+C[1]C33-C[2]^2
   I3 = C[1]C[4]C33-C33*C[2]^2 
-  
+
   (I1,I2,I3)
 end
 # functions for evaluating the determinat of F 
@@ -138,11 +133,11 @@ end
 #=
 function get1stinvariants(F::Array{<:Number,2}, mat::Material)
 
-  E    = (transpose(F)F-I)/2   # the Green-Lagrange strain 
-  I1   = E[1]+E[5]+E[9]
-  I1sq = E[1]^2+E[5]^2+E[9]^2+2*(E[2]^2+E[3]^2+E[6]^2)
+E    = (transpose(F)F-I)/2   # the Green-Lagrange strain 
+I1   = E[1]+E[5]+E[9]
+I1sq = E[1]^2+E[5]^2+E[9]^2+2*(E[2]^2+E[3]^2+E[6]^2)
 
-  return I1, I1sq
+return I1, I1sq
 end
 =#
 function get1stinvariants(F::Array{<:Number,2}, mat::Material)

@@ -235,7 +235,7 @@ function ASQuad(nodes::Vector{<:Integer},
       Nx[ii,jj]  = Nxy[1,:]
       Ny[ii,jj]  = Nxy[2,:]
       X0[ii,jj]  = p[1].v 
-      
+
       # wgt[ii,jj] = abs(detJ(J))*2π*p[1].v
       wgt[ii,jj] = detJ(J)*2π*p[1].v
 
@@ -249,40 +249,40 @@ end
 # elastic energy evaluation functions for elements
 #=
 function getϕ(elem::Rod,  u::Matrix{<:Number})
-  l   = norm(elem.r0+u[:,2]-u[:,1])
-  F11 = l/elem.l0
-  elem.A*elem.l0*getϕ(F11, elem.mat)    
+l   = norm(elem.r0+u[:,2]-u[:,1])
+F11 = l/elem.l0
+elem.A*elem.l0*getϕ(F11, elem.mat)    
 end
 function getϕ(elem::Beam, u::Matrix{<:Number})
 
-  L, r0, t, w = elem.L, elem.r0, elem.t, elem.w
-  T    = [r0[1] r0[2]; -r0[2] r0[1]]
-  u0   = vcat(T*u[1:2,1], u[3,1], T*u[1:2,2], u[3,2])
-  u0_x = (u0[4]-u0[1])/L
+L, r0, t, w = elem.L, elem.r0, elem.t, elem.w
+T    = [r0[1] r0[2]; -r0[2] r0[1]]
+u0   = vcat(T*u[1:2,1], u[3,1], T*u[1:2,2], u[3,2])
+u0_x = (u0[4]-u0[1])/L
 
-  ϕ  = 0
-  for (r,wr) in elem.lgwx
-    x, dx     = r*L, wr*L
+ϕ  = 0
+for (r,wr) in elem.lgwx
+x, dx     = r*L, wr*L
 
-    v0_x  = (-6x/L^2 + 6x^2/L^3)u0[2] +
-            (1 - 4x/L + 3x^2/L^2)u0[3] +
-            (6x/L^2 - 6x^2/L^3)u0[5] +
-            (-2x/L + 3x^2/L^2)u0[6]
+v0_x  = (-6x/L^2 + 6x^2/L^3)u0[2] +
+(1 - 4x/L + 3x^2/L^2)u0[3] +
+(6x/L^2 - 6x^2/L^3)u0[5] +
+(-2x/L + 3x^2/L^2)u0[6]
 
-    v0_xx = (-6/L^2 + 12x/L^3)u0[2] + 
-            (-4/L + 6x/L^2)u0[3] + 
-            (6/L^2 - 12x/L^3)u0[5] + 
-            (-2/L + 6x/L^2)u0[6]
+v0_xx = (-6/L^2 + 12x/L^3)u0[2] + 
+(-4/L + 6x/L^2)u0[3] + 
+(6/L^2 - 12x/L^3)u0[5] + 
+(-2/L + 6x/L^2)u0[6]
 
-    for (s,ws) in elem.lgwy
-      y, dy  = s*elem.t, ws*elem.t
+for (s,ws) in elem.lgwy
+y, dy  = s*elem.t, ws*elem.t
 
-      dV   = dx*dy*elem.w
-      C11 = (1+u0_x-v0_xx*y)^2 + v0_x^2
-      ϕ   += getϕ(C11, elem.mat)*dV
-    end
-  end
-  return ϕ
+dV   = dx*dy*elem.w
+C11 = (1+u0_x-v0_xx*y)^2 + v0_x^2
+ϕ   += getϕ(C11, elem.mat)*dV
+end
+end
+return ϕ
 end
 =#
 # General CElem energy integrator (works with CElem/CPElem)
@@ -387,10 +387,10 @@ function getδϕ(elem::C3D{P}, u0::Array{T})  where {P,T}
 
     # Evaluate F at this Gauss point
     F = SMatrix{3,3,T}(
-            (Nx⋅u + 1) , (Nx⋅v) , (Nx⋅w),
-            (Ny⋅u)      , (Ny⋅v + 1) , (Ny⋅w),
-            (Nz⋅u)      , (Nz⋅v) , (Nz⋅w + 1)
-         )
+                       (Nx⋅u + 1) , (Nx⋅v) , (Nx⋅w),
+                       (Ny⋅u)      , (Ny⋅v + 1) , (Ny⋅w),
+                       (Nz⋅u)      , (Nz⋅v) , (Nz⋅w + 1)
+                      )
 
     # Evaluate constitutive D2 energy for F (material returns adiff.D2)
     ϕ = getϕ(adiff.D2(adiff.val.(F)), elem.mat)::adiff.D2{9, 45, T}
