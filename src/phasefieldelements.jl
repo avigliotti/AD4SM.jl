@@ -1,5 +1,5 @@
 
-export makeϕrKt, makeϕrKt_d
+export makeϕrKt_d
 
 using ..Materials:PhaseField
 
@@ -38,8 +38,8 @@ function QuadP(nodes::Vector{<:Integer},
   for (ii, (ξ,wξ)) in enumerate(GP),
     (jj, (η,wη)) in enumerate(GP) 
     Nij = N(adiff.D1([ξ,η])...)
-    p   = sum([Nij[ii]p0[ii] for ii in 1:4])
-    J   = SMatrix{2,2}([p[ii].g[jj] for jj in 1:2, ii in 1:2])
+    p   = sum(Nij[ii]p0[ii] for ii in 1:4)
+    J   = SMatrix{2,2}(p[ii].g[jj] for jj in 1:2, ii in 1:2)
     Nxy = J\hcat(adiff.grad.(Nij)...)
 
     N0[ii,jj]  = adiff.val.(Nij)
@@ -77,7 +77,7 @@ function Hex08P(nodes::Vector{<:Integer},
 
     Nijk = N(adiff.D1([ξ,η,ζ])...)
     p    = sum([Nijk[ii]p0[ii] for ii in 1:8])
-    J    = [p[ii].g[jj] for jj in 1:3, ii in 1:3]
+    J    = SMatrix{3,3}([p[ii].g[jj] for jj in 1:3, ii in 1:3])
     Nxyz = J\hcat(adiff.grad.(Nijk)...)
 
     N0[ii,jj,kk]  = adiff.val.(Nijk)
@@ -156,7 +156,7 @@ function getd(elem::CPElem{P}, d0::Vector{T}) where {P,T}
 end
 #
 # get free energy density for the elment without history
-function getϕ(elem::CPElem{P}, u0::Array, d0::Vector) where P
+function getϕ(elem::CPElem{<:Any,P}, u0::AbstractArray, d0::Vector) where P
 
   ϕ = 0
   @inline for ii=1:P
@@ -224,7 +224,7 @@ end
 # 
 # functions for array of elements
 # 
-function makeϕrKt(elems::Vector{<:CPElem{<:Any,<:Any,<:Any,<:Any,N}}, u::Array{T}, d::Array{T}) where {N,T}
+function makeϕrKt(elems::Vector{<:CPElem{D,P,M,S,N}} where {D,P,M,S}, u::Array{T}, d::Array{T}) where {N,T}
   nElems = length(elems)
   M      = (N+1)N÷2
 
@@ -235,7 +235,7 @@ function makeϕrKt(elems::Vector{<:CPElem{<:Any,<:Any,<:Any,<:Any,N}}, u::Array{
 
   makeϕrKt(Φ, elems, u)
 end
-function makeϕrKt_d(elems::Vector{<:CPElem{<:Any,<:Any,<:Any,<:Any,N}}, u::Array{T}, d::Array{T}) where {N,T}
+function makeϕrKt_d(elems::Vector{<:CPElem{D,P,M,S,N}} where {D,P,M,S}, u::Array{T}, d::Array{T}) where {N,T}
   nElems = length(elems)
   M      = (N+1)N÷2
 
@@ -247,7 +247,7 @@ function makeϕrKt_d(elems::Vector{<:CPElem{<:Any,<:Any,<:Any,<:Any,N}}, u::Arra
   makeϕrKt(Φ, elems, d)
 end
 # with history
-function makeϕrKt_d(elems::Vector{<:CPElem{<:Any,<:Any,<:Any,<:Any,N}}, u::Array{T}, d::Array{T}, ϕmax::Array) where {N,T}
+function makeϕrKt_d(elems::Vector{<:CPElem{D,P,M,S,N}} where {D,P,M,S}, u::Array{T}, d::Array{T}, ϕmax::Array) where {N,T}
 
   nElems = length(elems)
   M      = (N+1)N÷2
@@ -260,7 +260,7 @@ function makeϕrKt_d(elems::Vector{<:CPElem{<:Any,<:Any,<:Any,<:Any,N}}, u::Arra
   makeϕrKt(Φ, elems, d)
 end
 #
-#
+#= getδϕu
 function getδϕu(elem::C3DP{P,<:PhaseField}, u0::Array{T}, d0::Array{T})  where {P,T}
 
   u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
@@ -294,13 +294,13 @@ function getδϕu(elem::C3DP{P,<:PhaseField}, u0::Array{T}, d0::Array{T})  where
 
   adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
 end
-#
-# getδϕd(elem::C3DElems{P,<:PhaseField}, u0::Array, d0::Array) where P = getϕ(elem, u0, adiff.D2(d0))
-# getδϕd(elem::C2DElems{P,<:PhaseField}, u0::Array, d0::Array) where P = getϕ(elem,u0,adiff.D2(d0))
+=#
+# getδϕd(elem::C3Ds{P,<:PhaseField}, u0::Array, d0::Array) where P = getϕ(elem, u0, adiff.D2(d0))
+# getδϕd(elem::C2Ds{P,<:PhaseField}, u0::Array, d0::Array) where P = getϕ(elem,u0,adiff.D2(d0))
 # getδϕd(elem::Rod{<:PhaseField}, u0::Array, d0::Array)                = getϕ(elem,u0,adiff.D2(d0))
 # getδϕu(elem::Rod{<:PhaseField}, u0::Array, d0::Array)               = getϕ(elem,adiff.D2(u0),d0)
 #
-function getd(elem::CElem{P}, d0::Array{T}) where {P,T}
+function getd(elem::CPElem{<:Any,P}, d0::Array{T}) where {P,T}
   d       = zero(T)
   for ii=1:P
     d += elem.wgt[ii]*(elem.N0[ii]⋅d0)
@@ -308,7 +308,7 @@ function getd(elem::CElem{P}, d0::Array{T}) where {P,T}
   d/elem.V
 end
 # getVd
-function getVd(elem::CPElem{P}, d0::Array{T}) where {T, P}
+function getVd(elem::CPElem{<:Any,P}, d0::Array{T}) where {T, P}
   Vd = zero(T)
   for ii=1:P
     Vd += elem.wgt[ii]elem.N0[ii]⋅d0

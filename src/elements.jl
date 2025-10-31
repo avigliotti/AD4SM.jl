@@ -2,15 +2,18 @@ __precompile__()
 
 module Elements
 
-export CElem, CPElem, C1D, C2D, C3D, C1DP, C2DP, C3DP,
-       C1DElem, C2DElem, C3DElem
-export getϕ, getσ 
-
 using ..AD4SM.adiff
 import ..Materials.getϕ
 
 using StaticArrays, SparseArrays
 using LinearAlgebra:I
+import LinearAlgebra.×
+
+export CElem, CEElem, CPElem, C1DE, C2DE, C3DE, C1DP, C2DP, C3DP,
+       C1D, C2D, C3D
+export getϕ, getσ, getP, detJ, getF, ×, getV
+
+
 
 # ---------------------------------------------------------------------------
 # Inline static dot product
@@ -31,13 +34,14 @@ const ⋅ = dot
 
 abstract type AbstractElement end
 abstract type AbstractContinuumElem <: AbstractElement end
+abstract type AbstractCElem{D,P,M,T,N} <: AbstractContinuumElem end
 
 # ---------------------------------------------------------------------------
-# CElem — Mechanical elements
+# CEElem — Mechanical elements
 # ---------------------------------------------------------------------------
 
 """
-CElem{D,P,M,T,N}
+CEElem{D,P,M,T,N}
 
 Generic D-dimensional continuum finite element for displacement-based
 mechanical analysis.
@@ -56,7 +60,7 @@ Fields:
 - `V`     : reference volume/area/length
 - `mat`   : material model
 """
-struct CElem{D,P,M,T,N} <: AbstractContinuumElem
+struct CEElem{D,P,M,T,N} <: AbstractCElem{D,P,M,T,N}
     nodes::Vector{I} where I
     ∇N::NTuple{D,NTuple{P,SVector{N,T}}}
     wgt::NTuple{P,T}
@@ -89,7 +93,7 @@ Fields:
 - `V`     : reference volume/area/length
 - `mat`   : material model
 """
-struct CPElem{D,P,M,T,N} <: AbstractContinuumElem
+struct CPElem{D,P,M,T,N} <: AbstractCElem{D,P,M,T,N}
     nodes::Vector{I} where I
     N::NTuple{P,SVector{N,T}}
     ∇N::NTuple{D,NTuple{P,SVector{N,T}}}
@@ -102,29 +106,32 @@ end
 # Type aliases for convenience
 # ---------------------------------------------------------------------------
 
-const C1D{P,M,T,N}  = CElem{1,P,M,T,N}
-const C2D{P,M,T,N}  = CElem{2,P,M,T,N}
-const C3D{P,M,T,N}  = CElem{3,P,M,T,N}
+const C1DE{P,M,T,N}  = CEElem{1,P,M,T,N}
+const C2DE{P,M,T,N}  = CEElem{2,P,M,T,N}
+const C3DE{P,M,T,N}  = CEElem{3,P,M,T,N}
 
 const C1DP{P,M,T,N} = CPElem{1,P,M,T,N}
 const C2DP{P,M,T,N} = CPElem{2,P,M,T,N}
 const C3DP{P,M,T,N} = CPElem{3,P,M,T,N}
 
-const C1DElem = Union{C1D,C1DP}
-const C2DElem = Union{C2D,C2DP}
-const C3DElem = Union{C3D,C3DP}
+const C1D = Union{C1DE,C1DP}
+const C2D = Union{C2DE,C2DP}
+const C3D = Union{C3DE,C3DP}
+
+# const CElem{D,P,M,T,N} = Union{CEElem{D,P,M,T,N}, CPElem{D,P,M,T,N}}
+const CElem = AbstractCElem
 
 # ---------------------------------------------------------------------------
-# Constructors for CElem
+# Constructors for CEElem
 # ---------------------------------------------------------------------------
 
 """
 Create a 1D mechanical element.
 """
-function C1D(nodes, Nx, wgt, V, mat)
+function C1DE(nodes, Nx, wgt, V, mat)
     P  = length(wgt)
     Nn = length(Nx[1])
-    return CElem{1,P,typeof(mat),eltype(wgt),Nn}(
+    return C1DE{P,typeof(mat),eltype(wgt),Nn}(
         nodes,
         (ntuple(ii -> SVector{Nn}(Nx[ii]), P),),
         wgt, V, mat)
@@ -133,10 +140,10 @@ end
 """
 Create a 2D mechanical element.
 """
-function C2D(nodes, Nx, Ny, wgt, V, mat)
+function C2DE(nodes, Nx, Ny, wgt, V, mat)
     P  = length(wgt)
     Nn = length(Nx[1])
-    return CElem{2,P,typeof(mat),eltype(wgt),Nn}(
+    return C2DE{P,typeof(mat),eltype(wgt),Nn}(
         nodes,
         ( ntuple(ii -> SVector{Nn}(Nx[ii]), P),
           ntuple(ii -> SVector{Nn}(Ny[ii]), P) ),
@@ -146,10 +153,10 @@ end
 """
 Create a 3D mechanical element.
 """
-function C3D(nodes, Nx, Ny, Nz, wgt, V, mat)
+function C3DE(nodes, Nx, Ny, Nz, wgt, V, mat)
     P = length(wgt)
     Nn = length(Nx[1])
-    return CElem{3,P,typeof(mat),eltype(wgt),Nn}(
+    return C3DE{P,typeof(mat),eltype(wgt),Nn}(
         nodes,
         ( ntuple(ii -> SVector{Nn}(Nx[ii]), P),
           ntuple(ii -> SVector{Nn}(Ny[ii]), P),

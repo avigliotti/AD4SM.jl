@@ -1,5 +1,3 @@
-
-
 export Hooke,Hooke1D,Hooke2D,MooneyRivlin,NeoHooke,Ogden
 
 
@@ -137,7 +135,7 @@ Returns the scalar energy density `ϕ`. For 2D plane problems some overloads
 reconstruct a compatible 3D deformation gradient (using `mat.K`) before
 computing invariants; this behaviour is documented per-overload in the source.
 """
-function getϕ(F::AbstractArray{<:Number,2}, mat::M where M <:HyperEla)
+function getϕ(F::AbstractMatrix{<:Number}, mat::M where M <:HyperEla)
   C = transpose(F)F
   if length(C) == 9
     (I1,I2,I3) = getInvariants(C)
@@ -147,7 +145,7 @@ function getϕ(F::AbstractArray{<:Number,2}, mat::M where M <:HyperEla)
   end
   getϕ(I1,I2,I3,mat)
 end
-function getϕ(F::AbstractArray{<:Number,2}, mat::Ogden)
+function getϕ(F::AbstractMatrix{<:Number}, mat::Ogden)
 
   α, μ, K = mat.α, mat.μ, mat.K
 
@@ -201,8 +199,7 @@ function getϕ(F11::Number, mat::Hooke1D)
   ϕ = (mat.E*(F11-1)^2)/2
 end
 
-#function getϕ(F::Union{Array{<:Number,2}, SMatrix{3,3,<:Number}}, mat::Hooke)
-function getϕ(F::AbstractArray{<:Number}, mat::Hooke)
+function getϕ(F::AbstractMatrix{<:Number}, mat::Hooke)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -220,8 +217,7 @@ function getϕ(F::AbstractArray{<:Number}, mat::Hooke)
 
   return ϕ
 end
-# function getϕ(F::Union{Array{<:Number,2}, SMatrix{2,2,<:Number}}, mat::Hooke2D{T,:plane_strain} where T)
-function getϕ(F::AbstractArray{<:Number}, mat::Hooke2D{T,:plane_strain} where T)
+function getϕ(F::AbstractMatrix{<:Number}, mat::Hooke2D{T,:plane_strain} where T)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -235,8 +231,7 @@ function getϕ(F::AbstractArray{<:Number}, mat::Hooke2D{T,:plane_strain} where T
 
   (μ+λ/2)*(E[1]^2+E[4]^2) + λ*E[1]E[4] + 2μ*E[2]^2
 end
-#function getϕ(F::Union{Array{<:Number,2}, SMatrix{2,2,<:Number}}, mat::Hooke2D{T,:plane_stress} where T)
-function getϕ(F::AbstractArray{<:Number}, mat::Hooke2D{T,:plane_stress} where T)
+function getϕ(F::AbstractMatrix{<:Number}, mat::Hooke2D{T,:plane_stress} where T)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -266,7 +261,7 @@ Returns
 - `I1` : scalar first invariant of the small/Green–Lagrange strain tensor.
 - `I1sq` : sum of squared components entering volumetric energy terms.
 """
-function gethyddevdecomp(F::AbstractArray{<:Number,2}, mat::Hooke2D{T,:plane_strain} where T)
+function gethyddevdecomp(F::AbstractMatrix{<:Number}, mat::Hooke2D{T,:plane_strain} where T)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -279,7 +274,7 @@ function gethyddevdecomp(F::AbstractArray{<:Number,2}, mat::Hooke2D{T,:plane_str
 
   return I1, ϵd⋅ϵd + (I1/3)^2
 end
-function gethyddevdecomp(F::AbstractArray{<:Number,2}, mat::Hooke2D{T,:plane_stress} where T)
+function gethyddevdecomp(F::AbstractMatrix{<:Number}, mat::Hooke2D{T,:plane_stress} where T)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -294,7 +289,7 @@ function gethyddevdecomp(F::AbstractArray{<:Number,2}, mat::Hooke2D{T,:plane_str
 
   return I1, ϵd⋅ϵd + (E33-I1/3)^2
 end
-function gethyddevdecomp(F::AbstractArray{<:Number,2}, mat::Hooke1D)
+function gethyddevdecomp(F::AbstractMatrix{<:Number}, mat::Hooke1D)
   F[1], F[1]^2
 end
 """
@@ -308,7 +303,7 @@ Return the first invariant(s) appropriate for lower-dimensional materials.
 This small helper centralizes the computation of the linear combinations used
 by the energy routines.
 """
-function get1stinvariants(F::AbstractArray{<:Number,2}, mat::Hooke2D{T,:plane_strain} where T)
+function get1stinvariants(F::AbstractMatrix{<:Number}, mat::Hooke2D{T,:plane_strain} where T)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -321,7 +316,7 @@ function get1stinvariants(F::AbstractArray{<:Number,2}, mat::Hooke2D{T,:plane_st
 
   return I1, I1sq
 end
-function get1stinvariants(F::AbstractArray{<:Number,2}, mat::Hooke2D{T,:plane_stress} where T)
+function get1stinvariants(F::AbstractMatrix{<:Number}, mat::Hooke2D{T,:plane_stress} where T)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -336,7 +331,24 @@ function get1stinvariants(F::AbstractArray{<:Number,2}, mat::Hooke2D{T,:plane_st
 
   return I1, I1sq
 end
-function get1stinvariants(F::AbstractArray{<:Number,2}, mat::Hooke1D)
+function get1stinvariants(F::AbstractMatrix{<:Number}, mat::Hooke1D)
   F[1], F[1]^2
 end
 
+#=
+detJ(F, mat::Hooke2D{T,:plane_stress} where T) = F[1]F[4]-F[2]F[3]
+detJ(elem::C2D{P,<:Hooke2D{T,:plane_strain}} where {P,T}, u::AbstractArray, ii::Integer) = detJ(getF(elem,u,ii))
+function detJ(elem::C2D{P,<:Hooke2D{T,:plane_stress}} where {P,T}, u::AbstractArray, ii::Integer)
+  
+  ν   = elem.mat.ν
+  F   = getF(elem, u, ii)
+  if elem.mat.small
+    F33 = -ν/(1-ν)*(F[1,1]+F[2,2]-2) + 1
+  else
+    E = (transpose(F)F-I)/2   # the Green-Lagrange strain tensor
+    F33 = sqrt(-ν/(1-ν)*(E[1,1]+E[2,2]-2) + 1)
+  end
+
+  return F33*detJ(getF(elem,u,ii))
+end
+=#

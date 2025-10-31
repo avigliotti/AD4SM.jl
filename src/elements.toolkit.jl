@@ -5,27 +5,27 @@
 """
 Compute deformation gradient F = I + ∇u at Gauss point `ii`.
 """
-@inline getF(elem::CElem, u::Matrix, ii::Integer) = get∇u(elem,u,ii) + I
-@inline getF(elem::CElem, u::Matrix)              = get∇u(elem,u) + I
-@inline function get∇u(elem::CElem{D,P,M,S,N} where S, u::Matrix{T}, ii::Integer) where {D,P,M,T,N}
+@inline getF(elem::CElem, u::AbstractArray, ii::Integer) = get∇u(elem,u,ii) + I
+@inline getF(elem::CElem, u::AbstractArray)              = get∇u(elem,u) + I
+getF(elems::Array{<:CElem},  u::AbstractArray) = [getF(elem, u[:,elem.nodes]) for elem in elems]
+@inline function get∇u(elem::CElem{D,P,M,<:Any,N}, u::AbstractArray{T}, ii::Integer) where {D,P,M,T,N}
     ∇u = @MMatrix zeros(T, D, D)
-    u = SMatrix{D,N}(u[1:D,:])
+    u  = SMatrix{D,N}(u[1:D,:])
     @inbounds for jj in 1:D
         for kk in 1:D
-          ∇u[jj, kk] = elem.∇N[kk][ii]⋅u[kk,:]
+          ∇u[jj,kk] = elem.∇N[kk][ii]⋅u[jj,:]
         end
     end
     return SMatrix{D,D,T}(∇u)
 end
-function get∇u(elem::CElem{D,P,M,T,N}, u::Matrix{T}) where {D,P,M,T,N}
+function get∇u(elem::CElem{D,P,M,T,N}, u::AbstractArray{T}) where {D,P,M,T,N}
     ∇u = @MMatrix zeros(T, D, D)
     for ii=1:P
-      ∇u .+= get∇u(elem, u, ii)
+      ∇u .+= elem.wgt[ii]get∇u(elem, u, ii)
     end
-    return SMatrix{D,D,T}(∇u/P)
+    return SMatrix{D,D,T}(∇u/elem.V)
 end
-get∇u(elems::Array{<:CElem}, u::Matrix) = [get∇u(elem, u[:,elem.nodes]) for elem in elems]
-getF(elems::Array{<:CElem}, u::Matrix)  = [getF(elem, u[:,elem.nodes]) for elem in elems]
+get∇u(elems::Array{<:CElem}, u::AbstractArray) = [get∇u(elem, u[:,elem.nodes]) for elem in elems]
 
 """
 Compute determinant of deformation gradient J = det(F).
@@ -35,16 +35,28 @@ Compute determinant of deformation gradient J = det(F).
                                             F[1,2]*(F[2,1]F[3,3]-F[2,3]F[3,1]) +
                                             F[1,3]*(F[2,1]F[3,2]-F[2,2]F[3,1])
 
+detJ(elem::CElem, u::AbstractArray, ii::Integer) = detJ(getF(elem,u,ii))
+function detJ(elem::CElem{D,P,<:Any,<:Any,N}, u::AbstractArray{T}) where {D,P,T,N}
+    u = SMatrix{D,N,T}(u[1:D,:])
+    J = zero(T)
+    for ii=1:P
+      J += elem.wgt[ii]detJ(elem, u, ii)
+    end
+    return J/elem.V
+end
+detJ(elems::Array{<:CElem}, u::AbstractArray)  = [detJ(elem, u[:,elem.nodes]) for elem in elems]
+
 """
-Compute total integrated Jacobian over the element (useful for volume change).
+Compute the current volume
 """
-@inline function getV(elem::CElem{D,P,M,T,N}, u::Matrix{T}) where {D,P,M,T,N}
+@inline function getV(elem::CElem{D,P,M,T,N}, u::AbstractArray{T}) where {D,P,M,T,N}
     total = zero(T)
     @inbounds for ii in 1:P
         total += elem.wgt[ii] * detJ(getF(elem, u, ii))
     end
     return total
 end
+getV(elems::AbstractArray{<:CElem}, u::AbstractArray) = sum(getV(elem, u[:,elem.nodes]) for elem in elems)
 
 # function for retriving stress
 """
@@ -53,7 +65,7 @@ end
 Calculates the volume average Cauchy Stress in the element
 """
 function getσ(elem::CElem{D,P,M,S,N} where {S,M}, u::AbstractArray{T}) where {P,D,N,T}
-  u = SMatrix{D,N,T}(u)
+  u = SMatrix{D,N,T}(u[1:D,:])
   σ = @MMatrix zeros(T, D, D)
   @inline for ii=1:P
     σ .+= elem.wgt[ii]*getσ(elem, u, ii)
@@ -67,7 +79,7 @@ Calculates the Cauchy Stress at the integration point ii
 """
 function getσ(elem::CElem{D,P,M,S,N} where {P,S,M}, u::AbstractArray{T}, ii::Int) where {D,N,T}
 
-  u  = SMatrix{D,N,T}(u)
+  u  = SMatrix{D,N,T}(u[1:D,:])
   F  = getF(elem, u, ii)
   δϕ = getϕ(adiff.D1(F), elem.mat)
   P  = reshape(adiff.grad(δϕ), size(F))
@@ -75,7 +87,49 @@ function getσ(elem::CElem{D,P,M,S,N} where {P,S,M}, u::AbstractArray{T}, ii::In
 
   return 1/J*P*F'
 end
+function getσ(elems::Vector{<:C3D}, u::Matrix{D}) where D<:Real
 
+  nElems = length(elems)
+  #         xx  yy  zz  xy  zx  yz 
+  idx = [1,  5,  9,  2,  3,  6]
+  σ   = zeros(6,nElems)
+  @inbounds for (ii,elem) in enumerate(elems)
+    σii = getσ(elems[ii], u[:, elems[ii].nodes])
+    σ[:, ii] = σii[idx]
+  end
+
+  return σ
+end
+function getσ(elems::Vector{<:C2D}, u::Matrix{D}) where D<:Real
+
+  nElems = length(elems)
+  #         xx  yy  xy
+  idx = [1,  4,  2]
+  σ   = zeros(3,nElems)
+  for (ii,elem) in enumerate(elems)
+    @inbounds σ[:, ii] = getσ(elems[ii], u[:, elems[ii].nodes])[idx]
+  end
+
+  return σ
+end
+
+function getP(elem::CElem{D,P,M,S,N} where {S,M}, u::AbstractArray{T}) where {P,D,N,T}
+  u = SMatrix{D,N,T}(u[1:D,:])
+  P1K = @MMatrix zeros(T, D, D)
+  @inline for ii=1:P
+    P1K .+= elem.wgt[ii]*getP(elem, u, ii)
+  end
+  SMatrix{D,D}(P1K/elem.V)
+end
+function getP(elem::CElem{D,P,M,S,N} where {P,S,M}, u::AbstractArray{T}, ii::Int) where {D,N,T}
+
+  u   = SMatrix{D,N,T}(u[1:D,:])
+  F   = getF(elem, u, ii)
+  δϕ  = getϕ(adiff.D1(F), elem.mat)
+  P1K = reshape(adiff.grad(δϕ), size(F))
+
+  return P1K'
+end
 # ---------------------------------------------------------------------------
 # Scalar-field evaluation functions
 # ---------------------------------------------------------------------------
@@ -131,8 +185,10 @@ function makeϕrKt(Φ::Vector{<:adiff.D2}, elems::Vector{<:AbstractContinuumElem
   N1 = 1
   for (ii,elem) in enumerate(elems)    
     idxii     = indxs[:, elem.nodes][:]    
+
     ϕ        += adiff.val(Φ[ii]) 
     r[idxii] += adiff.grad(Φ[ii]) 
+
     nii       = length(idxii)
     Nii       = nii*nii
     oneii     = ones(nii)
@@ -172,7 +228,7 @@ evaluated as a function of the underlying nodal DOFs.
 This implements the necessary chain-rule accumulation of first and second
 derivatives for element-level assembly.
 """
-function ×(ϕ::adiff.D2{N,M,T},F::Array{adiff.D1{P,T}}) where {N,M,P,T}
+function ×(ϕ::adiff.D2{N,M,T},F::AbstractArray{adiff.D1{P,T}}) where {N,M,P,T}
   val  = ϕ.v
   grad = adiff.Grad(zeros(T,P))
   hess = adiff.Grad(zeros(T,(P+1)P÷2))
@@ -194,7 +250,7 @@ end
 Chain an `adiff.D1` scalar object with deformation-gradient AD objects `F`.
 Returns an `adiff.D1` with propagated first derivatives.
 """
-function ×(ϕ::adiff.D1{N,T},F::Array{adiff.D1{P,T}}) where {N,P,T}
+function ×(ϕ::adiff.D1{N,T},F::AbstractArray{adiff.D1{P,T}}) where {N,P,T}
   val  = ϕ.v
   grad = adiff.Grad(zeros(T,P))
   for ii=1:N

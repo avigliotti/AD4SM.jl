@@ -1,3 +1,4 @@
+export makeϕrKt
 # elasticelements.jl
 #
 # constructors
@@ -29,7 +30,7 @@ function Line(nodes::Vector{<:Integer},
     ((Nx,),(1.,), L)
   end
 
-  C2D(nodes,Nx,wgt,A,mat) 
+  C2DE(nodes,Nx,wgt,A,mat) 
 end
 function Tria(nodes::Vector{<:Integer}, 
               p0::Vector{Vector{T}} where T<:Number ;
@@ -44,7 +45,7 @@ function Tria(nodes::Vector{<:Integer},
     ((Nx,),(Ny,),(A,), A)
   end
 
-  C2D(nodes,Nx,Ny,wgt,A,mat) 
+  C2DE(nodes,Nx,Ny,wgt,A,mat) 
 end
 function Quad(nodes::Vector{<:Integer}, 
               p0::Vector{Vector{T}};
@@ -75,7 +76,7 @@ function Quad(nodes::Vector{<:Integer},
     A += wgt[ii,jj]
   end
 
-  C2D(nodes,tuple(Nx...),tuple(Ny...),tuple(wgt...),A,mat) 
+  C2DE(nodes,tuple(Nx...),tuple(Ny...),tuple(wgt...),A,mat) 
 end
 QuadR(nodes,p0;mat=Materials.Hooke()) = Quad(nodes,p0,mat=mat,GP=((0.0,1.0),))
 function Tet04(nodes::Vector{<:Integer}, 
@@ -91,7 +92,7 @@ function Tet04(nodes::Vector{<:Integer},
     V        = det(A)/6
     (V,(C[2,:],),(C[3,:],),(C[4,:],))
   end
-  C3D(nodes,Nx,Ny,Nz,(V,),V,mat) 
+  C3DE(nodes,Nx,Ny,Nz,(V,),V,mat) 
 end
 function Tet10(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}} where T<:Number;
@@ -123,7 +124,7 @@ function Tet10(nodes::Vector{<:Integer},
      (tuple([Nz[:,ii] for ii in 1:4]...),))
   end
 
-  C3D(nodes,Nx,Ny,Nz,V,mat) 
+  C3DE(nodes,Nx,Ny,Nz,V,mat) 
 end
 function Hex08(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}};
@@ -157,7 +158,7 @@ function Hex08(nodes::Vector{<:Integer},
 
     V +=wgt[ii,jj,kk]
   end
-  C3D(nodes,tuple(Nx...),tuple(Ny...),tuple(Nz...),tuple(wgt...),V,mat) 
+  C3DE(nodes,tuple(Nx...),tuple(Ny...),tuple(Nz...),tuple(wgt...),V,mat) 
 end
 function Wdg06(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}} where T<:Number;
@@ -285,12 +286,12 @@ end
 return ϕ
 end
 =#
-# General CElem energy integrator (works with CElem/CPElem)
-function getϕ(elem::CElem{P}, u::Array{D}) where {P,D}
+# General CEElem energy integrator (works with CEElem/CPElem)
+function getϕ(elem::CEElem{<:Any,P}, u::Array{D}) where {P,D}
   ϕ = zero(D)
   for ii=1:P
     Fii = getF(elem, u, ii)
-    ϕ  += elem.wgt[ii] * getϕ(Fii, elem.mat)
+    ϕ  += elem.wgt[ii]getϕ(Fii, elem.mat)
   end
   ϕ
 end
@@ -303,7 +304,7 @@ end
 # derivative, the other use the standard implementation common for all
 # on newer CPU this might disppear
 #
-function getϕ(elem::C3D{P}, u0::Array{D}) where {P,D<:adiff.D2}
+function getϕ(elem::C3DE{P}, u0::Array{D}) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
   ϕ  = zero(D) 
@@ -320,11 +321,17 @@ end
 # functions for evaluating the residual and the tangent stiffness matrix over
 # an array of elements
 #
-function makeϕrKt(elems::Array{<:CElem{D,P,M,S,L}} where {P,M,S}, u::Array{T}) where {D,L,T}
-
+function makeϕrKt(elems::AbstractVector{<:CEElem}, u::AbstractMatrix{T}) where T
   nElems = length(elems)
-  N      = D*L # length(u[:,elems[1].nodes])
-  M      = (N+1)N÷2
+  @assert nElems > 0 "makeϕrKt: `elems` is empty"  
+  #=
+  et = eltype(elems)
+  D  = et.parameters[1]
+  L  = et.parameters[5]
+  N  = D*L 
+  =# 
+  N  = length(u[:,elems[1].nodes])
+  M  = (N+1)N÷2
 
   Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
   Threads.@threads for ii=1:nElems
@@ -335,12 +342,12 @@ function makeϕrKt(elems::Array{<:CElem{D,P,M,S,L}} where {P,M,S}, u::Array{T}) 
 end
 #
 #
-# function getδϕ(elem::C3D{P}, u0::Array{T})  where {P,T}  
+# function getδϕ(elem::C3DE{P}, u0::Array{T})  where {P,T}  
 # evaluates the strain energy density as a dual D2 number 
 #
 getδϕ(elem::AbstractElement, u::Array{<:Number}) = getϕ(elem, adiff.D2(u))
 
-function getδϕ(elem::C3D{P}, u0::Array{T})  where {P,T}
+function getδϕ(elem::C3DE{P}, u0::Array{T})  where {P,T}
   #
   # This implementation computes the D2 dual for the element internal energy.
   # It builds the sensitivity of F with respect to nodal DOFs (δF) using the
@@ -431,7 +438,7 @@ function getδϕ(elem::C3D{P}, u0::Array{T})  where {P,T}
   adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
 end
 
-function getδϕ(elems::Vector{<:CElem}, u::Array{T,2}) where T
+function getδϕ(elems::Vector{<:CEElem}, u::Array{T,2}) where T
   nElems = length(elems)
   N      = length(u[:,elems[1].nodes])
   M      = (N+1)N÷2
