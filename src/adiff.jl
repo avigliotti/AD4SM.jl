@@ -4,7 +4,7 @@ module adiff
 
 using LinearAlgebra
 import Base: @propagate_inbounds, length, getindex, copy, convert, promote_rule
-import Base: +, -, *, /, ^, inv, abs, sqrt, log, exp, zero, conj
+import Base: +, -, *, /, ^, inv, abs, sqrt, log, exp, zero, conj#, Real
 import Base: >, <, ≥, ≤, ==
 import Base: sin, cos, sinh, cosh, tanh
 import LinearAlgebra: norm, dot, transpose
@@ -152,7 +152,7 @@ promote_rule(::Type{D1{N, T}}, ::Type{<:Real}) where {N, T} = D1{N, T}
 # Data retrieving methods
 @inline D1eval(f, x)                    = f(D1(x))
 @inline D2eval(f, x)                    = f(D2(x))
-@inline Real(x::Duals)                  = Real(x.v)
+# @inline Real(x::Duals)                  = Real(x.v)
 @inline val(x::Duals)                   = x.v
 @inline val(U::AbstractArray{Duals})    = [u.v for u in U]
 @inline grad(x::Real)                   = 0

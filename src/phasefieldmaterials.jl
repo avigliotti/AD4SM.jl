@@ -8,7 +8,7 @@ struct PhaseField{M,AT}<:Material
   n::Number
 end
 
-Material = Union{Material,PhaseField}
+# Material = Union{Material,PhaseField}
 #
 # constructor
 #
