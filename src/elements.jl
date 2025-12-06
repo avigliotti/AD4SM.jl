@@ -6,13 +6,13 @@ using ..AD4SM.adiff
 import ..Materials.getϕ
 
 using StaticArrays, SparseArrays
-using LinearAlgebra:I
+using LinearAlgebra:I,det
 import LinearAlgebra.×
 
 export CElem, CEElem, CPElem, C1DE, C2DE, C3DE, C1DP, C2DP, C3DP,
        C1D, C2D, C3D
 export getϕ, getσ, getP, detJ, getF, ×, getV
-
+# export I₁, I₂, Ī₁, Ī₂
 
 
 # ---------------------------------------------------------------------------
@@ -22,6 +22,14 @@ export getϕ, getσ, getP, detJ, getF, ×, getV
 @inline function dot(a::SVector{N,S}, b::SVector{N,T}) where {N,S,T}
     s = zero(T)
     @inbounds @simd for ii in 1:N
+        s += a[ii] * b[ii]
+    end
+    return s
+end
+
+@inline function dot(a::SMatrix{N,M,T}, b::SMatrix{N,M,T}) where {N,M,T}
+    s = zero(T)
+    @inbounds @simd for ii in 1:N*M
         s += a[ii] * b[ii]
     end
     return s

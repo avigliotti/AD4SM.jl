@@ -259,4 +259,17 @@ function ×(ϕ::adiff.D1{N,T},F::AbstractArray{adiff.D1{P,T}}) where {N,P,T}
   adiff.D1(val, grad)
 end
 
+# ============================================================================
+# Invariants of C
+# ============================================================================
+
+@inline I₁(F::Union{SMatrix{3,3}, SVector{9}}) = (F[1]F[1]+F[2]F[2]+F[3]F[3]+
+                                                        F[4]F[4]+F[5]F[5]+F[6]F[6]+
+                                                        F[7]F[7]+F[8]F[8]+F[9]F[9])
+@inline I₂(F::Union{SMatrix{3,3}, SVector{9}}) = let C = F'F
+    # I₂=C₁₁C₂₂+C₁₁C₃₃+C₂₂C₃₃−C₁₂²−C₁₃²−C₂₃²
+    C[1]C[5]+C[1]C[9]+C[5]C[9]-C[2]C[4]-C[3]C[7]-C[6]C[8]
+end
+@inline Ī₁(F::Union{SMatrix{3,3}, SVector{9}}) = I₁(F)/det(F)^(2/3)
+@inline Ī₂(F::Union{SMatrix{3,3}, SVector{9}}) = I₂(F)/det(F)^(4/3)
 
