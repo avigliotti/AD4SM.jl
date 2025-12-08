@@ -1,2 +1,4 @@
 .*.swp
 *.tmp.jl
+*.bkp*.*
+*.tmp.*

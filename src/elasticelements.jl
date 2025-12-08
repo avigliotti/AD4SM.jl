@@ -1,3 +1,5 @@
+export makeϕrKt
+# elasticelements.jl
 #
 # constructors
 #
@@ -28,7 +30,7 @@ function Line(nodes::Vector{<:Integer},
     ((Nx,),(1.,), L)
   end
 
-  C2D(nodes,Nx,wgt,A,mat) 
+  C2DE(nodes,Nx,wgt,A,mat) 
 end
 function Tria(nodes::Vector{<:Integer}, 
               p0::Vector{Vector{T}} where T<:Number ;
@@ -43,7 +45,7 @@ function Tria(nodes::Vector{<:Integer},
     ((Nx,),(Ny,),(A,), A)
   end
 
-  C2D(nodes,Nx,Ny,wgt,A,mat) 
+  C2DE(nodes,Nx,Ny,wgt,A,mat) 
 end
 function Quad(nodes::Vector{<:Integer}, 
               p0::Vector{Vector{T}};
@@ -62,18 +64,19 @@ function Quad(nodes::Vector{<:Integer},
   for (ii, (ξ,wξ)) in enumerate(GP),
     (jj, (η,wη)) in enumerate(GP) 
     N0  = N(adiff.D1([ξ,η])...)
-    p   = sum([N0[ii]p0[ii] for ii in 1:4])
+    p   = sum(N0[ii]p0[ii] for ii in 1:4)
     J   = [p[ii].g[jj] for jj in 1:2, ii in 1:2]
     Nxy = J\hcat(adiff.grad.(N0)...)
 
     Nx[ii,jj]  = Nxy[1,:]
     Ny[ii,jj]  = Nxy[2,:]
-    wgt[ii,jj] = detJ(J)*wξ*wη
+    F          = SMatrix{2,2}(J)
+    wgt[ii,jj] = detJ(F)*wξ*wη
 
     A += wgt[ii,jj]
   end
 
-  C2D(nodes,tuple(Nx...),tuple(Ny...),tuple(wgt...),A,mat) 
+  C2DE(nodes,tuple(Nx...),tuple(Ny...),tuple(wgt...),A,mat) 
 end
 QuadR(nodes,p0;mat=Materials.Hooke()) = Quad(nodes,p0,mat=mat,GP=((0.0,1.0),))
 function Tet04(nodes::Vector{<:Integer}, 
@@ -89,7 +92,7 @@ function Tet04(nodes::Vector{<:Integer},
     V        = det(A)/6
     (V,(C[2,:],),(C[3,:],),(C[4,:],))
   end
-  C3D(nodes,Nx,Ny,Nz,(V,),V,mat) 
+  C3DE(nodes,Nx,Ny,Nz,(V,),V,mat) 
 end
 function Tet10(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}} where T<:Number;
@@ -121,7 +124,7 @@ function Tet10(nodes::Vector{<:Integer},
      (tuple([Nz[:,ii] for ii in 1:4]...),))
   end
 
-  C3D(nodes,Nx,Ny,Nz,V,mat) 
+  C3DE(nodes,Nx,Ny,Nz,V,mat) 
 end
 function Hex08(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}};
@@ -150,11 +153,12 @@ function Hex08(nodes::Vector{<:Integer},
     Nx[ii,jj,kk]  = Nxyz[1,:]
     Ny[ii,jj,kk]  = Nxyz[2,:]
     Nz[ii,jj,kk]  = Nxyz[3,:]
-    wgt[ii,jj,kk] = detJ(J)*wξ*wη*wζ
+    F             = SMatrix{3,3}(J)
+    wgt[ii,jj,kk] = detJ(F)*wξ*wη*wζ
 
     V +=wgt[ii,jj,kk]
   end
-  C3D(nodes,tuple(Nx...),tuple(Ny...),tuple(Nz...),tuple(wgt...),V,mat) 
+  C3DE(nodes,tuple(Nx...),tuple(Ny...),tuple(Nz...),tuple(wgt...),V,mat) 
 end
 function Wdg06(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}} where T<:Number;
@@ -232,7 +236,7 @@ function ASQuad(nodes::Vector{<:Integer},
       Nx[ii,jj]  = Nxy[1,:]
       Ny[ii,jj]  = Nxy[2,:]
       X0[ii,jj]  = p[1].v 
-      
+
       # wgt[ii,jj] = abs(detJ(J))*2π*p[1].v
       wgt[ii,jj] = detJ(J)*2π*p[1].v
 
@@ -244,52 +248,54 @@ function ASQuad(nodes::Vector{<:Integer},
 end
 #
 # elastic energy evaluation functions for elements
-#
+#=
 function getϕ(elem::Rod,  u::Matrix{<:Number})
-  l   = norm(elem.r0+u[:,2]-u[:,1])
-  F11 = l/elem.l0
-  elem.A*elem.l0*getϕ(F11, elem.mat)    
+l   = norm(elem.r0+u[:,2]-u[:,1])
+F11 = l/elem.l0
+elem.A*elem.l0*getϕ(F11, elem.mat)    
 end
 function getϕ(elem::Beam, u::Matrix{<:Number})
 
-  L, r0, t, w = elem.L, elem.r0, elem.t, elem.w
-  T    = [r0[1] r0[2]; -r0[2] r0[1]]
-  u0   = vcat(T*u[1:2,1], u[3,1], T*u[1:2,2], u[3,2])
-  u0_x = (u0[4]-u0[1])/L
+L, r0, t, w = elem.L, elem.r0, elem.t, elem.w
+T    = [r0[1] r0[2]; -r0[2] r0[1]]
+u0   = vcat(T*u[1:2,1], u[3,1], T*u[1:2,2], u[3,2])
+u0_x = (u0[4]-u0[1])/L
 
-  ϕ  = 0
-  for (r,wr) in elem.lgwx
-    x, dx     = r*L, wr*L
+ϕ  = 0
+for (r,wr) in elem.lgwx
+x, dx     = r*L, wr*L
 
-    v0_x  = (-6x/L^2 + 6x^2/L^3)u0[2] +
-            (1 - 4x/L + 3x^2/L^2)u0[3] +
-            (6x/L^2 - 6x^2/L^3)u0[5] +
-            (-2x/L + 3x^2/L^2)u0[6]
+v0_x  = (-6x/L^2 + 6x^2/L^3)u0[2] +
+(1 - 4x/L + 3x^2/L^2)u0[3] +
+(6x/L^2 - 6x^2/L^3)u0[5] +
+(-2x/L + 3x^2/L^2)u0[6]
 
-    v0_xx = (-6/L^2 + 12x/L^3)u0[2] + 
-            (-4/L + 6x/L^2)u0[3] + 
-            (6/L^2 - 12x/L^3)u0[5] + 
-            (-2/L + 6x/L^2)u0[6]
+v0_xx = (-6/L^2 + 12x/L^3)u0[2] + 
+(-4/L + 6x/L^2)u0[3] + 
+(6/L^2 - 12x/L^3)u0[5] + 
+(-2/L + 6x/L^2)u0[6]
 
-    for (s,ws) in elem.lgwy
-      y, dy  = s*elem.t, ws*elem.t
+for (s,ws) in elem.lgwy
+y, dy  = s*elem.t, ws*elem.t
 
-      dV   = dx*dy*elem.w
-      C11 = (1+u0_x-v0_xx*y)^2 + v0_x^2
-      ϕ   += getϕ(C11, elem.mat)*dV
-    end
-  end
-  return ϕ
+dV   = dx*dy*elem.w
+C11 = (1+u0_x-v0_xx*y)^2 + v0_x^2
+ϕ   += getϕ(C11, elem.mat)*dV
 end
-function getϕ(elem::CElems{P}, u::Matrix{D}) where {P,D}
+end
+return ϕ
+end
+=#
+# General CEElem energy integrator (works with CEElem/CPElem)
+function getϕ(elem::CEElem{<:Any,P}, u::Array{D}) where {P,D}
   ϕ = zero(D)
-  F = getF(elem,u)
-
-  @inline for ii=1:P
-    ϕ += elem.wgt[ii]getϕ(F[ii],elem.mat)
-  end 
+  for ii=1:P
+    Fii = getF(elem, u, ii)
+    ϕ  += elem.wgt[ii]getϕ(Fii, elem.mat)
+  end
   ϕ
 end
+
 #
 # calling getϕ with dual numbers on 3D elements
 #
@@ -298,7 +304,7 @@ end
 # derivative, the other use the standard implementation common for all
 # on newer CPU this might disppear
 #
-function getϕ(elem::C3D{P}, u0::Matrix{D}) where {P,D<:adiff.D2}
+function getϕ(elem::C3DE{P}, u0::Array{D}) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
   ϕ  = zero(D) 
@@ -311,14 +317,21 @@ function getϕ(elem::C3D{P}, u0::Matrix{D}) where {P,D<:adiff.D2}
   ϕ
 end
 #
-# functions for evaluating the residual and the tangent stiffness matrix over
-# and array of elements
 #
-function makeϕrKt(elems::Array{<:Elems}, u::Array{T}) where T
-
+# functions for evaluating the residual and the tangent stiffness matrix over
+# an array of elements
+#
+function makeϕrKt(elems::AbstractVector{<:CEElem}, u::AbstractMatrix{T}) where T
   nElems = length(elems)
-  N      = length(u[:,elems[1].nodes])
-  M      = (N+1)N÷2
+  @assert nElems > 0 "makeϕrKt: `elems` is empty"  
+  #=
+  et = eltype(elems)
+  D  = et.parameters[1]
+  L  = et.parameters[5]
+  N  = D*L 
+  =# 
+  N  = length(u[:,elems[1].nodes])
+  M  = (N+1)N÷2
 
   Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
   Threads.@threads for ii=1:nElems
@@ -328,42 +341,104 @@ function makeϕrKt(elems::Array{<:Elems}, u::Array{T}) where T
   makeϕrKt(Φ, elems, u)
 end
 #
-# function getδϕ(elem::C3D{P}, u0::Matrix{T})  where {P,T}  
+#
+# function getδϕ(elem::C3DE{P}, u0::Array{T})  where {P,T}  
 # evaluates the strain energy density as a dual D2 number 
 #
-getδϕ(elem::Elems, u::Matrix{<:Number}) = getϕ(elem, adiff.D2(u))
-function getδϕ(elem::C3D{P}, u0::Matrix{T})  where {P,T}
+getδϕ(elem::AbstractElement, u::Array{<:Number}) = getϕ(elem, adiff.D2(u))
+
+function getδϕ(elem::C3DE{P}, u0::Array{T})  where {P,T}
+  #
+  # This implementation computes the D2 dual for the element internal energy.
+  # It builds the sensitivity of F with respect to nodal DOFs (δF) using the
+  # element's ∇N data (assumed stored as ∇N[1][ii], ∇N[2][ii], ∇N[3][ii])
+  # where each ∇N[*][ii] is a static-vector (SVector) or array with length nNodes.
+  #
 
   u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
-  N       = lastindex(u0)  
+  nnode   = length(u)             # number of nodes
+  Ndofs   = 3 * nnode             # total number of nodal displacement DOFs
   wgt     = elem.wgt
   val     = zero(T)
-  grad    = zeros(T,N)
-  hess    = zeros(T,(N+1)N÷2)
-  δF      = zeros(T,N,9)
+  grad    = zeros(T, Ndofs)
+  hess    = zeros(T, (Ndofs+1)*Ndofs ÷ 2)  # triangular storage
+  δF      = zeros(T, Ndofs, 9)
 
   @inbounds for ii=1:P
-    Nx,Ny,Nz    = elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
-    δF[1:3:N,1] = δF[2:3:N,2] = δF[3:3:N,3] = Nx
-    δF[1:3:N,4] = δF[2:3:N,5] = δF[3:3:N,6] = Ny
-    δF[1:3:N,7] = δF[2:3:N,8] = δF[3:3:N,9] = Nz
+    # get shape-function derivative arrays at Gauss point ii
+    Nx = elem.∇N[1][ii]
+    Ny = elem.∇N[2][ii]
+    Nz = elem.∇N[3][ii]
 
-    F    = [Nx⋅u Ny⋅u Nz⋅u;
-            Nx⋅v Ny⋅v Nz⋅v;
-            Nx⋅w Ny⋅w Nz⋅w ] + I
-    ϕ    = getϕ(adiff.D2(F), elem.mat)::adiff.D2{9, 45, T}
-    val += wgt[ii]ϕ.v
-    @inbounds for jj=1:9,i1=1:N
-      grad[i1] += wgt[ii]*ϕ.g[jj]*δF[i1,jj]
-      @inbounds  for kk=1:9,i2=1:i1
-        hess[(i1-1)i1÷2+i2] += wgt[ii]*ϕ.h[jj,kk]*δF[i1,jj]*δF[i2,kk]
-      end   
+    # Build δF: derivative of each F component wrt each nodal DOF
+    # Column ordering of F components: (F11,F12,F13,F21,F22,F23,F31,F32,F33)
+    # For node a, nodal DOFs indices (ux,uy,uz) = (3*(a-1)+1,...+3)
+    for a=1:nnode
+      idx = 3*(a-1)
+      nx = Nx[a]
+      ny = Ny[a]
+      nz = Nz[a]
+
+      δF[idx+1, 1] = nx   # dF11/d(ux_a)
+      δF[idx+2, 2] = nx   # dF12/d(uy_a) ??? (kept same mapping as original code)
+      δF[idx+3, 3] = nx   # dF13/d(uz_a)
+
+      δF[idx+1, 4] = ny   # dF21/d(ux_a)
+      δF[idx+2, 5] = ny   # dF22/d(uy_a)
+      δF[idx+3, 6] = ny   # dF23/d(uz_a)
+
+      δF[idx+1, 7] = nz   # dF31/d(ux_a)
+      δF[idx+2, 8] = nz   # dF32/d(uy_a)
+      δF[idx+3, 9] = nz   # dF33/d(uz_a)
+    end
+
+    # Evaluate F at this Gauss point
+    F = SMatrix{3,3,T}(
+                       (Nx⋅u + 1) , (Nx⋅v) , (Nx⋅w),
+                       (Ny⋅u)      , (Ny⋅v + 1) , (Ny⋅w),
+                       (Nz⋅u)      , (Nz⋅v) , (Nz⋅w + 1)
+                      )
+
+    # Evaluate constitutive D2 energy for F (material returns adiff.D2)
+    ϕ = getϕ(adiff.D2(adiff.val.(F)), elem.mat)::adiff.D2{9, 45, T}
+
+    # accumulate energy, gradient and (triangular) Hessian using δF mapping
+    val += wgt[ii] * ϕ.v
+
+    # Gradient: grad[i] += wgt * sum_j ϕ.g[j] * δF[i,j]
+    @inbounds for j = 1:9
+      coeff = wgt[ii] * ϕ.g[j]
+      for i1 = 1:Ndofs
+        grad[i1] += coeff * δF[i1, j]
+      end
+    end
+
+    # Hessian: hess[index(i1,i2)] += wgt * sum_{j,k} ϕ.h[j,k] * δF[i1,j]*δF[i2,k]
+    @inbounds for j = 1:9
+      for k = 1:j
+        hjk = wgt[ii] * ϕ.h[j,k]
+        if hjk == zero(hjk)
+          continue
+        end
+        for i1 = 1:Ndofs
+          c1 = δF[i1, j]
+          if c1 == zero(c1)
+            continue
+          end
+          for i2 = 1:i1
+            # triangular index mapping (i2 <= i1)
+            idx_tri = (i1-1)*i1 ÷ 2 + i2
+            hess[idx_tri] += hjk * c1 * δF[i2, k]
+          end
+        end
+      end
     end
   end
 
   adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
 end
-function getδϕ(elems::Vector{<:Elems}, u::Array{T,2}) where T
+
+function getδϕ(elems::Vector{<:CEElem}, u::Array{T,2}) where T
   nElems = length(elems)
   N      = length(u[:,elems[1].nodes])
   M      = (N+1)N÷2
@@ -373,5 +448,5 @@ function getδϕ(elems::Vector{<:Elems}, u::Array{T,2}) where T
     Φ[ii] = getδϕ(elems[ii], u[:,elems[ii].nodes])
   end
   Φ
-end 
+end
 

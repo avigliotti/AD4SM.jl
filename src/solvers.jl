@@ -88,8 +88,6 @@ function secs2hms(secs)
   m, s = divrem(r, 60)
   @sprintf("%02i:%02i:%02i",h, m, s)
 end
-
-
 #
 # solvers 
 #
@@ -141,13 +139,12 @@ function solve(elems, u;
                  becho     = bechoi,
                  bpredict  = bpredict,
                  maxupdt   = maxupdt)
-    catch
+    catch e
       error_msg = sprint(showerror, e)
       st        = sprint((io,v) -> show(io, "text/plain", v), 
                          stacktrace(catch_backtrace()))
       @warn "Trouble doing things:\n$(error_msg)\n$(st)" 
       println(" quitting." ); flush(stdout)
-
       (true, Inf, 0)
     end
     if bfailed 
@@ -164,8 +161,9 @@ function solve(elems, u;
           push!(allu, (copy(unew), copy(fnew)))
         end
       end
-      becho     && @printf("step %3i/%i, LF=%.3f, done in %2i iter, after %.2f sec.\n",
-                           ii,N,LF,iter,T)
+      becho  && @printf("step %3i/%i, LF=%.3f, done in %2i iter, after %.2f sec., ETA %s\n",
+                           ii,N,LF,iter,T,secs2hms(T*(N-ii)))
+      bechoi && println()
     end
     becho && flush(stdout)
   end
@@ -211,7 +209,12 @@ function solvestep!(elems, uold, unew, bfreeu;
   if bpredict
     deltat = @elapsed begin
       Δucnst    = unew[icnstu]-uold[icnstu]
-      (Φ,fi,Kt) = makeϕrKt(elems, uold)
+      # (Φ,fi,Kt) = makeϕrKt(elems, uold)
+      Φ,fi,Kt = let 
+        δϕ = [ getϕ(elem, adiff.D2(uold[:,elem.nodes])) for elem in elems ]
+        makeϕrKt(δϕ, elems, uold)
+      end
+
       if nEqs == 0
         res              = fi[ifreeu]-fe[ifreeu]
         res[:]         .-= Kt[ifreeu,icnstu]*Δucnst
@@ -238,18 +241,23 @@ function solvestep!(elems, uold, unew, bfreeu;
         normupdt         = maximum(abs.(updt[iius]))
       end
     end
-    becho && @printf("\npredictor step done in %.2f sec., ", deltat)
+    becho && @printf("predictor step done in %.2f sec., ", deltat)
     becho && @printf("with normupdt: %.2e, starting corrector loop\n", normupdt); flush(stdout)
   else
     unew[ifreeu] .= uold[ifreeu]
     becho && println()
   end
+
   # corrector loop
   while !bdone & !bfailed 
     global normru
     oldupdt   = copy(updt)
     tic       = Base.time_ns()
-    (Φ,fi,Kt) = makeϕrKt(elems, unew)
+    # (Φ,fi,Kt) = makeϕrKt(elems, unew)
+    Φ,fi,Kt = let 
+      δϕ = [ getϕ(elem, adiff.D2(unew[:,elem.nodes])) for elem in elems ]
+      makeϕrKt(δϕ, elems, unew)
+    end
 
     if nEqs == 0
       res    = fe[ifreeu]-fi[ifreeu]      
@@ -303,14 +311,15 @@ function solvestep!(elems, uold, unew, bfreeu;
     else
       bfailed = true
     end    
+
     if becho 
       if (bdone | bfailed) 
-        @printf("iter: %2i, norm0: %.2e, normru: %.2e, normre: %.2e, eltime: %.2f sec.\n", 
-                iter, norm0, normru, normre, Int64(Base.time_ns()-tic)/1e9)
+        @printf("iter: %2i, norm0: %.2e, normru: %.2e, normre: %.2e\n", 
+                iter, norm0, normru, normre)
       else
-        @printf("iter: %2i, norm0: %.2e, normru: %.2e, normre: %.2e, normupdt: %.2e, α: %6.3f, eltime: %.2f sec.\n", 
+        @printf("iter: %2i, norm0: %.2e, normru: %.2e, normre: %.2e, normupdt: %.2e, α: %6.3f\n", 
                 iter, norm0, normru, normre, normupdt, 
-                oldupdt⋅updt/norm(updt)/norm(oldupdt), Int64(Base.time_ns()-tic)/1e9)
+                oldupdt⋅updt/norm(updt)/norm(oldupdt))
       end
       flush(stdout)
     end

@@ -1,5 +1,27 @@
+export Hooke,Hooke1D,Hooke2D,MooneyRivlin,NeoHooke,Ogden
 
-# Material types
+
+"""
+Hooke(E,ν;ρ=1;small=false)
+
+Linear isotropic Hookean elasticity (3D) type.
+
+Fields
+- `E` : Young's modulus.
+- `ν` : Poisson's ratio.
+- `ρ` : material density (default `1`).
+- `small` : `true` if small-strain kinematics are intended; otherwise large-strain
+  (Green–Lagrange) kinematics are used.
+
+Notes
+The Lamé parameters used internally are
+\\begin{align*}
+\\lambda &= \\dfrac{E\nu}{(1+\\nu)(1-2\\nu)},\\quad
+\\mu=\\dfrac{E}{2(1+\\nu)}.
+\\end{align*}
+The struct implements a simple container for linear elasticity parameters and
+controls whether small- or large-strain formulas are evaluated by `getϕ`.
+"""
 struct Hooke{T} <: Mat3D
   E     ::T
   ν     ::T
@@ -7,12 +29,39 @@ struct Hooke{T} <: Mat3D
   small ::Bool
   Hooke(E::T,ν::T,ρ=one(T);small=false) where T<:Number = new{T}(E,ν,ρ,small)
 end
+"""
+Hooke1D(E;ρ=1;small=false)
+
+One-dimensional linear elastic material.
+
+Arguments
+- `E` : Young's modulus (scalar).
+- `ρ` : density (default `1`).
+- `small` : whether to use small-strain kinematics.
+
+Returns the 1D Hooke material object. Used by `getϕ` overloads for 1D problems.
+"""
 struct Hooke1D{T} <: Mat1D
   E     ::T
   ρ     ::T
   small ::Bool
   Hooke1D(E::T,ρ=one(T);small=false) where T<:Number = new{T}(E,ρ,small)
 end
+"""
+Hooke2D(E,ν;ρ=1;small=true,plane_stress=true)
+
+Two-dimensional (plane) linear elastic material. The second type parameter is
+used internally to distinguish `plane_stress` and
+`plane_strain` variants.
+
+Fields
+- `E` : Young's modulus.
+- `ν` : Poisson's ratio.
+- `ρ` : density.
+- `small` : small-strain flag.
+- the type parameter `:plane_stress` or `:plane_strain` selects the kinematic
+  assumption used when evaluating `getϕ`.
+"""
 struct Hooke2D{T,P} <: Mat2D
   E     ::T
   ν     ::T
@@ -22,6 +71,19 @@ struct Hooke2D{T,P} <: Mat2D
   new{T,:plane_stress}(E,ν,ρ,small) : 
   new{T,:plane_strain}(E,ν,ρ,small)
 end
+"""
+MooneyRivlin(C1,C2;K=-1;small=false)
+
+Mooney–Rivlin hyperelastic constitutive type for near-incompressible rubber-like
+materials.
+
+Parameters
+- `C1,C2` : material constants appearing in the strain energy density.
+- `K` : bulk/modifier parameter; if negative a special treatment for 2D -> 3D
+  reconstruction is used in the code (see `getϕ` overloads).
+- `small` : flag for small-strain approximations (unused for strongly nonlinear
+  models but kept for API consistency).
+"""
 struct MooneyRivlin{T} <: Mat3D
   C1    ::T
   C2    ::T
@@ -30,15 +92,25 @@ struct MooneyRivlin{T} <: Mat3D
   MooneyRivlin(C1::T, C2::T)       where T<:Number = new{T}(C1, C2, T(-1), false)
   MooneyRivlin(C1::T, C2::T, K::T) where T<:Number = new{T}(C1, C2, K, false) 
 end
+"""
+NeoHooke(μ;K=-1;small=false)
+
+Neo-Hookean hyperelastic material with shear modulus `μ` and optional bulk
+parameter `K` (used for plane->3D reconstruction in 2D calls)."""
 struct NeoHooke{T} <: Mat3D
   C1    ::T 
   K     ::T
   ρ     ::T
   small ::Bool
-  # NeoHooke(C1::T)               where T<:Number = new{T}(C1, T(-1), T(1), false)
-  # NeoHooke(C1::T,K::T)          where T<:Number = new{T}(C1, K, T(1), false)
   NeoHooke(C1::T,K::T,ρ=one(T)) where T<:Number = new{T}(C1, K, ρ, false)
 end
+"""
+Ogden(α,μ;K=-1)
+
+Ogden-type hyperelastic model parameterized by `α` (exponent) and `μ` (modulus).
+`K` handles volumetric/plane->3D coupling when negative indicates special
+2D reconstruction.
+"""
 struct Ogden{T} <: Mat3D
   α   ::T
   μ   ::T
@@ -46,22 +118,24 @@ struct Ogden{T} <: Mat3D
   Ogden(α::T, μ::T)       where T<:Number = new{T}(α, μ, T(-1), false) 
   Ogden(α::T, μ::T, K::T) where T<:Number = new{T}(α, μ, K, false) 
 end
-#
 
 HyperEla = Union{MooneyRivlin,NeoHooke,Ogden} 
+"""
+getϕ(F,mat) -> ϕ
 
-#
-# default convergence tolerance for 2D stress
-dTol     = 1e-7
-maxiter  = 30
-function setmaxiter(x)
-  global maxiter = Int64(x)
-end
-function setdTol(x)
-  global dTol = x
-end
-# elastic energy evaluation functions for materials
-function getϕ(F::Array{<:Number,2}, mat::M where M <:HyperEla)
+Evaluate the strain energy density `ϕ` for a given deformation gradient `F`
+and constitutive `mat` (one of the hyperelastic or linear material types).
+Overloads exist for 1D, 2D (plane stress/strain) and 3D material types.
+
+Arguments
+- `F` : deformation gradient (2×2 or 3×3 `Array{<:Number,2}`).
+- `mat` : material object (e.g. `Hooke`, `MooneyRivlin`, `Ogden`, ...).
+
+Returns the scalar energy density `ϕ`. For 2D plane problems some overloads
+reconstruct a compatible 3D deformation gradient (using `mat.K`) before
+computing invariants; this behaviour is documented per-overload in the source.
+"""
+function getϕ(F::AbstractMatrix{<:Number}, mat::M where M <:HyperEla)
   C = transpose(F)F
   if length(C) == 9
     (I1,I2,I3) = getInvariants(C)
@@ -71,7 +145,7 @@ function getϕ(F::Array{<:Number,2}, mat::M where M <:HyperEla)
   end
   getϕ(I1,I2,I3,mat)
 end
-function getϕ(F::Array{<:Number,2}, mat::Ogden)
+function getϕ(F::AbstractMatrix{<:Number}, mat::Ogden)
 
   α, μ, K = mat.α, mat.μ, mat.K
 
@@ -86,12 +160,11 @@ function getϕ(F::Array{<:Number,2}, mat::Ogden)
   end
 
   λ = sqrt.(svdvals(C))
-    
+
   if K<0
     ϕ = μ/α * (sum(λ.^α) - 3)
   else
     J = prod(λ)
-    # λ/J^(1/3) are the principal stretches of the deviatoric part
     ϕ = μ/α *(sum(λ.^α)/J^(α/3) - 3) + K*(J-1)^2
   end
 
@@ -106,7 +179,6 @@ function getϕ(I1, I2, I3, mat::MooneyRivlin)
     J  = sqrt(I3)
     I1 = I1*J^(-2/3)
     I2 = I2*J^(-4/3)
-    # ϕ  = C1*(I1-3) + C2*(I2-3) + K*log(J)^2
     ϕ  = C1*(I1-3) + C2*(I2-3) + K*(J-1)^2
   end
   return ϕ
@@ -119,7 +191,6 @@ function getϕ(I1, I2, I3, mat::NeoHooke)
   else
     J  = sqrt(I3)
     I1 = I1*J^(-2/3)
-    # ϕ  = C1*(I1-3) + K*log(J)^2
     ϕ  = C1*(I1-3) + K*(J-1)^2
   end
   return ϕ
@@ -127,7 +198,8 @@ end
 function getϕ(F11::Number, mat::Hooke1D)
   ϕ = (mat.E*(F11-1)^2)/2
 end
-function getϕ(F::Array{<:Number,2}, mat::Hooke)
+
+function getϕ(F::AbstractMatrix{<:Number}, mat::Hooke)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -145,7 +217,7 @@ function getϕ(F::Array{<:Number,2}, mat::Hooke)
 
   return ϕ
 end
-function getϕ(F::Array{<:Number,2}, mat::Hooke2D{T,:plane_strain} where T)
+function getϕ(F::AbstractMatrix{<:Number}, mat::Hooke2D{T,:plane_strain} where T)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -159,7 +231,7 @@ function getϕ(F::Array{<:Number,2}, mat::Hooke2D{T,:plane_strain} where T)
 
   (μ+λ/2)*(E[1]^2+E[4]^2) + λ*E[1]E[4] + 2μ*E[2]^2
 end
-function getϕ(F::Array{<:Number,2}, mat::Hooke2D{T,:plane_stress} where T)
+function getϕ(F::AbstractMatrix{<:Number}, mat::Hooke2D{T,:plane_stress} where T)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -168,13 +240,28 @@ function getϕ(F::Array{<:Number,2}, mat::Hooke2D{T,:plane_stress} where T)
   end
 
   ν, Es = mat.ν, mat.E
-  # μ = Es/2/(1+ν) 
 
   (Es/(1-ν^2))*(E[1]^2+E[4]^2+ν*E[1]E[4]) + (Es/(1+ν))*E[2]^2
 end
-# 
-# these functions compute the hydrostatic / deviatoric decomposition
-function gethyddevdecomp(F::Array{<:Number,2}, mat::Hooke2D{T,:plane_strain} where T)
+"""
+gethyddevdecomp(F,mat) -> (I1,I1sq)
+
+Compute hydrostatic/deviatoric contributions required for 2D plane elasticity.
+
+For plane-strain and plane-stress Hooke types this function reconstructs the
+out-of-plane strain component consistent with the chosen kinematic assumption
+and returns the first invariant `I_1` and the squared sum `I_1^2` (used in
+energy expressions).
+
+Arguments
+- `F` : 2×2 deformation gradient.
+- `mat` : `Hooke2D` material specifying plane assumption and Poisson ratio.
+
+Returns
+- `I1` : scalar first invariant of the small/Green–Lagrange strain tensor.
+- `I1sq` : sum of squared components entering volumetric energy terms.
+"""
+function gethyddevdecomp(F::AbstractMatrix{<:Number}, mat::Hooke2D{T,:plane_strain} where T)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -187,7 +274,7 @@ function gethyddevdecomp(F::Array{<:Number,2}, mat::Hooke2D{T,:plane_strain} whe
 
   return I1, ϵd⋅ϵd + (I1/3)^2
 end
-function gethyddevdecomp(F::Array{<:Number,2}, mat::Hooke2D{T,:plane_stress} where T)
+function gethyddevdecomp(F::AbstractMatrix{<:Number}, mat::Hooke2D{T,:plane_stress} where T)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -202,13 +289,21 @@ function gethyddevdecomp(F::Array{<:Number,2}, mat::Hooke2D{T,:plane_stress} whe
 
   return I1, ϵd⋅ϵd + (E33-I1/3)^2
 end
-function gethyddevdecomp(F::Array{<:Number,2}, mat::Hooke1D)
+function gethyddevdecomp(F::AbstractMatrix{<:Number}, mat::Hooke1D)
   F[1], F[1]^2
 end
-# get1stinvariants for Hooke materials
-# I1    is the first invariant of F
-# I1sq  is the first invariant of C=transpose(F)F
-function get1stinvariants(F::Array{<:Number,2}, mat::Hooke2D{T,:plane_strain} where T)
+"""
+get1stinvariants(F,mat) -> (I1,I1sq)
+
+Return the first invariant(s) appropriate for lower-dimensional materials.
+- For `Hooke1D` the invariant is simply `F[1]` and its square.
+- For planar Hooke variants the function reconstructs the needed out-of-plane
+  strain and returns `(I1,I1^2)`.
+
+This small helper centralizes the computation of the linear combinations used
+by the energy routines.
+"""
+function get1stinvariants(F::AbstractMatrix{<:Number}, mat::Hooke2D{T,:plane_strain} where T)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -221,7 +316,7 @@ function get1stinvariants(F::Array{<:Number,2}, mat::Hooke2D{T,:plane_strain} wh
 
   return I1, I1sq
 end
-function get1stinvariants(F::Array{<:Number,2}, mat::Hooke2D{T,:plane_stress} where T)
+function get1stinvariants(F::AbstractMatrix{<:Number}, mat::Hooke2D{T,:plane_stress} where T)
 
   if mat.small
     E = (F+transpose(F)-2I)/2   # the symmetric part of G
@@ -236,7 +331,24 @@ function get1stinvariants(F::Array{<:Number,2}, mat::Hooke2D{T,:plane_stress} wh
 
   return I1, I1sq
 end
-function get1stinvariants(F::Array{<:Number,2}, mat::Hooke1D)
+function get1stinvariants(F::AbstractMatrix{<:Number}, mat::Hooke1D)
   F[1], F[1]^2
 end
 
+#=
+detJ(F, mat::Hooke2D{T,:plane_stress} where T) = F[1]F[4]-F[2]F[3]
+detJ(elem::C2D{P,<:Hooke2D{T,:plane_strain}} where {P,T}, u::AbstractArray, ii::Integer) = detJ(getF(elem,u,ii))
+function detJ(elem::C2D{P,<:Hooke2D{T,:plane_stress}} where {P,T}, u::AbstractArray, ii::Integer)
+  
+  ν   = elem.mat.ν
+  F   = getF(elem, u, ii)
+  if elem.mat.small
+    F33 = -ν/(1-ν)*(F[1,1]+F[2,2]-2) + 1
+  else
+    E = (transpose(F)F-I)/2   # the Green-Lagrange strain tensor
+    F33 = sqrt(-ν/(1-ν)*(E[1,1]+E[2,2]-2) + 1)
+  end
+
+  return F33*detJ(getF(elem,u,ii))
+end
+=#
