@@ -2,3 +2,6 @@
 *.tmp.jl
 *.bkp*.*
 *.tmp.*
+
+src/elements.toolkit.claude.jl 
+src/solvers.claude.jl
