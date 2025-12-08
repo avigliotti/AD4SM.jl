@@ -1,7 +1,7 @@
 name = "AD4SM"
 uuid = "7861f83d-ce22-4070-aa20-44578e274a9b"
-authors = ["andrea <andrea.vigliotti@gmail.com>"]
 version = "0.0.7"
+authors = ["andrea <andrea.vigliotti@gmail.com>"]
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
@@ -10,7 +10,9 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 ProgressMeter = "1.2.0"
+StaticArrays = "1.9.15"
 julia = "1.4.0"
