@@ -94,6 +94,7 @@ function Tet04(nodes::Vector{<:Integer},
   end
   C3DE(nodes,Nx,Ny,Nz,(V,),V,mat) 
 end
+#=
 function Tet10(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}} where T<:Number;
                mat=Materials.Hooke())
@@ -126,6 +127,7 @@ function Tet10(nodes::Vector{<:Integer},
 
   C3DE(nodes,Nx,Ny,Nz,V,mat) 
 end
+=#
 function Hex08(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}};
                GP=((T(-0.577350269189626), one(T)), (T(0.577350269189626), one(T))), # √3/3
@@ -449,4 +451,6 @@ function getδϕ(elems::Vector{<:CEElem}, u::Array{T,2}) where T
   end
   Φ
 end
+
+include("./elasticelements.2ndord.jl")
 
