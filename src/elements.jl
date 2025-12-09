@@ -9,6 +9,7 @@ using StaticArrays, SparseArrays
 using LinearAlgebra:I,det
 import LinearAlgebra.×
 
+export AbstractElement, AbstractContinuumElem, AbstractCElem
 export CElem, CEElem, CPElem, C1DE, C2DE, C3DE, C1DP, C2DP, C3DP,
        C1D, C2D, C3D, LagrangePoly
 export getϕ, getσ, getP, detJ, getF, ×, getV
@@ -138,10 +139,11 @@ const CElem = AbstractCElem
 """
 Create a 1D mechanical element.
 """
-function C1DE(nodes, Nx, wgt, V, mat)
+function C1DE(nodes, Nx, wgt, V, mat, ord=1)
   P  = length(wgt)
   Nn = length(Nx[1])
-  return CEElem{1,P,typeof(mat),eltype(wgt),Nn,1}(
+  return CEElem{1,P,typeof(mat),eltype(wgt),Nn,ord}(
+                                                 
                 nodes,
                 (ntuple(ii -> SVector{Nn}(Nx[ii]), P),),
                 wgt, V, mat)
@@ -150,23 +152,23 @@ end
 """
 Create a 2D mechanical element.
 """
-function C2DE(nodes, Nx, Ny, wgt, V, mat)
+function C2DE(nodes, Nx, Ny, wgt, V, mat, ord=1)
   P  = length(wgt)
   Nn = length(Nx[1])
-  return CEElem{2,P,typeof(mat),eltype(wgt),Nn,1}(
+  return CEElem{2,P,typeof(mat),eltype(wgt),Nn,ord}(
                 nodes,
-                ( ntuple(ii -> SVector{Nn}(Nx[ii]), P),
-                ntuple(ii -> SVector{Nn}(Ny[ii]), P) ),
+                (ntuple(ii -> SVector{Nn}(Nx[ii]), P),
+                 ntuple(ii -> SVector{Nn}(Ny[ii]), P) ),
                 wgt, V, mat)
 end
 
 """
 Create a 3D mechanical element.
 """
-function C3DE(nodes, Nx, Ny, Nz, wgt, V, mat)
+function C3DE(nodes, Nx, Ny, Nz, wgt, V, mat, ord=1)
   P = length(wgt)
   Nn = length(Nx[1])
-  return CEElem{3,P,typeof(mat),eltype(wgt),Nn,1}(
+  return CEElem{3,P,typeof(mat),eltype(wgt),Nn,ord}(
                 nodes,
                 ( ntuple(ii -> SVector{Nn}(Nx[ii]), P),
                  ntuple(ii -> SVector{Nn}(Ny[ii]), P),
@@ -181,10 +183,10 @@ end
 """
 Create a 1D scalar-field element.
 """
-function C1DP(nodes, N, Nx, wgt, V, mat)
+function C1DP(nodes, N, Nx, wgt, V, mat, ord=1)
   P = length(wgt)
   Nn = length(N[1])
-  return CPElem{1,P,typeof(mat),eltype(wgt),Nn,1}(
+  return CPElem{1,P,typeof(mat),eltype(wgt),Nn,ord}(
                 nodes,
                 ntuple(ii -> SVector{Nn}(N[ii]), P),
                 (ntuple(ii -> SVector{Nn}(Nx[ii]), P),),
@@ -194,10 +196,10 @@ end
 """
 Create a 2D scalar-field element.
 """
-function C2DP(nodes, N, Nx, Ny, wgt, V, mat)
+function C2DP(nodes, N, Nx, Ny, wgt, V, mat, ord=1)
   P = length(wgt)
   Nn = length(N[1])
-  return CPElem{2,P,typeof(mat),eltype(wgt),Nn,1}(
+  return CPElem{2,P,typeof(mat),eltype(wgt),Nn,ord}(
                 nodes,
                 ntuple(ii -> SVector{Nn}(N[ii]), P),
                 ( ntuple(ii -> SVector{Nn}(Nx[ii]), P),
@@ -208,10 +210,10 @@ end
 """
 Create a 3D scalar-field element.
 """
-function C3DP(nodes, N, Nx, Ny, Nz, wgt, V, mat)
+function C3DP(nodes, N, Nx, Ny, Nz, wgt, V, mat, ord=1)
   P = length(wgt)
   Nn = length(N[1])
-  return CPElem{3,P,typeof(mat),eltype(wgt),Nn,1}(
+  return CPElem{3,P,typeof(mat),eltype(wgt),Nn,ord}(
                 nodes,
                 ntuple(ii -> SVector{Nn}(N[ii]), P),
                 ( ntuple(ii -> SVector{Nn}(Nx[ii]), P),

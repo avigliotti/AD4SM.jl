@@ -65,7 +65,8 @@ function Quad(nodes::Vector{<:Integer},
     (jj, (η,wη)) in enumerate(GP) 
     N0  = N(adiff.D1([ξ,η])...)
     p   = sum(N0[ii]p0[ii] for ii in 1:4)
-    J   = [p[ii].g[jj] for jj in 1:2, ii in 1:2]
+    # J   = [p[ii].g[jj] for jj in 1:2, ii in 1:2]
+    J = SMatrix{2,2}(p[ii].g[jj] for jj in 1:2, ii in 1:2)
     Nxy = J\hcat(adiff.grad.(N0)...)
 
     Nx[ii,jj]  = Nxy[1,:]

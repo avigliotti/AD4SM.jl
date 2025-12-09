@@ -126,23 +126,22 @@ function Quad09(nodes::Vector{<:Integer},
 
   # Tensor product shape functions
   function N(ξ, η)
-      Nx = poly(ξ)
-      Ny = poly(η)
-      # Ordering: 
-      # Row 1: (-1,-1), (0,-1), (1,-1)
-      # Row 2: (-1, 0), (0, 0), (1, 0) ...
-      # This order must match the node list provided by the user
-      [Nx[1]*Ny[1], Nx[3]*Ny[1], Nx[3]*Ny[3], Nx[1]*Ny[3], # Corners 1-4
-       Nx[2]*Ny[1], Nx[3]*Ny[2], Nx[2]*Ny[3], Nx[1]*Ny[2], # Midsides 5-8
-       Nx[2]*Ny[2]]                                        # Center 9
+    N1, N2 = poly(ξ), poly(η)
+    [N1[1]N2[1], N1[3]N2[1], N1[3]N2[3], N1[1]N2[3],
+     N1[2]N2[1], N1[3]N2[2], N1[2]N2[3], N1[1]N2[2],
+     N1[2]N2[2]]
   end
 
   # 3-point Gauss rule (coords, weights)
   g_coords = [-0.774596669241483, 0.0, 0.774596669241483] # sqrt(3/5)
   g_weights = [0.555555555555556, 0.888888888888889, 0.555555555555556] # 5/9, 8/9, 5/9
-  GP = zip(g_coords, g_weights)
   
-  nGP = 3
+  # val = 0.577350269189626 # sqrt(1/3)
+  # g_coords  = [-val, val]
+  # g_weights = [1.0, 1.0]
+
+  GP  = zip(g_coords, g_weights)
+  nGP = length(g_weights)  
   Nx  = Matrix{Vector{T}}(undef, nGP, nGP)
   Ny  = Matrix{Vector{T}}(undef, nGP, nGP)
   wgt = Matrix{T}(undef, nGP, nGP)
@@ -152,17 +151,18 @@ function Quad09(nodes::Vector{<:Integer},
       N_dual = N(adiff.D1([ξ, η])...)
       
       p = sum(N_dual[a] * p0[a] for a in 1:9)
-      J = SMatrix{2,2}(p[i].g[j] for i in 1:2, j in 1:2)
+      J = SMatrix{2,2}(p[ii].g[jj] for jj in 1:2, ii in 1:2)
       
       Nxy = J \ hcat(adiff.grad.(N_dual)...)
 
       Nx[ii, jj]  = Nxy[1, :]
       Ny[ii, jj]  = Nxy[2, :]
       wgt[ii, jj] = detJ(J) * wξ * wη
-      A += wgt[ii, jj]
+      A          += wgt[ii, jj]
   end
 
-  C2DE(nodes, tuple(vec(Nx)...), tuple(vec(Ny)...), tuple(vec(wgt)...), A, mat, 2)
+  C2DE(nodes, tuple(vec(Nx)...), tuple(vec(Ny)...), 
+       tuple(vec(wgt)...), A, mat, 2)
 end
 
 """

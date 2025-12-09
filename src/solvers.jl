@@ -92,11 +92,11 @@ end
 # solvers 
 #
 function solve(elems, u;
-               N          = 11,
-               LF         = range(1e-4, stop=1, length=N), 
+               nSteps     = 11,
+               LF         = range(1e-4, stop=1, length=nSteps), 
                eqns       = [],
                λ          = zeros(length(eqns)),
-               ifree      = isnan.(u),
+               bfree      = isnan.(u),
                fe         = zeros(size(u)),
                becho      = false,
                dTol       = 1e-5,
@@ -105,30 +105,34 @@ function solve(elems, u;
                dNoise     = 1e-12,
                maxiter    = 11,
                bechoi     = false,
-               ballus     = true,
+               ikeep      = 1,
                bpredict   = true,
                maxupdt    = NaN)
 
-  N     = length(LF)
-  t0    = Base.time_ns()
-  beqns = length(eqns)>0
-  if ballus;    allu = [];  end
+  nSteps  = length(LF)
+  t0      = Base.time_ns()
+  beqns   = length(eqns)>0
+    
+  # Initialize solution storage
+  steps = ikeep>0 ? [] : nothing
 
   fnew  = copy(fe)
-  icnst = .!ifree
+  bcnst = .!bfree
+  ifree = findall(vec(bfree))
+  icnst = findall(vec(bcnst))
   unew  = copy(u)
-  unew[ifree] .= 0
+  unew[bfree] .= 0
   uold  = zeros(size(unew))
   λnew  = copy(λ)
 
   for (ii,LF) in enumerate(LF)
-    unew[icnst] .= u[icnst]*LF 
-    fnew[ifree] .= fe[ifree]*LF 
+    unew[bcnst] .= u[bcnst]*LF 
+    fnew[bfree] .= fe[bfree]*LF 
     lastu       = copy(unew)
     lastλ       = copy(λnew)
     T           = @elapsed (bfailed, normr, iter) = 
     try 
-      solvestep!(elems, uold, unew, ifree, 
+      solvestep!(elems, uold, unew, ifree, icnst, 
                  eqns      = eqns,
                  λ         = λnew,
                  fe        = fnew, 
@@ -154,24 +158,28 @@ function solve(elems, u;
       break
     else
       uold[:] .= unew[:]
-      if ballus
+      #
+      # Store solution if requested
+      if ikeep>0 && mod(ii,ikeep)==0
         if beqns
-          push!(allu, (copy(unew), copy(fnew), copy(λnew)))
+          push!(steps, Dict("u"=>copy(unew), "f"=>copy(fnew), "λ"=>copy(λnew)))
         else
-          push!(allu, (copy(unew), copy(fnew)))
+          push!(steps, Dict("u"=>copy(unew), "f"=>copy(fnew)))
         end
+        printstyled("Step $ii stored.\n", color=:blue)
       end
+
       becho  && @printf("step %3i/%i, LF=%.3f, done in %2i iter, after %.2f sec., ETA %s\n",
-                           ii,N,LF,iter,T,secs2hms(T*(N-ii)))
+                        ii,nSteps,LF,iter,T,secs2hms(T*(nSteps-ii)))
       bechoi && println()
     end
     becho && flush(stdout)
   end
   becho && @printf("completed in %s \n",secs2hms((time_ns()-t0)÷1e9)); flush(stdout)
 
-  ballus ? allu : unew
+  ikeep>0 ? steps : (unew, fnew, λnew)
 end  
-function solvestep!(elems, uold, unew, bfreeu;
+function solvestep!(elems, uold, unew, ifreeu, icnstu;
                     fe        = zeros(length(unew)),
                     eqns      = [],
                     λ         = zeros(length(eqns)),
@@ -183,9 +191,6 @@ function solvestep!(elems, uold, unew, bfreeu;
                     becho     = false,
                     bpredict  = true,
                     maxupdt   = NaN)
-
-  ifreeu    = findall(bfreeu[:])
-  icnstu    = findall(.!bfreeu[:])
 
   nEqs      = length(eqns)
   nfreeu    = length(ifreeu)

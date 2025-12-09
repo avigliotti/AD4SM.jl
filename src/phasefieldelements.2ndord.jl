@@ -40,7 +40,7 @@ using ..Materials:PhaseField
 
 Constructs a 6-node quadratic triangular phase-field element.
 """
-function Tria6P(nodes::Vector{<:Integer}, 
+function Tria06P(nodes::Vector{<:Integer}, 
                 p0::Vector{Vector{T}};
                 mat=Materials.Hooke()) where T<:Number
 
@@ -81,23 +81,25 @@ end
     Quad9P(nodes, p0; mat=Materials.Hooke())
 
 Constructs a 9-node quadratic phase-field quadrilateral.
+
+**Nodes**: 4 corners, 4 mid-sides, 1 center.
+**Quadrature**: 3x3 Gauss-Legendre.
 """
-function Quad9P(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}};
-                mat=Materials.Hooke()) where T<:Number
+function Quad09P(nodes::Vector{<:Integer}, 
+                 p0::Vector{Vector{T}};
+                 mat=Materials.Hooke()) where T<:Number
 
   poly(ξ) = [0.5*ξ*(ξ-1), (1-ξ^2), 0.5*ξ*(ξ+1)]
   function N(ξ, η)
-      Nx, Ny = poly(ξ), poly(η)
-      [Nx[1]*Ny[1], Nx[3]*Ny[1], Nx[3]*Ny[3], Nx[1]*Ny[3],
-       Nx[2]*Ny[1], Nx[3]*Ny[2], Nx[2]*Ny[3], Nx[1]*Ny[2],
-       Nx[2]*Ny[2]]
+    N1, N2 = poly(ξ), poly(η)
+    [N1[1]N2[1], N1[3]N2[1], N1[3]N2[3], N1[1]N2[3],
+     N1[2]N2[1], N1[3]N2[2], N1[2]N2[3], N1[1]N2[2],
+     N1[2]N2[2]]
   end
 
-  g_coords = [-0.774596669241483, 0.0, 0.774596669241483]
-  g_weights = [0.555555555555556, 0.888888888888889, 0.555555555555556]
-  GP = zip(g_coords, g_weights)
-  
+  ξ  = η  = (-0.774596669241483, 0.0, 0.774596669241483)
+  wξ = wη = (0.555555555555556, 0.888888888888889, 0.555555555555556)
+
   nGP = 3
   N0  = Matrix{Vector{T}}(undef, nGP, nGP)
   Nx  = Matrix{Vector{T}}(undef, nGP, nGP)
@@ -105,17 +107,20 @@ function Quad9P(nodes::Vector{<:Integer},
   wgt = Matrix{T}(undef, nGP, nGP)
   A   = zero(T)
 
-  for (ii, (ξ, wξ)) in enumerate(GP), (jj, (η, wη)) in enumerate(GP)
-      N_dual = N(adiff.D1([ξ, η])...)
-      p = sum(N_dual[a] * p0[a] for a in 1:9)
-      J = SMatrix{2,2}(p[i].g[j] for i in 1:2, j in 1:2)
-      Nxy = J \ hcat(adiff.grad.(N_dual)...)
+  for ii=1:nGP, jj=1:nGP
 
-      N0[ii, jj]  = adiff.val.(N_dual)
-      Nx[ii, jj]  = Nxy[1, :]
-      Ny[ii, jj]  = Nxy[2, :]
-      wgt[ii, jj] = detJ(J) * wξ * wη
-      A += wgt[ii, jj]
+    N_dual = N(adiff.D1([ ξ[ii], η[jj] ])...)
+    p      = sum(N_dual[a]p0[a] for a in 1:9)
+    J      = SMatrix{2,2}(p[i].g[j] for i in 1:2, j in 1:2)
+    # Nxy    = J \ hcat(adiff.grad.(N_dual)...)
+    Nxy    = J \ hcat((adiff.grad(x) for x in N_dual)...)
+
+    # N0[ii, jj]  = adiff.val.(N_dual)
+    N0[ii, jj]  = [adiff.val.(x) for x in N_dual]
+    Nx[ii, jj]  = Nxy[1, :]
+    Ny[ii, jj]  = Nxy[2, :]
+    wgt[ii, jj] = wξ[ii]wη[jj]detJ(J)
+    A += wgt[ii, jj]
   end
 
   C2DP(nodes, tuple(vec(N0)...), tuple(vec(Nx)...), 
