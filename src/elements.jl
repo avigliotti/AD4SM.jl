@@ -4,6 +4,7 @@ module Elements
 
 using ..AD4SM.adiff
 import ..Materials.getϕ
+using ..Materials
 
 using StaticArrays, SparseArrays
 using LinearAlgebra:I,det
@@ -210,16 +211,17 @@ end
 """
 Create a 3D scalar-field element.
 """
-function C3DP(nodes, N, Nx, Ny, Nz, wgt, V, mat, ord=1)
+function C3DP(nodes, N0, Nx, Ny, Nz, wgt, V::T, mat::M, O::Int=1) where {M<:Material, T}
   P = length(wgt)
-  Nn = length(N[1])
-  return CPElem{3,P,typeof(mat),eltype(wgt),Nn,ord}(
-                nodes,
-                ntuple(ii -> SVector{Nn}(N[ii]), P),
-                ( ntuple(ii -> SVector{Nn}(Nx[ii]), P),
-                ntuple(ii -> SVector{Nn}(Ny[ii]), P),
-                ntuple(ii -> SVector{Nn}(Nz[ii]), P) ),
-                wgt, V, mat)
+  # M = typeof(mat)
+  # T = eltype(wgt)
+  N = length(nodes)
+  C3DP{P,M,T,N,O}(nodes,
+                    ntuple(ii->SVector{N}(N0[ii]), P),
+                    (ntuple(ii->SVector{N}(Nx[ii]), P),
+                     ntuple(ii->SVector{N}(Ny[ii]), P),
+                     ntuple(ii->SVector{N}(Nz[ii]), P) ),
+                    wgt, V, mat)
 end
 
 # ---------------------------------------------------------------------------

@@ -20,6 +20,9 @@ function Beam(nodes, p0, t, w; mat=Materials.Hooke(1, 0.3), Nx = 5, Ny = 3)
 
   Beam(nodes, r0, L, t, w, lgwx, lgwy, mat)
 end
+#
+# continuous elements
+#
 function Line(nodes::Vector{<:Integer}, 
               p0::Vector{Vector{T}} where T<:Number ;
               mat=Materials.Hooke1D())
@@ -32,118 +35,193 @@ function Line(nodes::Vector{<:Integer},
 
   C2DE(nodes,Nx,wgt,A,mat) 
 end
-function Tria(nodes::Vector{<:Integer}, 
-              p0::Vector{Vector{T}} where T<:Number ;
-              mat=Materials.Hooke())
-  (Nx,Ny,wgt,A) = begin
-    (x1,x2,x3) = (p0[1][1],p0[2][1],p0[3][1])
-    (y1,y2,y3) = (p0[1][2],p0[2][2],p0[3][2])
-    Delta      = x1*y2-x2*y1-x1*y3+x3*y1+x2*y3-x3*y2
-    Nx         = [y2-y3,y3-y1,y1-y2]./Delta
-    Ny         = [x3-x2,x1-x3,x2-x1]./Delta
-    A          = abs(Delta)/2
-    ((Nx,),(Ny,),(A,), A)
+function Tria03(nodes::Vector{<:Integer}, 
+                p0::Vector{Vector{T}}; 
+                mat::M=Materials.Hooke(),
+                bReduced::Bool=false) where {T<:Number, M<:Material}
+
+  # Shape functions for 3-node triangle (Linear)
+  N(ξ,η) = SVector(1.0-ξ-η, ξ, η)
+
+  # Integration Rule: 1-point Gauss (Centroid)
+  # Weight = 0.5 (Area of reference triangle with vertices (0,0), (1,0), (0,1))
+  GPs = ((SVector(1/3, 1/3), 0.5),)
+  
+  nGP = length(GPs)
+  nN  = length(nodes)
+
+  Nx  = Vector{Vector{T}}(undef, nGP)
+  Ny  = Vector{Vector{T}}(undef, nGP)
+  wgt = Vector{T}(undef, nGP)
+  V   = zero(T)
+
+  @inbounds for (ii, (coords, wii)) in enumerate(GPs)
+    # Evaluate shape functions and their derivatives (Dual numbers)
+    N_dual = N(adiff.D1(coords)...)
+    
+    # Interpolate physical coordinates
+    # p[1] is x, p[2] is y
+    p = sum(N_dual[a] * p0[a] for a in 1:nN)
+
+    # Transposed Jacobian Jᵀ (2x2)
+    # J_ij = d(x_i)/d(ξ_j)
+    # p[ii].g[jj] gets derivative of coordinate ii w.r.t param jj
+    Jᵀ = SMatrix{2,2,T}(p[k].g[j] for j in 1:2, k in 1:2)
+
+    # Map gradients to physical space: ∇_x N = J⁻ᵀ ∇_ξ N
+    # grads_phys becomes a 2x3 matrix (2 rows: d/dx, d/dy; 3 cols: nodes)
+    grads_phys = Jᵀ \ hcat(adiff.grad.(N_dual)...)
+
+    Nx[ii]  = grads_phys[1, :]
+    Ny[ii]  = grads_phys[2, :]
+    
+    # Determinant of 2x2 Jacobian
+    wgt[ii] = det(Jᵀ) * wii 
+    V += wgt[ii]
   end
 
-  C2DE(nodes,Nx,Ny,wgt,A,mat) 
+  ∇N = tuple(tuple(Nx...), tuple(Ny...),)
+  
+  # C2D implies a 2D element struct
+  C2D{nGP,M,T,nN,1}(nodes, ∇N, tuple(wgt...), V, mat) 
 end
-function Quad(nodes::Vector{<:Integer}, 
-              p0::Vector{Vector{T}};
-              GP=((T(-0.577350269189626), one(T)), 
-                  (T(0.577350269189626), one(T))), # √3/3
-              mat=Materials.Hooke()) where T<:Number
+function Quad04(nodes::Vector{<:Integer}, 
+                p0::Vector{Vector{T}}; 
+                mat::M=Materials.Hooke(), 
+                bReduced::Bool=false) where {T<:Number, M<:Material}
 
-  # r        = [-1, 1]*0.577350269189626 # √3/3
-  N(ξ,η)   = [(1-ξ)*(1-η),(1+ξ)*(1-η),(1+ξ)*(1+η),(1-ξ)*(1+η)]/4
+  # Shape functions for 4-node Quadrilateral (Bilinear)
+  # Standard FEM order: (-1,-1), (1,-1), (1,1), (-1,1)
+  function N(ξ, η)
+    one_min_xi  = 1.0 - ξ
+    one_pl_xi   = 1.0 + ξ
+    one_min_eta = 1.0 - η
+    one_pl_eta  = 1.0 + η
 
-  nGP = length(GP)
-  Nx  = Array{Array{T,1},2}(undef,nGP,nGP)
-  Ny  = Array{Array{T,1},2}(undef,nGP,nGP)
-  wgt = Array{T,2}(undef,nGP,nGP)
-  A   = 0
-  for (ii, (ξ,wξ)) in enumerate(GP),
-    (jj, (η,wη)) in enumerate(GP) 
-    N0  = N(adiff.D1([ξ,η])...)
-    p   = sum(N0[ii]p0[ii] for ii in 1:4)
-    # J   = [p[ii].g[jj] for jj in 1:2, ii in 1:2]
-    J = SMatrix{2,2}(p[ii].g[jj] for jj in 1:2, ii in 1:2)
-    Nxy = J\hcat(adiff.grad.(N0)...)
-
-    Nx[ii,jj]  = Nxy[1,:]
-    Ny[ii,jj]  = Nxy[2,:]
-    F          = SMatrix{2,2}(J)
-    wgt[ii,jj] = detJ(F)*wξ*wη
-
-    A += wgt[ii,jj]
+    SVector(0.25 * one_min_xi * one_min_eta, # Node 1
+            0.25 * one_pl_xi  * one_min_eta, # Node 2
+            0.25 * one_pl_xi  * one_pl_eta,  # Node 3
+            0.25 * one_min_xi * one_pl_eta,) # Node 4
   end
 
-  C2DE(nodes,tuple(Nx...),tuple(Ny...),tuple(wgt...),A,mat) 
-end
-QuadR(nodes,p0;mat=Materials.Hooke()) = Quad(nodes,p0,mat=mat,GP=((0.0,1.0),))
-function Tet04(nodes::Vector{<:Integer}, 
-               p0::Vector{Vector{T}} where T<:Number;
-               mat=Materials.Hooke())
-  (V, Nx, Ny, Nz) = begin
-    A        = ones(4,4)
-    A[1,2:4] = p0[1]
-    A[2,2:4] = p0[2]
-    A[3,2:4] = p0[3]
-    A[4,2:4] = p0[4]
-    C        = inv(A)
-    V        = det(A)/6
-    (V,(C[2,:],),(C[3,:],),(C[4,:],))
-  end
-  C3DE(nodes,Nx,Ny,Nz,(V,),V,mat) 
-end
-#=
-function Tet10(nodes::Vector{<:Integer}, 
-               p0::Vector{Vector{T}} where T<:Number;
-               mat=Materials.Hooke())
-
-  (V, Nx, Ny, Nz) = begin
-
-    La = 0.585410196624968
-    Lb = 0.138196601125010
-    ξ  = [La, Lb, Lb, Lb] 
-    A  = hcat([[1,p[1],p[2],p[3],p[1]^2,p[2]^2,p[3]^2,p[2]p[3],p[1]p[3],p[1]p[2]] 
-               for p in p0]...)
-    C  = inv(A)
-    V  = detJ(A[1:4,1:4])/6
-
-    Nx,Ny,Nz = zeros(10,4),zeros(10,4),zeros(10,4)
-
-    for ii in 1:4
-      ξ        = circshift([La, Lb, Lb, Lb], ii)
-      p        = p0[1]ξ[1]+p0[2]ξ[2]+p0[3]ξ[3]+p0[4]ξ[4]
-      Nx[:,ii] = C[:,2]+2C[:,5]p[1]+C[:,9]p[3]+C[:,10]p[2] 
-      Ny[:,ii] = C[:,3]+2C[:,6]p[2]+C[:,8]p[3]+C[:,10]p[1]
-      Nz[:,ii] = C[:,4]+2C[:,7]p[3]+C[:,8]p[2]+C[:, 8]p[1] 
-    end
-
-    (V,
-     (tuple([Nx[:,ii] for ii in 1:4]...),), 
-     (tuple([Ny[:,ii] for ii in 1:4]...),), 
-     (tuple([Nz[:,ii] for ii in 1:4]...),))
+  # Gaussian Quadrature
+  GPs = if bReduced
+    # Reduced Integration: 1-point rule (Centroid)
+    # Weight = 4.0 (Area of reference domain [-1,1]x[-1,1])
+    ((SVector(0.0, 0.0), 4.0),)
+  else
+    # Full Integration: 2x2 Gauss-Legendre Rule (Standard)
+    # Points at ±1/√3, Weight = 1.0 for each dim (1*1=1)
+    g = 0.577350269189626
+    w = 1.0
+    ((SVector(-g, -g), w),
+     (SVector( g, -g), w),
+     (SVector( g,  g), w),
+     (SVector(-g,  g), w),)
   end
 
-  C3DE(nodes,Nx,Ny,Nz,V,mat) 
+  nGP = length(GPs)
+  nN  = length(nodes)
+
+  # Storage arrays (Flattened to Vector{Vector} to match C2D struct)
+  Nx  = Vector{Vector{T}}(undef, nGP)
+  Ny  = Vector{Vector{T}}(undef, nGP)
+  wgt = Vector{T}(undef, nGP)
+  V   = zero(T)
+
+  @inbounds for (ii, (coords, wii)) in enumerate(GPs)
+    # Evaluate shape functions and derivatives (Dual numbers)
+    N_dual = N(adiff.D1(coords)...)
+    
+    # Interpolate physical coordinates
+    # Sum over nodes k=1:4 (using 'k' to avoid index collision with 'ii')
+    p = sum(N_dual[k] * p0[k] for k in 1:nN)
+
+    # Transposed Jacobian Jᵀ (2x2)
+    # J_ij = d(x_i)/d(ξ_j)
+    Jᵀ = SMatrix{2,2,T}(p[k].g[j] for j in 1:2, k in 1:2)
+
+    # Map gradients to physical space: ∇_x N = J⁻ᵀ ∇_ξ N
+    # grads_phys is 2x4 matrix (rows: dx, dy; cols: nodes)
+    grads_phys = Jᵀ \ hcat(adiff.grad.(N_dual)...)
+
+    Nx[ii]  = grads_phys[1, :]
+    Ny[ii]  = grads_phys[2, :]
+    
+    # Determinant of 2x2 Jacobian times Gauss weight
+    wgt[ii] = det(Jᵀ) * wii 
+    V += wgt[ii]
+  end
+
+  # Construct Element
+  ∇N = tuple(tuple(Nx...), tuple(Ny...),)
+  C2D{nGP,M,T,nN,1}(nodes, ∇N, tuple(wgt...), V, mat) 
 end
-=#
+function Tet04(nodes::Vector{<:Integer},                # nodal indexes
+                p0::Vector{Vector{T}};                  # nodal coordinates 
+                mat::M=Materials.Hooke(),
+                bReduced::Bool=false) where {T<:Number, M<:Material}
+
+  N(ξ,η,ζ) = SVector(1.0-ξ-η-ζ, ξ, η, ζ)
+
+  GPs = if bReduced
+    ((SVector(1/4, 1/4, 1/4), 1/6),)
+  else 
+    a = 0.5854101966249685
+    b = 0.1381966011250105
+    w = 1/24 
+    ((SVector(a,b,b),w),
+     (SVector(b,a,b),w),
+     (SVector(b,b,a),w),
+     (SVector(b,b,b),w)   )
+  end
+
+  nGP = length(GPs )
+  nN  = length(nodes)
+
+  Nx  = Vector{Vector{T}}(undef, nGP)
+  Ny  = Vector{Vector{T}}(undef, nGP)
+  Nz  = Vector{Vector{T}}(undef, nGP)
+  wgt = Vector{T}(undef, nGP)
+  V   = zero(T)
+
+  @inbounds for (ii, (coords, wii)) in enumerate(GPs)
+    N_dual = N(adiff.D1(coords)...)
+    p = sum(N_dual[a]p0[a] for a in 1:nN)
+
+    # transposed Jacobian
+    Jᵀ = SMatrix{3,3,T}(p[ii].g[jj] for jj in 1:3, ii in 1:3)
+    grads_phys = Jᵀ \ hcat(adiff.grad.(N_dual)...)
+
+    Nx[ii]  = grads_phys[1, :]
+    Ny[ii]  = grads_phys[2, :]
+    Nz[ii]  = grads_phys[3, :]
+    wgt[ii] = detJ(Jᵀ) * wii
+    V += wgt[ii]
+  end
+
+  ∇N = tuple(tuple(Nx...), tuple(Ny...), tuple(Nz...),)
+  C3D{nGP,M,T,nN,1}(nodes, ∇N, tuple(wgt...), V, mat) 
+end
 function Hex08(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}};
-               GP=((T(-0.577350269189626), one(T)), (T(0.577350269189626), one(T))), # √3/3
+               bReduced::Bool=false,
                mat=Materials.Hooke()) where T<:Number
 
   N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1-ζ),(1+ξ)*(1-η)*(1-ζ),
               (1+ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),
               (1-ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1+ζ),
               (1+ξ)*(1+η)*(1+ζ),(1-ξ)*(1+η)*(1+ζ)]/8
+
+  GP=((T(-0.577350269189626), one(T)), 
+      (T(0.577350269189626), one(T))) # √3/3
   nGP = length(GP)
+
   Nx  = Array{Array{T,1},3}(undef,nGP,nGP,nGP)
   Ny  = Array{Array{T,1},3}(undef,nGP,nGP,nGP)
   Nz  = Array{Array{T,1},3}(undef,nGP,nGP,nGP)
   wgt = Array{T,3}(undef,nGP,nGP,nGP)
-  V   = 0
+  V   = zero(T) 
   for (ii, (ξ,wξ)) in enumerate(GP),
     (jj, (η,wη)) in enumerate(GP), 
     (kk, (ζ,wζ)) in enumerate(GP)
@@ -250,45 +328,8 @@ function ASQuad(nodes::Vector{<:Integer},
   CAS(nodes,N0,Nx,Ny,X0,wgt,V,mat) 
 end
 #
+# 
 # elastic energy evaluation functions for elements
-#=
-function getϕ(elem::Rod,  u::Matrix{<:Number})
-l   = norm(elem.r0+u[:,2]-u[:,1])
-F11 = l/elem.l0
-elem.A*elem.l0*getϕ(F11, elem.mat)    
-end
-function getϕ(elem::Beam, u::Matrix{<:Number})
-
-L, r0, t, w = elem.L, elem.r0, elem.t, elem.w
-T    = [r0[1] r0[2]; -r0[2] r0[1]]
-u0   = vcat(T*u[1:2,1], u[3,1], T*u[1:2,2], u[3,2])
-u0_x = (u0[4]-u0[1])/L
-
-ϕ  = 0
-for (r,wr) in elem.lgwx
-x, dx     = r*L, wr*L
-
-v0_x  = (-6x/L^2 + 6x^2/L^3)u0[2] +
-(1 - 4x/L + 3x^2/L^2)u0[3] +
-(6x/L^2 - 6x^2/L^3)u0[5] +
-(-2x/L + 3x^2/L^2)u0[6]
-
-v0_xx = (-6/L^2 + 12x/L^3)u0[2] + 
-(-4/L + 6x/L^2)u0[3] + 
-(6/L^2 - 12x/L^3)u0[5] + 
-(-2/L + 6x/L^2)u0[6]
-
-for (s,ws) in elem.lgwy
-y, dy  = s*elem.t, ws*elem.t
-
-dV   = dx*dy*elem.w
-C11 = (1+u0_x-v0_xx*y)^2 + v0_x^2
-ϕ   += getϕ(C11, elem.mat)*dV
-end
-end
-return ϕ
-end
-=#
 # General CEElem energy integrator (works with CEElem/CPElem)
 function getϕ(elem::CEElem{<:Any,P}, u::Array{D}) where {P,D}
   ϕ = zero(D)

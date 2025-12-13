@@ -1,7 +1,7 @@
 
 export makeϕrKt_d
 
-using ..Materials:PhaseField
+# using ..Materials:PhaseField
 
 #
 # elements with support for phase field
@@ -9,6 +9,7 @@ using ..Materials:PhaseField
 function TriaP(nodes::Vector{<:Integer}, 
               p0::Vector{Vector{T}} where T<:Number ;
               mat=Materials.Hooke())
+
   (N0,Nx,Ny,wgt,A) = begin
     (x1,x2,x3) = (p0[1][1],p0[2][1],p0[3][1])
     (y1,y2,y3) = (p0[1][2],p0[2][2],p0[3][2])
@@ -24,10 +25,13 @@ function TriaP(nodes::Vector{<:Integer},
 end
 function QuadP(nodes::Vector{<:Integer}, 
                p0::Vector{Vector{T}};
-               GP=((-0.577350269189626, 1.0), (0.577350269189626, 1.0)), # √3/3
-               mat=Materials.Hooke()) where T<:Number
+               mat=Materials.Hooke(),
+                bReduced::Bool=false) where T<:Number
   #r        = [-1, 1]*T(√3/3) #0.577350269189626 # √3/3
   N(ξ,η)   = [(1-ξ)*(1-η),(1+ξ)*(1-η),(1+ξ)*(1+η),(1-ξ)*(1+η)]/4
+
+  GP=((T(-0.577350269189626), one(T)), 
+      (T(0.577350269189626), one(T))) # √3/3
 
   nGP = length(GP)
   N0  = Array{Array{T,1},2}(undef,nGP,nGP)
@@ -55,14 +59,17 @@ end
 QuadPR(nodes, p0;mat=Materials.Hooke()) = QuadP(nodes, p0, mat=mat, GP=((0.0,1.0),))
 function Hex08P(nodes::Vector{<:Integer}, 
                 p0::Vector{Vector{T}};
-                GP=((T(-0.577350269189626), one(T)), 
-                    (T(0.577350269189626), one(T))), # √3/3
-                mat=Materials.Hooke()) where T<:Number
+                mat=Materials.Hooke(),
+                bReduced::Bool=false) where T<:Number
 
   N(ξ,η,ζ) = [(1-ξ)*(1-η)*(1-ζ),(1+ξ)*(1-η)*(1-ζ),
               (1+ξ)*(1+η)*(1-ζ),(1-ξ)*(1+η)*(1-ζ),
               (1-ξ)*(1-η)*(1+ζ),(1+ξ)*(1-η)*(1+ζ),
               (1+ξ)*(1+η)*(1+ζ),(1-ξ)*(1+η)*(1+ζ)]/8
+
+  GP=((T(-0.577350269189626), one(T)), 
+      (T(0.577350269189626), one(T))) # √3/3
+
   nGP = length(GP)
   N0  = Array{Array{T,1},3}(undef,nGP,nGP,nGP)
   Nx  = Array{Array{T,1},3}(undef,nGP,nGP,nGP)
@@ -94,7 +101,8 @@ end
 Hex08PR(nodes, p0;mat=Materials.Hooke()) = Hex08P(nodes, p0, mat=mat, GP=((0.0,1.0),))
 function Wdg06P(nodes::Vector{<:Integer}, 
                 p0::Vector{Vector{T}};
-                mat=Materials.Hooke())  where T<:Number
+                mat=Materials.Hooke(),
+                bReduced::Bool=false)  where T<:Number
   N(ξ,η,ζ) = [(1-ζ)*(1-ξ-η), (1-ζ)*ξ, (1-ζ)*η,
               (1+ζ)*(1-ξ-η), (1+ζ)*ξ, (1+ζ)*η]/2
 
@@ -128,22 +136,54 @@ function Wdg06P(nodes::Vector{<:Integer},
        tuple(Nz...),tuple(wgt...),Vol,mat) 
 end
 function Tet04P(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}} where T<:Number;
-                mat=Materials.Hooke())
-  (V, N0, Nx, Ny, Nz) = begin
-    A        = ones(4,4)
-    A[1,2:4] = p0[1]
-    A[2,2:4] = p0[2]
-    A[3,2:4] = p0[3]
-    A[4,2:4] = p0[4]
-    C        = inv(A)
-    V        = det(A)/6
-    N0       = [1/4, 1/4, 1/4, 1/4]
-    (V,(N0,),(C[2,:],),(C[3,:],),(C[4,:],))
+                p0::Vector{Vector{T}};
+                mat::M=Materials.Hooke(),
+                bReduced::Bool=false) where {T<:Number, M<:Material}
+
+  N(ξ,η,ζ) = SVector(1.0-ξ-η-ζ, ξ, η, ζ)
+
+  GPs = if bReduced
+    ((SVector(1/4, 1/4, 1/4), 1/6),)
+  else 
+    a = 0.5854101966249685
+    b = 0.1381966011250105
+    w = 1.0/24.0 
+    ((SVector(a,b,b),w),
+     (SVector(b,a,b),w),
+     (SVector(b,b,a),w),
+     (SVector(b,b,b),w)   )
   end
-  C3DP(nodes,N0,Nx,Ny,Nz,(V,),V,mat) 
+
+  nGP = length(GPs )
+  nN  = length(nodes)
+
+  N0  = Vector{Vector{T}}(undef, nGP)
+  Nx  = Vector{Vector{T}}(undef, nGP)
+  Ny  = Vector{Vector{T}}(undef, nGP)
+  Nz  = Vector{Vector{T}}(undef, nGP)
+  wgt = Vector{T}(undef, nGP)
+  V   = zero(T)
+
+  @inbounds for (ii, (coords, wii)) in enumerate(GPs)
+    N_dual = N(adiff.D1(coords)...)
+    p = sum(N_dual[a]p0[a] for a in 1:nN)
+
+    # transposed Jacobian
+    Jᵀ = SMatrix{3,3,T}(p[ii].g[jj] for jj in 1:3, ii in 1:3)
+    grads_phys = Jᵀ \ hcat(adiff.grad.(N_dual)...)
+
+    N0[ii]  = adiff.val.(N_dual)
+    Nx[ii]  = grads_phys[1, :]
+    Ny[ii]  = grads_phys[2, :]
+    Nz[ii]  = grads_phys[3, :]
+    wgt[ii] = detJ(Jᵀ) * wii
+    V += wgt[ii]
+  end
+
+  ∇N = tuple(tuple(Nx...), tuple(Ny...), tuple(Nz...),)
+  C3DP{nGP,M,T,nN,1}(nodes, tuple(N0...), ∇N, tuple(wgt...), V, mat) 
 end
-#
+
 # functions for phase field
 #
 # get the average of d over the element
