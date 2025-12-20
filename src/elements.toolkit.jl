@@ -18,6 +18,11 @@ getF(elems::Array{<:CElem},  u::AbstractArray) = [getF(elem, u[:,elem.nodes]) fo
     end
     return SMatrix{D,D,T}(∇u)
 end
+"""
+get∇u(elem::CElem{D,P,M,T,N}, u::AbstractArray{T}) where {D,P,M,T,N}
+
+Compute the average of ∇u over the element
+"""
 function get∇u(elem::CElem{D,P,M,T,N}, u::AbstractArray{T}) where {D,P,M,T,N}
     ∇u = @MMatrix zeros(T, D, D)
     for ii=1:P
@@ -26,7 +31,28 @@ function get∇u(elem::CElem{D,P,M,T,N}, u::AbstractArray{T}) where {D,P,M,T,N}
     return SMatrix{D,D,T}(∇u/elem.V)
 end
 get∇u(elems::Array{<:CElem}, u::AbstractArray) = [get∇u(elem, u[:,elem.nodes]) for elem in elems]
-
+"""
+Compute the gradient of the scalar field at integration point ii
+"""
+function get∇n(elem::CElem{D,P,M,<:Any,N}, n::AbstractArray{T}, ii::Integer) where {D,P,M,N,T}
+  ∇n = @MVector zeros(T,D)
+  n  = SVector{N,T}(n)
+  @inbounds for jj=1:D
+    ∇n[jj] = elem.∇N[jj][ii]⋅n
+  end
+  return SVector{D,T}(∇n)
+end
+"""
+Compute the average of the gradient of the scalar field over the elment
+"""
+function get∇n(elem::CElem{D,P,M,<:Any,N}, n::AbstractArray{T}) where {D,P,M,N,T}
+  ∇n = @MVector zeros(T,D)
+  n  = SVector{N,T}(n)
+  @inbounds for ii=1:P, jj=1:D
+    ∇n[jj] += elem.wgt[ii]*(elem.∇N[jj][ii]⋅n)
+  end
+  return SVector{D,T}(∇n/elem.V)
+end
 """
 Compute determinant of deformation gradient J = det(F).
 """
@@ -48,6 +74,8 @@ detJ(elems::Array{<:CElem}, u::AbstractArray)  = [detJ(elem, u[:,elem.nodes]) fo
 
 """
 Compute the current volume
+getV(elem::CElem{D,P,M,T,N}, u::AbstractArray{T}) where {D,P,M,T,N}
+getV(elems::AbstractArray{<:CElem}, u::AbstractArray)
 """
 @inline function getV(elem::CElem{D,P,M,T,N}, u::AbstractArray{T}) where {D,P,M,T,N}
     total = zero(T)
