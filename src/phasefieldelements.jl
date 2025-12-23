@@ -260,7 +260,7 @@ function makeϕrKt_d(elems::Vector{<:CPElem{D,P,M,S,N}} where {D,P,M,S}, u::Arra
   makeϕrKt(Φ, elems, d)
 end
 #
-#= getδϕu
+# getδϕu
 function getδϕu(elem::C3DP{P,<:PhaseField}, u0::Array{T}, d0::Array{T})  where {P,T}
 
   u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
@@ -294,7 +294,7 @@ function getδϕu(elem::C3DP{P,<:PhaseField}, u0::Array{T}, d0::Array{T})  where
 
   adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
 end
-=#
+#
 # getδϕd(elem::C3Ds{P,<:PhaseField}, u0::Array, d0::Array) where P = getϕ(elem, u0, adiff.D2(d0))
 # getδϕd(elem::C2Ds{P,<:PhaseField}, u0::Array, d0::Array) where P = getϕ(elem,u0,adiff.D2(d0))
 # getδϕd(elem::Rod{<:PhaseField}, u0::Array, d0::Array)                = getϕ(elem,u0,adiff.D2(d0))
