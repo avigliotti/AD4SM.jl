@@ -199,7 +199,6 @@ function makeϕrKt(Φ::Vector{<:adiff.D2}, elems::Vector{<:AbstractContinuumElem
   N  = length(u) 
   Nt = 0
   for ϕ in Φ
-    # Nt += length(ϕ.g)*length(ϕ.g)
     Nt += length(ϕ.g.v)*length(ϕ.g.v)
   end
 
@@ -227,7 +226,13 @@ function makeϕrKt(Φ::Vector{<:adiff.D2}, elems::Vector{<:AbstractContinuumElem
     N1       += Nii
   end
 
-  ϕ, r, dropzeros(sparse(II,JJ,Kt,N,N))
+  # Create the matrix
+  K_approx = sparse(II, JJ, Kt, N, N)
+  
+  # Enforce strict symmetry to handle potential truncation errors during assembly
+  K_sym = (K_approx + K_approx') / 2
+
+  ϕ, r, dropzeros(K_sym)
 end
 function makeϕr(Φ::Vector{<:adiff.Duals}, elems::Vector{<:AbstractContinuumElem}, u)
 
@@ -300,4 +305,30 @@ end
 end
 @inline Ī₁(F::Union{SMatrix{3,3}, SVector{9}}) = I₁(F)/det(F)^(2/3)
 @inline Ī₂(F::Union{SMatrix{3,3}, SVector{9}}) = I₂(F)/det(F)^(4/3)
+
+"""
+    el2nodes(elems, J)
+
+Interpolate element-averaged J to nodes.
+"""
+function el2nodes(elems::Array{AbstractElement}, J::Array{T}) where T
+  @assert length(elems)==length(J) "elems and J must have the same length "
+  nNodes = 0
+  for elem in elems
+    nNodes = max(nNodes, elem.nodes...)
+  end
+
+  # Accumulate J values at each node
+  accum = [T[] for _ in 1:nNodes]
+
+  for (elem, J) in zip(elem, J)
+    for node in elems.nodes
+      push!(accum[node], J)
+    end
+  end
+
+  # Average
+  return [sum(vals) / length(vals) for vals in accum]
+end
+
 
