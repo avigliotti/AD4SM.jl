@@ -156,8 +156,9 @@ function getd(elem::CPElem{P}, d0::Vector{T}) where {P,T}
 end
 #
 # get free energy density for the elment without history
-function getϕ(elem::CPElem{<:Any,P}, u0::AbstractArray, d0::Vector) where P
+function getϕ(elem::CPElem{D,P,M,T,N} where {D,M,T}, u0::AbstractArray, d0::AbstractArray) where {P,N}
 
+  d0= SVector{N}(d0)
   ϕ = 0
   @inline for ii=1:P
     F    = getF(elem, u0, ii)
@@ -190,7 +191,7 @@ end
 # on newer CPU this might disppear
 #
 # without history
-function getϕ(elem::C3DP{P,<:Any,<:Any,N}, u0::Array{D}, d0::Array) where {P,N,D<:adiff.D2}
+function getϕ(elem::C3DP{P,M,T,N} where {M,T}, u0::AbstractArray{D}, d0::AbstractArray) where {P,N,D<:adiff.D2}
 
   u0  = SMatrix{3,N}(adiff.D1.(u0))
   d0  = SVector{N}(d0)
@@ -261,6 +262,7 @@ function makeϕrKt_d(elems::Vector{<:CPElem{D,P,M,S,N}} where {D,P,M,S}, u::Arra
 end
 #
 # getδϕu
+#= 
 function getδϕu(elem::C3DP{P,<:PhaseField}, u0::Array{T}, d0::Array{T})  where {P,T}
 
   u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
@@ -272,7 +274,7 @@ function getδϕu(elem::C3DP{P,<:PhaseField}, u0::Array{T}, d0::Array{T})  where
   δF      = zeros(T,N,9)
 
   for ii=1:P
-    N0,Nx,Ny,Nz = elem.N0[ii],elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
+    N,Nx,Ny,Nz = elem.N[ii],elem.∇N[ii][1],elem.∇N[ii][2],elem.∇N[ii][3],
     δF[1:3:N,1] = δF[2:3:N,2] = δF[3:3:N,3] = Nx
     δF[1:3:N,4] = δF[2:3:N,5] = δF[3:3:N,6] = Ny
     δF[1:3:N,7] = δF[2:3:N,8] = δF[3:3:N,9] = Nz
@@ -294,7 +296,7 @@ function getδϕu(elem::C3DP{P,<:PhaseField}, u0::Array{T}, d0::Array{T})  where
 
   adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
 end
-#
+=#
 # getδϕd(elem::C3Ds{P,<:PhaseField}, u0::Array, d0::Array) where P = getϕ(elem, u0, adiff.D2(d0))
 # getδϕd(elem::C2Ds{P,<:PhaseField}, u0::Array, d0::Array) where P = getϕ(elem,u0,adiff.D2(d0))
 # getδϕd(elem::Rod{<:PhaseField}, u0::Array, d0::Array)                = getϕ(elem,u0,adiff.D2(d0))
@@ -308,10 +310,11 @@ function getd(elem::CPElem{<:Any,P}, d0::Array{T}) where {P,T}
   d/elem.V
 end
 # getVd
-function getVd(elem::CPElem{<:Any,P}, d0::Array{T}) where {T, P}
+function getVd(elem::CPElem{D,P,M,S,N} where {D,M,S}, d0::Array{T}) where {T,P,N}
+  d0 = SVector{N}(d0)
   Vd = zero(T)
   for ii=1:P
-    Vd += elem.wgt[ii]elem.N0[ii]⋅d0
+    Vd += elem.wgt[ii]elem.N[ii]⋅d0
   end
   Vd
 end

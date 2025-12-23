@@ -156,14 +156,14 @@ end
 """
 Return scalar field value and gradient `(d, ∇d)` at Gauss point `ii`.
 """
-@inline function get_d_and_∇d(elem::CPElem{D,P,M,T,N}, d::Vector{T}, ii::Integer) where {D,P,M,T,N}
-    nodal_d = SVector{N}(d[elem.nodes])
-    d_val = dot(elem.N[ii], nodal_d)
+@inline function get_d_and_∇d(elem::CPElem{D,P,M,T,N}, d::SVector, ii::Integer) where {D,P,M,T,N}
+    # nodal_d = SVector{N}(d)
+    d_val = elem.N[ii]⋅d
     ∇d = @MVector zeros(T, D)
     @inbounds for jj in 1:D
-        ∇d[jj] = dot(elem.∇N[jj][ii], nodal_d)
+        ∇d[jj] = elem.∇N[jj][ii]⋅d
     end
-    return d_val, SVector{D,T}(∇d)
+    return (d_val, SVector{D,T}(∇d))
 end
 
 function makeϕrKt(Φ::Vector{<:adiff.D2}, elems::Vector{<:AbstractContinuumElem}, u)

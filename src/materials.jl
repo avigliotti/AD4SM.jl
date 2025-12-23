@@ -140,7 +140,7 @@ I1sq = E[1]^2+E[5]^2+E[9]^2+2*(E[2]^2+E[3]^2+E[6]^2)
 return I1, I1sq
 end
 =#
-function get1stinvariants(F::Array{<:Number,2}, mat::Material)
+function get1stinvariants(F::AbstractMatrix{<:Number}, mat::Material)
 
   if mat.small
     E = (F+transpose(F)-2I)/2 # the symmetric part of G
