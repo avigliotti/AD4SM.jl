@@ -10,14 +10,15 @@ include("./phasefieldelements.2ndord.jl")
 function getd(elem::CPElem{P}, d0::Vector{T}) where {P,T}
   d       = zero(T)
   for ii=1:P
-    d += elem.wgt[ii]*(elem.N0[ii]⋅d0)
+    d += elem.wgt[ii]*(elem.N[ii]⋅d0)
   end  
   d/elem.V
 end
 #
 # get free energy density for the elment without history
-function getϕ(elem::CPElem{<:Any,P}, u0::AbstractArray, d0::Vector) where P
+function getϕ(elem::CPElem{D,P,M,T,N} where {D,M,T}, u0::AbstractArray, d0::AbstractArray) where {P,N}
 
+  d0= SVector{N}(d0)
   ϕ = 0
   @inline for ii=1:P
     F    = getF(elem, u0, ii)
@@ -50,7 +51,7 @@ end
 # on newer CPU this might disppear
 #
 # without history
-function getϕ(elem::C3DP{P,<:Any,<:Any,N}, u0::Array{D}, d0::Array) where {P,N,D<:adiff.D2}
+function getϕ(elem::C3DP{P,M,T,N} where {M,T}, u0::AbstractArray{D}, d0::AbstractArray) where {P,N,D<:adiff.D2}
 
   u0  = SMatrix{3,N}(adiff.D1.(u0))
   d0  = SVector{N}(d0)
@@ -132,7 +133,7 @@ function getδϕu(elem::C3DP{P,<:PhaseField}, u0::Array{T}, d0::Array{T})  where
   δF      = zeros(T,N,9)
 
   for ii=1:P
-    N0,Nx,Ny,Nz = elem.N0[ii],elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
+    N,Nx,Ny,Nz = elem.N[ii],elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
     δF[1:3:N,1] = δF[2:3:N,2] = δF[3:3:N,3] = Nx
     δF[1:3:N,4] = δF[2:3:N,5] = δF[3:3:N,6] = Ny
     δF[1:3:N,7] = δF[2:3:N,8] = δF[3:3:N,9] = Nz
@@ -140,7 +141,7 @@ function getδϕu(elem::C3DP{P,<:PhaseField}, u0::Array{T}, d0::Array{T})  where
     F    = [Nx⋅u Ny⋅u Nz⋅u;
             Nx⋅v Ny⋅v Nz⋅v;
             Nx⋅w Ny⋅w Nz⋅w ] + I
-    d    = N0⋅d0
+    d    = N⋅d0
     ∇d   = [Nx⋅d0, Ny⋅d0, Nz⋅d0]
     ϕ    = getϕ(adiff.D2(F), d, ∇d, elem.mat)::adiff.D2{9, 45, T}
     val += wgt[ii]ϕ.v
@@ -163,15 +164,16 @@ end
 function getd(elem::CPElem{<:Any,P}, d0::Array{T}) where {P,T}
   d       = zero(T)
   for ii=1:P
-    d += elem.wgt[ii]*(elem.N0[ii]⋅d0)
+    d += elem.wgt[ii]*(elem.N[ii]⋅d0)
   end  
   d/elem.V
 end
 # getVd
-function getVd(elem::CPElem{<:Any,P}, d0::Array{T}) where {T, P}
+function getVd(elem::CPElem{D,P,M,S,N} where {D,M,S}, d0::Array{T}) where {T,P,N}
+  d0 = SVector{N}(d0)
   Vd = zero(T)
   for ii=1:P
-    Vd += elem.wgt[ii]elem.N0[ii]⋅d0
+    Vd += elem.wgt[ii]elem.N[ii]⋅d0
   end
   Vd
 end
