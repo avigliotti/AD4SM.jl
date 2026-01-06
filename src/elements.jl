@@ -15,7 +15,7 @@ export CElem, CEElem, CPElem, C1DE, C2DE, C3DE, C1DP, C2DP, C3DP,
        C1D, C2D, C3D, LagrangePoly
 export getϕ, getσ, getP, detJ, getF, ×, getV
 export get∇n
-# export I₁, I₂, Ī₁, Ī₂
+export getI₁, getI₂, getĪ₁, getĪ₂
 
 
 # ---------------------------------------------------------------------------

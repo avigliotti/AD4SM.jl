@@ -9,14 +9,12 @@ Compute deformation gradient F = I + ∇u at Gauss point `ii`.
 @inline getF(elem::CElem, u::AbstractArray)              = get∇u(elem,u) + I
 getF(elems::Array{<:CElem},  u::AbstractArray) = [getF(elem, u[:,elem.nodes]) for elem in elems]
 @inline function get∇u(elem::CElem{D,P,M,<:Any,N}, u::AbstractArray{T}, ii::Integer) where {D,P,M,T,N}
-    ∇u = @MMatrix zeros(T, D, D)
-    u  = SMatrix{D,N}(u[1:D,:])
-    @inbounds for jj in 1:D
-        for kk in 1:D
-          ∇u[jj,kk] = elem.∇N[kk][ii]⋅u[jj,:]
-        end
-    end
-    return SMatrix{D,D,T}(∇u)
+  ∇u = @MMatrix zeros(T, D, D)
+  u  = SMatrix{D,N}(u[1:D,:])
+  @inbounds for jj in 1:D, kk in 1:D
+    ∇u[jj,kk] = elem.∇N[kk][ii]⋅u[jj,:]
+  end
+  return SMatrix{D,D,T}(∇u)
 end
 """
 get∇u(elem::CElem{D,P,M,T,N}, u::AbstractArray{T}) where {D,P,M,T,N}
@@ -56,16 +54,16 @@ end
 """
 Compute determinant of deformation gradient J = det(F).
 """
-@inline detJ(F::SMatrix{2,2,T}) where {T} = F[1,1]F[2,2] - F[1,2]F[2,1]
-@inline detJ(F::SMatrix{3,3,T}) where {T} = F[1,1]*(F[2,2]F[3,3]-F[2,3]F[3,2]) -
-                                            F[1,2]*(F[2,1]F[3,3]-F[2,3]F[3,1]) +
-                                            F[1,3]*(F[2,1]F[3,2]-F[2,2]F[3,1])
+@inline detJ(F::SMatrix{2,2,T} where T) = F[1,1]F[2,2] - F[1,2]F[2,1]
+@inline detJ(F::SMatrix{3,3,T} where T) = (F[1,1]*(F[2,2]F[3,3]-F[2,3]F[3,2]) -
+                                           F[1,2]*(F[2,1]F[3,3]-F[2,3]F[3,1]) +
+                                           F[1,3]*(F[2,1]F[3,2]-F[2,2]F[3,1]) )
 
 detJ(elem::CElem, u::AbstractArray, ii::Integer) = detJ(getF(elem,u,ii))
 function detJ(elem::CElem{D,P,<:Any,<:Any,N}, u::AbstractArray{T}) where {D,P,T,N}
     u = SMatrix{D,N,T}(u[1:D,:])
     J = zero(T)
-    for ii=1:P
+    @inbounds for ii=1:P
       J += elem.wgt[ii]detJ(elem, u, ii)
     end
     return J/elem.V
@@ -295,22 +293,40 @@ end
 # Invariants of C
 # ============================================================================
 
-@inline I₁(F::Union{SMatrix{3,3}, SVector{9}}) = (F[1]F[1]+F[2]F[2]+F[3]F[3]+
-                                                  F[4]F[4]+F[5]F[5]+F[6]F[6]+
-                                                  F[7]F[7]+F[8]F[8]+F[9]F[9])
-@inline I₂(F::Union{SMatrix{3,3}, SVector{9}}) = let C = F'F
+@inline getI₁(F::Union{SMatrix{3,3}, SVector{9}}) = (F[1]F[1]+F[2]F[2]+F[3]F[3]+
+                                                     F[4]F[4]+F[5]F[5]+F[6]F[6]+
+                                                     F[7]F[7]+F[8]F[8]+F[9]F[9])
+@inline getI₂(F::Union{SMatrix{3,3}, SVector{9}}) = let C = F'F
     # I₂=C₁₁C₂₂+C₁₁C₃₃+C₂₂C₃₃−C₁₂²−C₁₃²−C₂₃²
     C[1]C[5]+C[1]C[9]+C[5]C[9]-C[2]C[4]-C[3]C[7]-C[6]C[8]
 end
-@inline Ī₁(F::Union{SMatrix{3,3}, SVector{9}}) = I₁(F)/det(F)^(2/3)
-@inline Ī₂(F::Union{SMatrix{3,3}, SVector{9}}) = I₂(F)/det(F)^(4/3)
+@inline getĪ₁(F::Union{SMatrix{3,3}, SVector{9}}) = getI₁(F)/detJ(F)^(2/3)
+@inline getĪ₂(F::Union{SMatrix{3,3}, SVector{9}}) = getI₂(F)/detJ(F)^(4/3)
+
+function getĪ₁(elem::CElem{D,P} where D, u::AbstractArray{T}) where {P,T}
+  Ī₁ = zero(T)
+  @inbounds for ii=1:P
+    Ī₁ += elem.wgt[ii]getĪ₁(getF(elem, u, ii))
+  end
+  return Ī₁/elem.V
+end
+getĪ₁(elems::Array{<:Elements.CElem}, u::AbstractArray) = [getĪ₁(elem, u[:,elem.nodes]) for elem in elems]
+
+function getĪ₂(elem::CElem{D,P} where D, u::AbstractArray{T}) where {P,T}
+  Ī₂ = zero(T)
+  @inbounds for ii=1:P
+    Ī₂ += elem.wgt[ii]getĪ₂(getF(elem, u, ii))
+  end
+  return Ī₂/elem.V
+end
+getĪ₂(elems::Array{<:Elements.CElem}, u::AbstractArray) = [getĪ₂(elem, u[:,elem.nodes]) for elem in elems]
 
 """
     el2nodes(elems, J)
 
 Interpolate element-averaged J to nodes.
 """
-function el2nodes(elems::Array{AbstractElement}, J::Array{T}) where T
+function el2nodes(elems::Array{<:AbstractElement}, J::Array{T}) where T
   @assert length(elems)==length(J) "elems and J must have the same length "
   nNodes = 0
   for elem in elems
@@ -320,8 +336,8 @@ function el2nodes(elems::Array{AbstractElement}, J::Array{T}) where T
   # Accumulate J values at each node
   accum = [T[] for _ in 1:nNodes]
 
-  for (elem, J) in zip(elem, J)
-    for node in elems.nodes
+  for (elem, J) in zip(elems, J)
+    for node in elem.nodes
       push!(accum[node], J)
     end
   end
