@@ -3,7 +3,7 @@
 # ===========================================================================
 
 function Tria03P(nodes::Vector{<:Integer}, 
-                 p0::Vector{Vector{T}};
+                 p0::Vector{<:AbstractVector{T}};
                  mat::M=Materials.Hooke(),
                  bReduced::Bool=false) where {T<:Number, M<:Material}
   
@@ -19,7 +19,7 @@ function Tria03P(nodes::Vector{<:Integer},
 end
 
 function Quad04P(nodes::Vector{<:Integer}, 
-                 p0::Vector{Vector{T}};
+                 p0::Vector{<:AbstractVector{T}};
                  mat::M=Materials.Hooke(), 
                  bReduced::Bool=false) where {T<:Number, M<:Material}
 
@@ -47,7 +47,7 @@ function Quad04P(nodes::Vector{<:Integer},
 end
 
 function Tet04P(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}};
+                p0::Vector{<:AbstractVector{T}};
                 mat::M=Materials.Hooke(),
                 bReduced::Bool=false) where {T<:Number, M<:Material}
 
@@ -71,7 +71,7 @@ function Tet04P(nodes::Vector{<:Integer},
 end
 
 function Hex08P(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}};
+                p0::Vector{<:AbstractVector{T}};
                 mat::M=Materials.Hooke(),
                 bReduced::Bool=false) where {T<:Number, M<:Material}
 
@@ -104,7 +104,7 @@ function Hex08P(nodes::Vector{<:Integer},
 end
 
 function Wdg06P(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}};
+                p0::Vector{<:AbstractVector{T}};
                 mat::M=Materials.Hooke(),
                 bReduced::Bool=false) where {T<:Number, M<:Material}
 
@@ -133,7 +133,7 @@ const QuadP = Quad04P     # backward compatilbilty, will be removed
 const TriaP = Tria03P     # backward compatilbilty, will be removed
 
 # 2D Phase Field Fields (includes N0 - shape function values)
-function _calculate_pf_fields_2d(N::F, GPs, nodes::Vector, p0::Vector{Vector{T}}) where {F<:Function, T<:Number}
+function _calculate_pf_fields_2d(N::F, GPs, nodes::Vector, p0::Vector{<:AbstractVector{T}}) where {F<:Function, T<:Number}
   nGP = length(GPs)
   N0  = Vector{Vector{T}}(undef, nGP)
 
@@ -147,7 +147,7 @@ function _calculate_pf_fields_2d(N::F, GPs, nodes::Vector, p0::Vector{Vector{T}}
 end
 
 # 3D Phase Field Fields (includes N0 - shape function values)
-function _calculate_pf_fields_3d(N::F, GPs, nodes::Vector, p0::Vector{Vector{T}}) where {F<:Function, T<:Number}
+function _calculate_pf_fields_3d(N::F, GPs, nodes::Vector, p0::Vector{<:AbstractVector{T}}) where {F<:Function, T<:Number}
   nGP = length(GPs)
   N0  = Vector{Vector{T}}(undef, nGP)
 

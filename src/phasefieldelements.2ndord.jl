@@ -24,7 +24,7 @@ are applied here.
 Constructs a 6-node quadratic triangular phase-field element.
 """
 function Tria06P(nodes::Vector{<:Integer}, 
-                 p0::Vector{Vector{T}};
+                 p0::Vector{<:AbstractVector{T}};
                  mat=Materials.Hooke(),
                  bReduced::Bool=false) where T<:Number
 
@@ -55,7 +55,7 @@ end
 Constructs a 9-node quadratic phase-field quadrilateral.
 """
 function Quad09P(nodes::Vector{<:Integer}, 
-                 p0::Vector{Vector{T}};
+                 p0::Vector{<:AbstractVector{T}};
                  mat=Materials.Hooke(),
                  bReduced::Bool=false) where T<:Number
 
@@ -82,7 +82,7 @@ end
 Constructs a 10-node quadratic phase-field tetrahedron.
 """
 function Tet10P(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}};
+                p0::Vector{<:AbstractVector{T}};
                 mat=Materials.Hooke(),
                 bReduced::Bool=false) where T<:Number
 
@@ -107,7 +107,7 @@ end
 Constructs a 27-node quadratic phase-field hexahedron.
 """
 function Hex27P(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}};
+                p0::Vector{<:AbstractVector{T}};
                 mat=Materials.Hooke(),
                 bReduced::Bool=false) where T<:Number
 

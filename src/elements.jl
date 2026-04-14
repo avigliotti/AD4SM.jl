@@ -282,7 +282,7 @@ Arguments:
 - `dim`: Dimension of the element (1, 2, or 3).
 """
 function LagrangePoly(nodes::Vector{<:Integer}, 
-                      p0::Vector{Vector{T}};
+                      p0::Vector{<:AbstractVector{T}};
                       mat, order::Int=1, dim::Int=2) where T<:Number
 
   (gp_xi, gp_w) = get_gauss_points(order) # Use order+1 points for integration

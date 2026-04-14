@@ -25,7 +25,7 @@ end
 # ===========================================================================
 
 function Line(nodes::Vector{<:Integer}, 
-              p0::Vector{Vector{T}};
+              p0::Vector{<:AbstractVector{T}};
               mat::M=Materials.Hooke1D(),
               bReduced::Bool=false) where {T<:Number, M<:Material}
   
@@ -40,7 +40,7 @@ function Line(nodes::Vector{<:Integer},
 end
 
 function Tria03(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}}; 
+                p0::Vector{<:AbstractVector{T}}; 
                 mat::M=Materials.Hooke(),
                 bReduced::Bool=false) where {T<:Number, M<:Material}
 
@@ -52,11 +52,11 @@ function Tria03(nodes::Vector{<:Integer},
 
   ∇N,wgt,V = _calculate_mech_fields_2d(N, GPs, nodes, p0)
 
-  C2D{nGP,M,T,nN,1}(nodes, ∇N, wgt, V, mat) 
+  C2DE{nGP,M,T,nN,1}(nodes, ∇N, wgt, V, mat) 
 end
 
 function Quad04(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}};
+                p0::Vector{<:AbstractVector{T}};
                 mat::M=Materials.Hooke(), 
                 bReduced::Bool=false) where {T<:Number, M<:Material}
 
@@ -80,11 +80,11 @@ function Quad04(nodes::Vector{<:Integer},
 
   ∇N,wgt,V = _calculate_mech_fields_2d(N, GPs, nodes, p0)
 
-  C2D{nGP,M,T,nN,1}(nodes, ∇N, wgt, V, mat) 
+  C2DE{nGP,M,T,nN,1}(nodes, ∇N, wgt, V, mat) 
 end
 
 function Tet04(nodes::Vector{<:Integer}, 
-               p0::Vector{Vector{T}};
+               p0::Vector{<:AbstractVector{T}};
                mat::M=Materials.Hooke(),
                bReduced::Bool=false) where {T<:Number, M<:Material}
 
@@ -104,11 +104,11 @@ function Tet04(nodes::Vector{<:Integer},
 
   ∇N,wgt,V = _calculate_mech_fields_3d(N, GPs, nodes, p0)
 
-  C3D{nGP,M,T,nN,1}(nodes, ∇N, wgt, V, mat) 
+  C3DE{nGP,M,T,nN,1}(nodes, ∇N, wgt, V, mat) 
 end
 
 function Hex08(nodes::Vector{<:Integer}, 
-               p0::Vector{Vector{T}};
+               p0::Vector{<:AbstractVector{T}};
                mat::M=Materials.Hooke(),
                bReduced::Bool=false) where {T<:Number, M<:Material}
 
@@ -137,11 +137,11 @@ function Hex08(nodes::Vector{<:Integer},
 
   ∇N,wgt,V = _calculate_mech_fields_3d(N, GPs, nodes, p0)
 
-  C3D{nGP,M,T,nN,1}(nodes, ∇N, wgt, V, mat) 
+  C3DE{nGP,M,T,nN,1}(nodes, ∇N, wgt, V, mat) 
 end
 
 function Wdg06(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}};
+                p0::Vector{<:AbstractVector{T}};
                mat::M=Materials.Hooke(),
                bReduced::Bool=false) where {T<:Number, M<:Material}
 
@@ -163,14 +163,14 @@ function Wdg06(nodes::Vector{<:Integer},
 
   ∇N,wgt,V = _calculate_mech_fields_3d(N, GPs, nodes, p0)
 
-  C3D{nGP,M,T,nN,1}(nodes, ∇N, wgt, V, mat) 
+  C3DE{nGP,M,T,nN,1}(nodes, ∇N, wgt, V, mat) 
 end
 
 const Quad = Quad04       # backward compatilbilty, will be removed
 const Tria = Tria03       # backward compatilbilty, will be removed
 
 # 2D Mechanical Fields (Used by Tria03, Quad04)
-function _calculate_mech_fields_2d(N::F, GPs, nodes::Vector, p0::Vector{Vector{T}}) where {F<:Function, T<:Number}
+function _calculate_mech_fields_2d(N::F, GPs, nodes::Vector, p0::Vector{<:AbstractVector{T}}) where {F<:Function, T<:Number}
     nGP = length(GPs)
     nN  = length(nodes)
 
@@ -201,7 +201,7 @@ function _calculate_mech_fields_2d(N::F, GPs, nodes::Vector, p0::Vector{Vector{T
 end
 
 # 3D Mechanical Fields (Used by Tet04, Hex08, Wdg06)
-function _calculate_mech_fields_3d(N::F, GPs, nodes::Vector, p0::Vector{Vector{T}}) where {F<:Function, T<:Number}
+function _calculate_mech_fields_3d(N::F, GPs, nodes::Vector, p0::Vector{<:AbstractVector{T}}) where {F<:Function, T<:Number}
     nGP = length(GPs)
     nN  = length(nodes)
 
@@ -234,7 +234,7 @@ end
 # axysimmetric elments need to be fixed
 #
 function ASTria(nodes::Vector{<:Integer},
-                p0::Vector{Vector{T}} where T<:Number;
+                p0::Vector{<:AbstractVector{T}} where T<:Number;
                 mat=Materials.Hooke())
   (N,Nx,Ny,X0,wgt,A) = begin 
     (x1, x2, x3) = (p0[1][1], p0[2][1], p0[3][1])
@@ -252,7 +252,7 @@ function ASTria(nodes::Vector{<:Integer},
   CAS(nodes,N,Nx,Ny,X0,wgt,A,mat) 
 end
 function ASQuad(nodes::Vector{<:Integer},
-                p0::Vector{Vector{T}};
+                p0::Vector{<:AbstractVector{T}};
                 mat=Materials.Hooke()) where T<:Number
   (V,N0,Nx,Ny,X0,wgt) = begin
     r        = [-1, 1]*0.577350269189626 # √3/3

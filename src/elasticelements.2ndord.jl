@@ -144,7 +144,7 @@ Constructs a 6-node quadratic triangular element.
 **Quadrature**: Uses a fixed 3-point rule (Strang).
 """
 function Tria06(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}};
+                p0::Vector{<:AbstractVector{T}};
                 mat=Materials.Hooke(),
                 bReduced::Bool=false) where T<:Number
 
@@ -177,7 +177,7 @@ end
 Constructs a 9-node quadratic Lagrangian quadrilateral.
 """
 function Quad09(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}};
+                p0::Vector{<:AbstractVector{T}};
                 mat=Materials.Hooke(),
                 bReduced::Bool=false) where T<:Number
 
@@ -209,7 +209,7 @@ end
 Constructs an 8-node Serendipity quadratic quadrilateral.
 """
 function Quad08(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}};
+                p0::Vector{<:AbstractVector{T}};
                 mat=Materials.Hooke(),
                 bReduced::Bool=false) where T<:Number
 
@@ -229,7 +229,7 @@ end
 Constructs a 10-node quadratic tetrahedron.
 """
 function Tet10(nodes::Vector{<:Integer}, 
-               p0::Vector{Vector{T}};
+               p0::Vector{<:AbstractVector{T}};
                mat=Materials.Hooke(),
                bReduced::Bool=false) where T<:Number
 
@@ -262,7 +262,7 @@ end
 Constructs a 27-node quadratic Lagrange hexahedron.
 """
 function Hex27(nodes::Vector{<:Integer}, 
-               p0::Vector{Vector{T}};
+               p0::Vector{<:AbstractVector{T}};
                mat=Materials.Hooke(),
                bReduced::Bool=false) where T<:Number
 

@@ -9,7 +9,8 @@ Compute deformation gradient F = I + ∇u at Gauss point `ii`.
 @inline getF(elem::CElem, u::AbstractArray)              = get∇u(elem,u) + I
 getF(elems::Array{<:CElem},  u::AbstractArray) = [getF(elem, u[:,elem.nodes]) for elem in elems]
 @inline function get∇u(elem::CElem{D,P,M,<:Any,N}, u::AbstractArray{T}, ii::Integer) where {D,P,M,T,N}
-  ∇u = @MMatrix zeros(T, D, D)
+  # ∇u = @MMatrix zeros(T, D, D)
+  ∇u = zeros(T, D, D)
   u  = SMatrix{D,N}(u[1:D,:])
   @inbounds for jj in 1:D, kk in 1:D
     ∇u[jj,kk] = elem.∇N[kk][ii]⋅u[jj,:]
@@ -75,7 +76,7 @@ Compute the current volume
 getV(elem::CElem{D,P,M,T,N}, u::AbstractArray{T}) where {D,P,M,T,N}
 getV(elems::AbstractArray{<:CElem}, u::AbstractArray)
 """
-@inline function getV(elem::CElem{D,P,M,T,N}, u::AbstractArray{T}) where {D,P,M,T,N}
+@inline function getV(elem::CElem{<:Any,P}, u::AbstractArray{T}) where {P,T}
     total = zero(T)
     @inbounds for ii in 1:P
         total += elem.wgt[ii] * detJ(getF(elem, u, ii))
