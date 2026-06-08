@@ -204,7 +204,7 @@ end
 Evaluate the total strain energy of an axisymmetric element given the
 nodal displacement array `u` (2 × N_nodes, rows = [u_r; u_z]).
 """
-function getϕ(elem::CASElem{<:Any,<:Any,<:Any,<:Any,P_}, u::AbstractArray{D}) where {P_,D}
+function getϕ(elem::CASElem{P,M,T,N,O}, u::AbstractArray{D}) where {P,M,T,N,O,D}
     P = length(elem.wgt)
     ϕ = zero(D)
     @inbounds for ii in 1:P
@@ -270,8 +270,8 @@ function getδϕ(elem::CASElem{P_,M,T_,Nn,O}, u0::AbstractArray{T}) where {P_,M,
         uz = SVector{Nn,T}(u0[2:2:end])
         Fθθ = one(T) + (N0 ⋅ ur) / r
         F_val = SMatrix{3,3,T}(
-            Nr⋅ur + 1,  Nz⋅ur,  zero(T),
-            Nr⋅uz,      Nz⋅uz+1, zero(T),
+            Nr⋅ur + 1,  Nr⋅uz,  zero(T),
+            Nz⋅ur,      Nz⋅uz+1, zero(T),
             zero(T),    zero(T), Fθθ
         )
 

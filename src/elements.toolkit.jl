@@ -386,8 +386,8 @@ Return the 3×3 axisymmetric deformation gradient at Gauss point `ii`.
     Fθθ = one(eltype(ur)) + (N0 ⋅ ur) / r
 
     return SMatrix{3,3}(
-        Nr⋅ur + 1,  Nz⋅ur,      zero(eltype(ur)),
-        Nr⋅uz,      Nz⋅uz + 1,  zero(eltype(ur)),
+        Nr⋅ur + 1,  Nr⋅uz,      zero(eltype(ur)),
+        Nz⋅ur,      Nz⋅uz + 1,  zero(eltype(ur)),
         zero(eltype(ur)), zero(eltype(ur)), Fθθ
     )
 end
