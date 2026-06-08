@@ -292,3 +292,58 @@ function Hex27(nodes::Vector{<:Integer},
     C3DE(nodes, ∇N[1], ∇N[2], ∇N[3], wgt, V, mat, 2)
 end
 
+# ===========================================================================
+# AXISYMMETRIC SECOND-ORDER MECHANICAL ELEMENTS
+# ===========================================================================
+
+"""
+    ASTria06(nodes, p0; mat=Materials.Hooke())
+
+Constructs a 6-node quadratic axisymmetric triangular element.
+Uses the standard 3-point triangular quadrature rule.
+"""
+function ASTria06(nodes::Vector{<:Integer},
+                  p0::Vector{<:AbstractVector{T}};
+                  mat=Materials.Hooke()) where T<:Number
+
+    function N_fun(ξ, η)
+        λ = (one(T) - ξ - η, ξ, η)
+        SVector(
+            λ[1]*(2λ[1]-1), λ[2]*(2λ[2]-1), λ[3]*(2λ[3]-1),
+            4λ[1]*λ[2],      4λ[2]*λ[3],      4λ[3]*λ[1]
+        )
+    end
+
+    w = T(1.0/3.0)
+    GPs = (
+        (SVector{2,T}(T(1.0/6.0), T(1.0/6.0)), w),
+        (SVector{2,T}(T(2.0/3.0), T(1.0/6.0)), w),
+        (SVector{2,T}(T(1.0/6.0), T(2.0/3.0)), w),
+    )
+
+    N0, Nr, Nz, r_GP, wgt, V = _calculate_as_fields_as(N_fun, GPs, nodes, p0)
+
+    CASElem(nodes, tuple(N0...), tuple(Nr...), tuple(Nz...),
+            tuple(r_GP...), tuple(wgt...), V, mat, 2)
+end
+
+"""
+    ASQuad08(nodes, p0; mat=Materials.Hooke(), bReduced=false)
+
+Constructs an 8-node serendipity quadratic axisymmetric quadrilateral.
+Full integration uses the 3×3 tensor-product Gauss rule; reduced integration
+uses the 2×2 rule.
+"""
+function ASQuad08(nodes::Vector{<:Integer},
+                  p0::Vector{<:AbstractVector{T}};
+                  mat=Materials.Hooke(),
+                  bReduced::Bool=false) where T<:Number
+
+    GP_1d = get_gauss_rule_1d(bReduced)
+    GPs   = generate_tensor_GPs(GP_1d, 2, T)
+
+    N0, Nr, Nz, r_GP, wgt, V = _calculate_as_fields_as(N_Quad08, GPs, nodes, p0)
+
+    CASElem(nodes, tuple(N0...), tuple(Nr...), tuple(Nz...),
+            tuple(r_GP...), tuple(wgt...), V, mat, 2)
+end

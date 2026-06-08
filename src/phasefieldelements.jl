@@ -51,6 +51,13 @@ end
 # on newer CPU this might disppear
 #
 # without history
+"""
+    getϕ(elem::C3DP, u0::AbstractArray{D}, d0::AbstractArray) where D<:adiff.D2
+
+Optimized 3D phase-field free-energy evaluation using local 3×3 kinematics at
+Gauss-point level and the `×` operator for chain-rule propagation with respect
+to the displacement DOFs.
+"""
 function getϕ(elem::C3DP{P,M,T,N} where {M,T}, u0::AbstractArray{D}, d0::AbstractArray) where {P,N,D<:adiff.D2}
 
   u0  = SMatrix{3,N}(adiff.D1.(u0))
@@ -61,12 +68,19 @@ function getϕ(elem::C3DP{P,M,T,N} where {M,T}, u0::AbstractArray{D}, d0::Abstra
     d,∇d = get_d_and_∇d(elem,d0, ii)
     valF = adiff.val.(F)
     δϕ   = getϕ(adiff.D2(valF), d, ∇d, elem.mat)
-    ϕ   += elem.wgt[ii]δϕ×F
+    ϕ   += elem.wgt[ii] * (δϕ × F)
   end
   ϕ
 end
 #
 # with history
+"""
+    getϕ(elem::C3DP, u0::Array{D}, d0::Array, ϕmax::Array) where D<:adiff.D2
+
+Optimized 3D phase-field free-energy evaluation with history, using local 3×3
+kinematics at Gauss-point level and the `×` operator for chain-rule
+propagation with respect to the displacement DOFs.
+"""
 function getϕ(elem::C3DP{P,<:Any,<:Any,N}, u0::Array{D}, d0::Array, ϕmax::Array) where {P,N,D<:adiff.D2}
 
   u0  = SMatrix{3,N}(adiff.D1.(u0))
@@ -77,7 +91,7 @@ function getϕ(elem::C3DP{P,<:Any,<:Any,N}, u0::Array{D}, d0::Array, ϕmax::Arra
     d,∇d = get_d_and_∇d(elem,d0, ii)
     valF = adiff.val.(F)
     δϕ,ϕmax[ii] = getϕ(adiff.D2(valF), d, ∇d, elem.mat, ϕmax[ii])
-    ϕ   += elem.wgt[ii]δϕ×F
+    ϕ   += elem.wgt[ii] * (δϕ × F)
   end
   ϕ
 end

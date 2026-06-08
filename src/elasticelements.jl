@@ -23,16 +23,25 @@ end
 # derivative, the other use the standard implementation common for all
 # on newer CPU this might disppear
 #
+"""
+    getϕ(elem::C3DE{P}, u0::Array{D}) where D<:adiff.D2
+
+Optimized 3D mechanical free-energy evaluation using local 3×3 kinematics at
+Gauss-point level and the `×` operator for chain-rule propagation back to the
+nodal DOFs.
+"""
 function getϕ(elem::C3DE{P}, u0::Array{D}) where {P,D<:adiff.D2}
 
   u0 = adiff.D1.(u0)
-  ϕ  = zero(D) 
+  ϕ  = zero(D)
   @inline for ii=1:P
     F    = getF(elem, u0, ii)
     valF = adiff.val.(F)
     δϕ   = getϕ(adiff.D2(valF), elem.mat)
-    ϕ   += elem.wgt[ii]δϕ×F
+    ϕ   += elem.wgt[ii] * (δϕ × F)
   end
+  ϕ
+end
   ϕ
 end
 #
@@ -217,7 +226,7 @@ end
 """
     getϕ(elem::CASElem{P,M,T,N,O}, u0::AbstractArray{D}) where D<:adiff.D2
 
-Optimized axisymmetric free-energy evaluation using local 3×3 kinematics at the
+Optimized axisymmetric free-energy evaluation using local 3×3 kinematics at
 Gauss-point level and the `×` operator for chain-rule propagation back to the
 2N nodal DOFs.
 """
