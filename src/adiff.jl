@@ -2,12 +2,12 @@ __precompile__()
 
 module adiff
 
-using LinearAlgebra
+using LinearAlgebra, StaticArrays
 import Base: @propagate_inbounds, length, getindex, copy, convert, promote_rule
-import Base: +, -, *, /, ^, inv, abs, sqrt, log, exp, zero, conj#, Real
+import Base: +, -, *, /, ^, inv, abs, sqrt, log, exp, zero, conj
 import Base: >, <, ≥, ≤, ==
-import Base: sin, cos, sinh, cosh, tanh
-import LinearAlgebra: norm, dot, transpose
+import Base: sin, cos, sinh, cosh, tanh, acos, min, max, eps
+import LinearAlgebra: norm, dot, transpose, svdvals
 
 # Macros
 macro swap(x, y)
@@ -123,6 +123,7 @@ promote_rule(::Type{D1{N, T}}, ::Type{<:Real}) where {N, T} = D1{N, T}
 @inline sinh(x::D1)                     = D1(sinh(x.v), cosh(x.v)*x.g)
 @inline cosh(x::D1)                     = D1(cosh(x.v), sinh(x.v)*x.g)
 @inline tanh(x::D1)                     = D1(tanh(x.v), (1-tanh(x.v)^2)*x.g)
+@inline acos(x::D1)                     = D1(acos(x.v), -1/sqrt(1 - x^2)*x.g)
 @inline sqrt(x::D1)                     = x^0.5
 @inline abs(x::D1)                      = x.v ≥ 0 ? x : -x
 @inline conj(x::D1{N, <:Real}) where N  = x
@@ -144,6 +145,7 @@ promote_rule(::Type{D1{N, T}}, ::Type{<:Real}) where {N, T} = D1{N, T}
 @inline sinh(x::D2)                     = D2(sinh(x.v), cosh(x.v)*x.g, sinh(x.v)*(x.g*x.g)+cosh(x.v)*x.h)
 @inline cosh(x::D2)                     = D2(cosh(x.v), sinh(x.v)*x.g, cosh(x.v)*(x.g*x.g)+sinh(x.v)*x.h)
 @inline tanh(x::D2)                     = D2(tanh(x.v), (1-tanh(x.v)^2)*x.g, 2*(tanh(x.v)^2-1)*tanh(x.v)*(x.g*x.g)+(1-tanh(x.v)^2)*x.h)
+@inline acos(x::D2)                     = D2(acos(x.v), -1/sqrt(1 - x^2)*x.g, -x/(1 - x^2)^(3/2)*(x.g*x.g)-1/sqrt(1 - x^2)*x.h)
 @inline sqrt(x::D2)                     = x^0.5
 @inline abs(x::D2)                      = x.v ≥ 0 ? x : -x
 @inline conj(x::D2{N, M, <:Real}) where {N, M} = x
@@ -158,5 +160,84 @@ promote_rule(::Type{D1{N, T}}, ::Type{<:Real}) where {N, T} = D1{N, T}
 @inline grad(x::Duals)                  = [g for g in x.g.v]
 @inline hess(x::D1{N, T}) where {N, T}  = zeros(T, N, N)
 @inline hess(x::D2{N, M, T}) where {N, M, T} = [x.h[i, j] for i in 1:N, j in 1:N]
+
+
+@inline min(x::Duals, y::Duals)   = x.v < y.v ? x : y
+@inline max(x::Duals, y::Duals)   = x.v > y.v ? x : y
+@inline eps(x::T) where T<:Duals  = T(eps(x.v))
+
+function svdvals(F::SMatrix{3,3,T}; tol=1e-24, ϵη=1e-30) where T <: Duals
+  # Smooth positive part: ~ max(x,0), but analytic
+  @inline smoothplus(x, ϵ) = (x + sqrt(x*x + ϵ*ϵ)) / 2
+
+  # C = F'F, expanded explicitly
+  f11,f12,f13 = F[1,1],F[1,2],F[1,3]
+  f21,f22,f23 = F[2,1],F[2,2],F[2,3]
+  f31,f32,f33 = F[3,1],F[3,2],F[3,3]
+
+  c11 = f11*f11 + f21*f21 + f31*f31
+  c22 = f12*f12 + f22*f22 + f32*f32
+  c33 = f13*f13 + f23*f23 + f33*f33
+  c12 = f11*f12 + f21*f22 + f31*f32
+  c13 = f11*f13 + f21*f23 + f31*f33
+  c23 = f12*f13 + f22*f23 + f32*f33
+
+  # mean eigenvalue
+  m = (c11 + c22 + c33) / 3
+
+  # deviatoric part B = C - m I
+  b11 = c11 - m
+  b22 = c22 - m
+  b33 = c33 - m
+  b12 = c12
+  b13 = c13
+  b23 = c23
+
+  # p² = tr(B²)/6
+  trB2 = b11*b11 + b22*b22 + b33*b33 + 2*(b12*b12 + b13*b13 + b23*b23)
+  p2 = trB2 / 6
+
+  η1 = m
+  η2 = m
+  η3 = m
+
+  if p2 > tol
+    p = sqrt(p2)
+    invp = inv(p)
+
+    # R = B/p
+    r11 = b11*invp
+    r22 = b22*invp
+    r33 = b33*invp
+    r12 = b12*invp
+    r13 = b13*invp
+    r23 = b23*invp
+
+    detR = r11*(r22*r33 - r23*r23) -
+    r12*(r12*r33 - r13*r23) +
+    r13*(r12*r23 - r13*r22)
+
+    # exact theory gives r in [-1,1]
+    r = detR / 2
+
+    # numerical safeguard
+    # r = min(one(T), max(-one(T), r))
+    r = min(one(T)-eps(r.v), max(-one(T)+eps(r.v), r))
+
+    ϕ = acos(r) / 3
+
+    two_p = 2p
+    η1 = m + two_p*cos(ϕ)
+    η2 = m + two_p*cos(ϕ + 2T(pi)/3)
+    η3 = m + two_p*cos(ϕ + 4T(pi)/3)
+  end
+
+  # protect sqrt from tiny negative roundoff
+  η1 = smoothplus(η1, T(ϵη))
+  η2 = smoothplus(η2, T(ϵη))
+  η3 = smoothplus(η3, T(ϵη))
+
+  return @SVector [sqrt(η1), sqrt(η2), sqrt(η3)]
+end
 
 end
