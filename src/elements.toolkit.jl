@@ -348,3 +348,57 @@ function el2nodes(elems::Array{<:AbstractElement}, J::Array{T}) where T
 end
 
 
+# ===========================================================================
+# elements.toolkit.axisym.jl
+# ---------------------------------------------------------------------------
+# getF  dispatch for CASElem
+#
+# The axisymmetric deformation gradient is 3×3 in cylindrical coordinates
+# (r, θ, z).  With the axis of symmetry along z and u = [u_r, u_z]:
+#
+#   F = | ∂u_r/∂r + 1     ∂u_r/∂z       0           |
+#       | ∂u_z/∂r         ∂u_z/∂z + 1   0           |
+#       | 0               0             u_r/r_GP + 1 |
+#
+# where  u_r/r_GP  =  (Σ_a N_a u_r^a) / r_GP.
+#
+# Column-major storage of F (as used throughout AD4SM):
+#   index 1..9 = F[1,1], F[2,1], F[3,1], F[1,2], F[2,2], F[3,2],
+#                F[1,3], F[2,3], F[3,3]
+# ===========================================================================
+
+"""
+    getF(elem::CASElem, u, ii)
+
+Return the 3×3 axisymmetric deformation gradient at Gauss point `ii`.
+
+`u` is a (2 × N_nodes) array with rows [u_r; u_z].
+"""
+@inline function getF(elem::CASElem{P,M,T,N}, u::AbstractArray, ii::Integer) where {P,M,T,N}
+    ur = SVector{N}(u[1,:])          # radial displacements
+    uz = SVector{N}(u[2,:])          # axial  displacements
+    Nr = elem.∇N[1][ii]              # ∂N_a/∂r
+    Nz = elem.∇N[2][ii]              # ∂N_a/∂z
+    N0 = elem.N0[ii]                 # N_a values at GP
+    r  = elem.r_GP[ii]               # reference radial coordinate
+
+    # hoop stretch:  (r + u_r)/r = 1 + Σ_a N_a u_r^a / r
+    Fθθ = one(eltype(ur)) + (N0 ⋅ ur) / r
+
+    return SMatrix{3,3}(
+        Nr⋅ur + 1,  Nz⋅ur,      zero(eltype(ur)),
+        Nr⋅uz,      Nz⋅uz + 1,  zero(eltype(ur)),
+        zero(eltype(ur)), zero(eltype(ur)), Fθθ
+    )
+end
+
+# Volume-averaged F (used by getσ and diagnostics)
+function getF(elem::CASElem{P}, u::AbstractArray{T}) where {P,T}
+    nN  = length(elem.nodes)
+    u   = SMatrix{2,nN,T}(u[1:2,:])
+    Favg = @MMatrix zeros(T, 3, 3)
+    @inbounds for ii in 1:P
+        Favg .+= elem.wgt[ii] .* getF(elem, u, ii)
+    end
+    SMatrix{3,3,T}(Favg / elem.V)
+end

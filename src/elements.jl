@@ -48,6 +48,22 @@ abstract type AbstractContinuumElem <: AbstractElement end
 # Updated AbstractCElem to include Order parameter (O)
 abstract type AbstractCElem{D,P,M,T,N,O} <: AbstractContinuumElem end
 
+"""
+AbstractASElem{P,M,T,N,O}
+
+Abstract supertype for axisymmetric continuum elements.
+The reference mesh lives in the meridional (r,z) plane (2 DOFs/node),
+but the deformation gradient is always 3×3 (including the hoop stretch).
+
+Type parameters mirror AbstractCElem but D is implicit (always 2 in reference):
+- `P` : number of Gauss points
+- `M` : material type
+- `T` : numeric type
+- `N` : number of element nodes
+- `O` : element order  (1 = linear, 2 = quadratic, ...)
+"""
+abstract type AbstractASElem{P,M,T,N,O} <: AbstractContinuumElem end
+
 # ---------------------------------------------------------------------------
 # CEElem — Mechanical elements
 # ---------------------------------------------------------------------------
@@ -114,6 +130,30 @@ struct CPElem{D,P,M,T,N,O} <: AbstractCElem{D,P,M,T,N,O}
   mat::M
 end
 
+"""
+CASElem{P,M,T,N,O}
+
+Axisymmetric continuum element.
+
+Fields:
+- `nodes` : nodal connectivity (length N)
+- `N0`    : NTuple{P,SVector{N,T}}  — shape-function values at each GP
+- `∇N`    : NTuple{2,NTuple{P,SVector{N,T}}} — ∂N/∂r and ∂N/∂z at each GP
+- `r_GP`  : NTuple{P,T}  — reference radial coordinate at each GP
+- `wgt`   : NTuple{P,T}  — integration weights (= det(J)*2π*r_GP*w_ref)
+- `V`     : reference volume  (= ∫ 2π r dA over element)
+- `mat`   : material model
+"""
+struct CASElem{P,M,T,N,O} <: AbstractASElem{P,M,T,N,O}
+  nodes :: Vector{<:Integer}
+  N0    :: NTuple{P, SVector{N,T}}
+  ∇N    :: NTuple{2, NTuple{P, SVector{N,T}}}
+  r_GP  :: NTuple{P, T}
+  wgt   :: NTuple{P, T}
+  V     :: T
+  mat   :: M
+end
+
 # ---------------------------------------------------------------------------
 # Type aliases for convenience
 # ---------------------------------------------------------------------------
@@ -126,6 +166,8 @@ const C3DE{P,M,T,N,O} = CEElem{3,P,M,T,N,O}
 const C1DP{P,M,T,N,O} = CPElem{1,P,M,T,N,O}
 const C2DP{P,M,T,N,O} = CPElem{2,P,M,T,N,O}
 const C3DP{P,M,T,N,O} = CPElem{3,P,M,T,N,O}
+
+const CAS{P,M,T,N,O} = CASElem{P,M,T,N,O}
 
 const C1D = Union{C1DE,C1DP}
 const C2D = Union{C2DE,C2DP}
@@ -223,6 +265,32 @@ function C3DP(nodes, N0, Nx, Ny, Nz, wgt, V::T, mat::M, O::Int=1) where {M<:Mate
                      ntuple(ii->SVector{N}(Ny[ii]), P),
                      ntuple(ii->SVector{N}(Nz[ii]), P) ),
                     wgt, V, mat)
+end
+
+# ---------------------------------------------------------------------------
+# Constructor helper  CASELEM(nodes, N0, Nr, Nz, r_GP, wgt, V, mat, ord=1)
+# ---------------------------------------------------------------------------
+"""
+    CASElem(nodes, N0, Nr, Nz, r_GP, wgt, V, mat, ord=1)
+
+Low-level constructor that converts plain array-of-arrays into the
+fully typed `CASElem`.  All tuple-of-arrays arguments accept the same
+formats used by `C2DP`.
+"""
+function CASElem(nodes, N0, Nr, Nz, r_GP, wgt, V, mat, ord=1)
+  P   = length(wgt)
+  Nn  = length(N0[1])
+  M   = typeof(mat)
+  T   = eltype(wgt)
+  CASElem{P,M,T,Nn,ord}(
+    nodes,
+    ntuple(ii -> SVector{Nn,T}(N0[ii]),   P),
+    ( ntuple(ii -> SVector{Nn,T}(Nr[ii]), P),
+      ntuple(ii -> SVector{Nn,T}(Nz[ii]), P) ),
+    ntuple(ii -> T(r_GP[ii]), P),
+    ntuple(ii -> T(wgt[ii]),  P),
+    T(V),
+    mat)
 end
 
 # ---------------------------------------------------------------------------

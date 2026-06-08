@@ -170,3 +170,208 @@ function getδϕ(elems::Vector{<:CEElem}, u::Array{T,2}) where T
 end
 
 
+# ===========================================================================
+# elasticelements.axisym.jl
+# ---------------------------------------------------------------------------
+# Energy, residual and tangent stiffness for CASElem elements.
+#
+# KEY KINEMATIC FACTS (recap):
+#   DOFs per element : 2*N  (u_r^1..u_r^N, u_z^1..u_z^N  interleaved as
+#                            [ur1, uz1, ur2, uz2, ...] matching the
+#                            global 2-row DOF layout u[1,:], u[2,:])
+#   F components     : 9   (3×3, column-major)
+#
+# Non-zero sensitivities  δF[dof_i, F_col]  for node a:
+#   dof layout:  ur^a → row 2(a-1)+1,   uz^a → row 2(a-1)+2
+#
+#   F[1,1] = ∂u_r/∂r + 1   → col 1   ∂/∂ur^a = Nr[a]
+#   F[2,1] = ∂u_z/∂r       → col 2   ∂/∂uz^a = Nr[a]
+#   F[1,2] = ∂u_r/∂z       → col 4   ∂/∂ur^a = Nz[a]
+#   F[2,2] = ∂u_z/∂z + 1   → col 5   ∂/∂uz^a = Nz[a]
+#   F[3,3] = u_r/r + 1     → col 9   ∂/∂ur^a = N0[a]/r
+#   (all other columns are zero for axisymmetric problems)
+#
+# Note: column index follows Julia column-major SMatrix{3,3} ordering:
+#   col 1 = F[:,1] = (F11,F21,F31)   col 4 = F[:,2] = (F12,F22,F32)  etc.
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# getϕ  (plain real — used for debugging / energy monitoring)
+# ---------------------------------------------------------------------------
+"""
+    getϕ(elem::CASElem, u)
+
+Evaluate the total strain energy of an axisymmetric element given the
+nodal displacement array `u` (2 × N_nodes, rows = [u_r; u_z]).
+"""
+function getϕ(elem::CASElem{<:Any,<:Any,<:Any,<:Any,P_}, u::AbstractArray{D}) where {P_,D}
+    P = length(elem.wgt)
+    ϕ = zero(D)
+    @inbounds for ii in 1:P
+        F   = getF(elem, u, ii)
+        ϕ  += elem.wgt[ii] * getϕ(F, elem.mat)
+    end
+    return ϕ
+end
+
+# ---------------------------------------------------------------------------
+# getδϕ  — D2 dual: energy + gradient (residual) + Hessian (stiffness)
+# ---------------------------------------------------------------------------
+"""
+    getδϕ(elem::CASElem{P,M,T,N}, u0)
+
+Compute the element strain energy as an `adiff.D2` dual number with
+respect to the `2N` nodal DOFs `u0` (laid out as [ur1,uz1,ur2,uz2,...]).
+
+Returns `adiff.D2{2N, N*(2N+1), T}`.
+"""
+function getδϕ(elem::CASElem{P_,M,T_,Nn,O}, u0::AbstractArray{T}) where {P_,M,T_,Nn,O,T}
+
+    P     = length(elem.wgt)
+    Ndofs = 2 * Nn                         # 2 DOFs per node (ur, uz)
+    val   = zero(T)
+    grad  = zeros(T, Ndofs)
+    hess  = zeros(T, (Ndofs+1)*Ndofs ÷ 2)
+
+    # δF layout:  δF[dof_i, F_col],  F_col ∈ 1..9 (column-major)
+    δF = zeros(T, Ndofs, 9)
+
+    @inbounds for ii in 1:P
+
+        Nr  = elem.∇N[1][ii]         # ∂N/∂r  at GP ii
+        Nz  = elem.∇N[2][ii]         # ∂N/∂z  at GP ii
+        N0  = elem.N0[ii]            # N_a    at GP ii
+        r   = elem.r_GP[ii]          # reference radial coord at GP ii
+        w   = elem.wgt[ii]
+
+        # ----------------------------------------------------------------
+        # Fill δF for this Gauss point
+        # ----------------------------------------------------------------
+        fill!(δF, zero(T))
+        @inbounds for a in 1:Nn
+            ur_idx = 2*(a-1) + 1     # DOF index for u_r^a
+            uz_idx = 2*(a-1) + 2     # DOF index for u_z^a
+
+            δF[ur_idx, 1] = Nr[a]        # ∂F11/∂ur^a
+            δF[uz_idx, 2] = Nr[a]        # ∂F21/∂uz^a
+            # col 3 (F31) = 0
+            δF[ur_idx, 4] = Nz[a]        # ∂F12/∂ur^a
+            δF[uz_idx, 5] = Nz[a]        # ∂F22/∂uz^a
+            # col 6 (F32) = 0
+            # col 7 (F13) = 0
+            # col 8 (F23) = 0
+            δF[ur_idx, 9] = N0[a] / r    # ∂F33/∂ur^a  (hoop term)
+        end
+
+        # ----------------------------------------------------------------
+        # Evaluate F at GP from the plain (non-dual) displacements
+        # ----------------------------------------------------------------
+        ur = SVector{Nn,T}(u0[1:2:end])
+        uz = SVector{Nn,T}(u0[2:2:end])
+        Fθθ = one(T) + (N0 ⋅ ur) / r
+        F_val = SMatrix{3,3,T}(
+            Nr⋅ur + 1,  Nz⋅ur,  zero(T),
+            Nr⋅uz,      Nz⋅uz+1, zero(T),
+            zero(T),    zero(T), Fθθ
+        )
+
+        # ----------------------------------------------------------------
+        # Constitutive dual  ϕ(F) — material is agnostic of element type
+        # ----------------------------------------------------------------
+        ϕ = getϕ(adiff.D2(adiff.val.(F_val)), elem.mat)::adiff.D2{9,45,T}
+
+        # ----------------------------------------------------------------
+        # Accumulate energy
+        # ----------------------------------------------------------------
+        val += w * ϕ.v
+
+        # ----------------------------------------------------------------
+        # Accumulate gradient:  r_i += w * Σ_j (∂ϕ/∂F_j) δF[i,j]
+        # ----------------------------------------------------------------
+        @inbounds for j in 1:9
+            coeff = w * ϕ.g[j]
+            iszero(coeff) && continue
+            for i in 1:Ndofs
+                grad[i] += coeff * δF[i, j]
+            end
+        end
+
+        # ----------------------------------------------------------------
+        # Accumulate Hessian (triangular storage, i2 ≤ i1):
+        #   K[i1,i2] += w * Σ_{j,k} (∂²ϕ/∂F_j∂F_k) δF[i1,j] δF[i2,k]
+        # ----------------------------------------------------------------
+        @inbounds for j in 1:9, k in 1:j
+            hjk = w * ϕ.h[j,k]
+            iszero(hjk) && continue
+            for i1 in 1:Ndofs
+                c1 = δF[i1, j]
+                iszero(c1) && continue
+                for i2 in 1:i1
+                    idx_tri = (i1-1)*i1 ÷ 2 + i2
+                    hess[idx_tri] += hjk * c1 * δF[i2, k]
+                end
+            end
+        end
+
+    end  # Gauss loop
+
+    return adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
+end
+
+
+# ---------------------------------------------------------------------------
+# makeϕrKt  — assemble global energy, residual and stiffness
+# ---------------------------------------------------------------------------
+"""
+    makeϕrKt(elems::AbstractVector{<:CASElem}, u)
+
+Assemble the global strain energy `ϕ`, residual vector `r`, and tangent
+stiffness matrix `Kt` for an array of axisymmetric elements.
+
+`u` must be a (2 × n_nodes) displacement array (rows = [u_r; u_z]).
+
+Returns `(ϕ, r, Kt)` in the same format as the CEElem version.
+"""
+function makeϕrKt(elems::AbstractVector{<:CASElem}, u::AbstractMatrix{T}) where T
+
+    nElems = length(elems)
+    @assert nElems > 0 "makeϕrKt: `elems` is empty"
+
+    # Element DOF count — same for every element in a homogeneous array
+    elem1  = elems[1]
+    Nn     = length(elem1.nodes)
+    Ndofs  = 2 * Nn
+    Mdofs  = (Ndofs + 1) * Ndofs ÷ 2
+
+    Φ = Vector{adiff.D2{Ndofs, Mdofs, T}}(undef, nElems)
+
+    Threads.@threads for ii in 1:nElems
+        Φ[ii] = getδϕ(elems[ii], u[:, elems[ii].nodes][:])
+    end
+
+    # Reuse the existing sparse-assembly utility from elements.toolkit.jl
+    makeϕrKt(Φ, elems, u)
+end
+
+
+# ---------------------------------------------------------------------------
+# Convenience: getσ for post-processing
+# ---------------------------------------------------------------------------
+"""
+    getσ(elem::CASElem, u)
+
+Return the volume-averaged Cauchy stress tensor (3×3) for the element.
+"""
+function getσ(elem::CASElem{P_,M,T_,Nn}, u::AbstractArray{T}) where {P_,M,T_,Nn,T}
+    P = length(elem.wgt)
+    σ = @MMatrix zeros(T, 3, 3)
+    u_s = SMatrix{2,Nn,T}(u[1:2,:])
+    @inbounds for ii in 1:P
+        F   = getF(elem, u_s, ii)
+        δϕ  = getϕ(adiff.D1(F), elem.mat)
+        Pij = reshape(adiff.grad(δϕ), 3, 3)
+        J   = detJ(F)
+        σ  .+= elem.wgt[ii] * (1/J) .* (Pij * F')
+    end
+    return SMatrix{3,3,T}(σ / elem.V)
+end

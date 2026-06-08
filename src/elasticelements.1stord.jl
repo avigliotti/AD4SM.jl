@@ -230,58 +230,133 @@ function _calculate_mech_fields_3d(N::F, GPs, nodes::Vector, p0::Vector{<:Abstra
     return ∇N, tuple(wgt...), V
 end
 
+# ===========================================================================
+# elasticelements.1stord.axisym.jl
+# ---------------------------------------------------------------------------
+# First-order axisymmetric element constructors:  ASTria  and  ASQuad
 #
-# axysimmetric elments need to be fixed
+# Both elements live in the meridional (r,z) plane.
+# Convention:  p0[a] = [r_a, z_a]   (first coordinate is the radial one)
 #
-function ASTria(nodes::Vector{<:Integer},
-                p0::Vector{<:AbstractVector{T}} where T<:Number;
-                mat=Materials.Hooke())
-  (N,Nx,Ny,X0,wgt,A) = begin 
-    (x1, x2, x3) = (p0[1][1], p0[2][1], p0[3][1])
-    (y1, y2, y3) = (p0[1][2], p0[2][2], p0[3][2])
+# The integration weight already absorbs the 2π factor:
+#   wgt[ii] = det(J_ii) * w_ref_ii * 2π * r_GP_ii
+# so that  ∫_Ω (·) dV  =  ∑_ii wgt[ii] * (·)_ii
+# ===========================================================================
 
-    Delta = x1*y2-x2*y1-x1*y3+x3*y1+x2*y3-x3*y2
-    N     = [1, 1, 1]/3
-    Nx    = [y2-y3, y3-y1, y1-y2]/Delta
-    Ny    = [x3-x2, x1-x3, x2-x1]/Delta
-    A     = abs(Delta)/2
-    X0    = (x1+x2+x3)/3
-    wgt   = A*2π*X0
-    ((N,),(Nx,),(Ny,),(X0,),(wgt,),A)
-  end
-  CAS(nodes,N,Nx,Ny,X0,wgt,A,mat) 
+# ---------------------------------------------------------------------------
+# Helper: build CAS fields from a shape-function N(ξ,η), a Gauss-point tuple
+#         and the nodal coordinates p0.
+# Returns (N0, Nr, Nz, r_GP, wgt, V) — all as plain Vectors, one entry per GP.
+# ---------------------------------------------------------------------------
+function _calculate_as_fields_as(N_fun, GPs, nodes, p0::Vector{<:AbstractVector{T}}) where T
+    nGP = length(GPs)
+    nN  = length(nodes)
+
+    N0_vec  = Vector{Vector{T}}(undef, nGP)
+    Nr_vec  = Vector{Vector{T}}(undef, nGP)
+    Nz_vec  = Vector{Vector{T}}(undef, nGP)
+    r_vec   = Vector{T}(undef, nGP)
+    wgt_vec = Vector{T}(undef, nGP)
+    V       = zero(T)
+
+    @inbounds for (ii, (coords, wii)) in enumerate(GPs)
+        # Evaluate shape functions + derivatives via AD
+        N_dual = N_fun(adiff.D1(coords)...)
+
+        # Physical coordinates at GP:  p = [r, z]
+        p = sum(N_dual[k] * p0[k] for k in 1:nN)
+
+        # Transposed Jacobian  Jᵀ (2×2),  Jᵀ[j,k] = ∂p_k/∂ξ_j
+        Jᵀ = SMatrix{2,2,T}(p[k].g[j] for j in 1:2, k in 1:2)
+
+        # Physical gradients:  ∇_x N  =  J^{-T} ∇_ξ N
+        grads = Jᵀ \ hcat(adiff.grad.(N_dual)...)
+
+        N0_vec[ii]  = adiff.val.(N_dual)
+        Nr_vec[ii]  = grads[1, :]          # ∂N_a/∂r
+        Nz_vec[ii]  = grads[2, :]          # ∂N_a/∂z
+
+        # Radial coordinate at GP  r = Σ N_a r_a
+        r_gp        = p[1].v
+        r_vec[ii]   = r_gp
+
+        # Weight includes 2π r factor for the volume integral
+        wgt_vec[ii] = det(Jᵀ) * wii * 2T(π) * r_gp
+        V          += wgt_vec[ii]
+    end
+
+    return N0_vec, Nr_vec, Nz_vec, r_vec, wgt_vec, V
 end
+
+
+# ---------------------------------------------------------------------------
+# ASTria  —  3-node linear triangle, 1-point centroid rule
+# ---------------------------------------------------------------------------
+"""
+    ASTria(nodes, p0; mat=Materials.Hooke())
+
+3-node linear axisymmetric triangular element (CST in the meridional plane).
+Uses 1-point centroid quadrature.
+
+Arguments:
+- `nodes` : length-3 integer vector of nodal IDs
+- `p0`    : length-3 vector of [r, z] reference nodal coordinates
+- `mat`   : material model (must accept a 3×3 F)
+"""
+function ASTria(nodes::Vector{<:Integer},
+                p0::Vector{<:AbstractVector{T}};
+                mat::M = Materials.Hooke()) where {T<:Number, M<:Material}
+
+    N_fun(ξ, η) = SVector(1-ξ-η, ξ, η)
+
+    # 1-point centroid rule for triangles  (weight = area in reference)
+    GPs = ((SVector{2,T}(T(1)/3, T(1)/3), T(1)/2),)
+
+    N0, Nr, Nz, r_GP, wgt, V = _calculate_as_fields_as(N_fun, GPs, nodes, p0)
+
+    CASElem(nodes, tuple(N0...), tuple(Nr...), tuple(Nz...),
+            tuple(r_GP...), tuple(wgt...), V, mat, 1)
+end
+
+
+# ---------------------------------------------------------------------------
+# ASQuad  —  4-node bilinear quadrilateral, 2×2 Gauss rule
+# ---------------------------------------------------------------------------
+"""
+    ASQuad(nodes, p0; mat=Materials.Hooke(), bReduced=false)
+
+4-node bilinear axisymmetric quadrilateral element.
+Full integration uses a 2×2 Gauss rule; reduced integration uses 1 central point.
+
+Arguments:
+- `nodes`    : length-4 integer vector of nodal IDs
+- `p0`       : length-4 vector of [r, z] reference nodal coordinates
+                 (counter-clockwise ordering, r ≥ 0)
+- `mat`      : material model (must accept a 3×3 F)
+- `bReduced` : if `true`, use 1-point central quadrature (hourglass-prone)
+"""
 function ASQuad(nodes::Vector{<:Integer},
                 p0::Vector{<:AbstractVector{T}};
-                mat=Materials.Hooke()) where T<:Number
-  (V,N0,Nx,Ny,X0,wgt) = begin
-    r        = [-1, 1]*0.577350269189626 # √3/3
-    N(ξ,η)   = [(1-ξ)*(1-η),(1+ξ)*(1-η),(1+ξ)*(1+η),(1-ξ)*(1+η)]/4
+                mat::M    = Materials.Hooke(),
+                bReduced::Bool = false) where {T<:Number, M<:Material}
 
-    N0  = Array{Array{T,1},2}(undef,2,2)
-    Nx  = Array{Array{T,1},2}(undef,2,2)
-    Ny  = Array{Array{T,1},2}(undef,2,2)
-    X0  = Array{T,2}(undef,2,2)
-    wgt = Array{T,2}(undef,2,2)
-    V   = 0
-    for (ii, ξ) in enumerate(r), (jj, η) in enumerate(r)
-      Nij = N(adiff.D1([ξ,η])...)
-      p   = sum([Nij[ii]p0[ii] for ii in 1:4])
-      J   = [p[ii].g[jj] for jj in 1:2, ii in 1:2]
-      Nxy = J\hcat(adiff.grad.(Nij)...)
-
-      N0[ii,jj]  = adiff.val.(Nij)
-      Nx[ii,jj]  = Nxy[1,:]
-      Ny[ii,jj]  = Nxy[2,:]
-      X0[ii,jj]  = p[1].v 
-
-      # wgt[ii,jj] = abs(detJ(J))*2π*p[1].v
-      wgt[ii,jj] = detJ(J)*2π*p[1].v
-
-      V +=wgt[ii,jj]
+    function N_fun(ξ, η)
+        omx, opx = 1-ξ, 1+ξ
+        ome, ope = 1-η, 1+η
+        SVector(omx*ome, opx*ome, opx*ope, omx*ope) .* T(0.25)
     end
-    (V,tuple(N0...),tuple(Nx...),tuple(Ny...),tuple(X0...),tuple(wgt...))
-  end
-  CAS(nodes,N0,Nx,Ny,X0,wgt,V,mat) 
-end
 
+    GPs = if bReduced
+        ((SVector{2,T}(0, 0), T(4)),)
+    else
+        g = T(1/√3)
+        w = one(T)
+        ((SVector{2,T}(-g,-g), w), (SVector{2,T}( g,-g), w),
+         (SVector{2,T}( g, g), w), (SVector{2,T}(-g, g), w))
+    end
+
+    N0, Nr, Nz, r_GP, wgt, V = _calculate_as_fields_as(N_fun, GPs, nodes, p0)
+
+    CASElem(nodes, tuple(N0...), tuple(Nr...), tuple(Nz...),
+            tuple(r_GP...), tuple(wgt...), V, mat, 1)
+end
