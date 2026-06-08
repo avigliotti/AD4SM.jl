@@ -214,6 +214,25 @@ function getϕ(elem::CASElem{P,M,T,N,O}, u::AbstractArray{D}) where {P,M,T,N,O,D
     return ϕ
 end
 
+"""
+    getϕ(elem::CASElem{P,M,T,N,O}, u0::AbstractArray{D}) where D<:adiff.D2
+
+Optimized axisymmetric free-energy evaluation using local 3×3 kinematics at the
+Gauss-point level and the `×` operator for chain-rule propagation back to the
+2N nodal DOFs.
+"""
+function getϕ(elem::CASElem{P,M,T,N,O}, u0::AbstractArray{D}) where {P,M,T,N,O,D<:adiff.D2}
+    u0 = adiff.D1.(u0)
+    ϕ  = zero(D)
+    @inbounds for ii in 1:P
+        F    = getF(elem, u0, ii)
+        valF = adiff.val.(F)
+        δϕ   = getϕ(adiff.D2(valF), elem.mat)
+        ϕ   += elem.wgt[ii] * (δϕ × F)
+    end
+    return ϕ
+end
+
 # ---------------------------------------------------------------------------
 # getδϕ  — D2 dual: energy + gradient (residual) + Hessian (stiffness)
 # ---------------------------------------------------------------------------
@@ -346,7 +365,7 @@ function makeϕrKt(elems::AbstractVector{<:CASElem}, u::AbstractMatrix{T}) where
     Φ = Vector{adiff.D2{Ndofs, Mdofs, T}}(undef, nElems)
 
     Threads.@threads for ii in 1:nElems
-        Φ[ii] = getδϕ(elems[ii], u[:, elems[ii].nodes][:])
+        Φ[ii] = getϕ(elems[ii], adiff.D2(u[:, elems[ii].nodes]))
     end
 
     # Reuse the existing sparse-assembly utility from elements.toolkit.jl
