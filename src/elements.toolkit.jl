@@ -379,7 +379,7 @@ Return the 3×3 axisymmetric deformation gradient at Gauss point `ii`.
     uz = SVector{N}(u[2,:])          # axial  displacements
     Nr = elem.∇N[1][ii]              # ∂N_a/∂r
     Nz = elem.∇N[2][ii]              # ∂N_a/∂z
-    N0 = elem.N0[ii]                 # N_a values at GP
+    N0 = elem.N[ii]                  # N_a values at GP
     r  = elem.r_GP[ii]               # reference radial coordinate
 
     # hoop stretch:  (r + u_r)/r = 1 + Σ_a N_a u_r^a / r

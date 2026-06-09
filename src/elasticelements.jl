@@ -265,7 +265,7 @@ function getδϕ(elem::CASE{P_,M,T_,Nn,O}, u0::AbstractArray{T}) where {P_,M,T_,
 
     Nr  = elem.∇N[1][ii]         # ∂N/∂r  at GP ii
     Nz  = elem.∇N[2][ii]         # ∂N/∂z  at GP ii
-    N0  = elem.N0[ii]            # N_a    at GP ii
+    N0  = elem.N[ii]            # N_a    at GP ii
     r   = elem.r_GP[ii]          # reference radial coord at GP ii
     w   = elem.wgt[ii]
 
