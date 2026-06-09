@@ -195,6 +195,43 @@ function Wdg06(nodes::Vector{<:Integer},
        tuple(Nz...),tuple(wgt...),Vol,mat) 
 end
 Hex08R(nodes, p0;mat=Materials.Hooke()) = Hex08(nodes, p0, mat=mat, GP=((0.0,1.0),))
+
+function _integrate_ϕ(elem::AbstractCElem{<:Any,P}, u::AbstractArray{D}) where {P,D}
+  ϕ = zero(D)
+  @inbounds for ii in 1:P
+    Fii = getF(elem, u, ii)
+    ϕ  += elem.wgt[ii] * getϕ(Fii, elem.mat)
+  end
+  return ϕ
+end
+
+function _assemble_ϕrKt(elems::AbstractVector{<:AbstractCElem}, u::AbstractMatrix{T}) where {T}
+  nElems = length(elems)
+  @assert nElems > 0 "makeϕrKt: `elems` is empty"
+
+  N = length(u[:, elems[1].nodes])
+  M = (N + 1) * N ÷ 2
+  Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
+
+  Threads.@threads for ii in 1:nElems
+    Φ[ii] = getϕ(elems[ii], adiff.D2(u[:, elems[ii].nodes]))
+  end
+
+  return makeϕrKt(Φ, elems, u)
+end
+
+function _getδϕ_all(elems::AbstractVector{<:AbstractCElem}, u::AbstractMatrix{T}) where {T}
+  nElems = length(elems)
+  N      = length(u[:, elems[1].nodes])
+  M      = (N + 1) * N ÷ 2
+
+  Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
+  Threads.@threads for ii in 1:nElems
+    Φ[ii] = getδϕ(elems[ii], u[:, elems[ii].nodes])
+  end
+  return Φ
+end
+
 function ASTria(nodes::Vector{<:Integer},
                 p0::Vector{Vector{T}} where T<:Number;
                 mat=Materials.Hooke())
@@ -286,14 +323,9 @@ end
 return ϕ
 end
 =#
-# General CEElem energy integrator (works with CEElem/CPElem)
-function getϕ(elem::CEElem{<:Any,P}, u::Array{D}) where {P,D}
-  ϕ = zero(D)
-  for ii=1:P
-    Fii = getF(elem, u, ii)
-    ϕ  += elem.wgt[ii]getϕ(Fii, elem.mat)
-  end
-  ϕ
+# Generic continuum element energy integrator.
+function getϕ(elem::AbstractCElem{<:Any,P}, u::AbstractArray{D}) where {P,D}
+  return _integrate_ϕ(elem, u)
 end
 
 #
@@ -321,24 +353,8 @@ end
 # functions for evaluating the residual and the tangent stiffness matrix over
 # an array of elements
 #
-function makeϕrKt(elems::AbstractVector{<:CEElem}, u::AbstractMatrix{T}) where T
-  nElems = length(elems)
-  @assert nElems > 0 "makeϕrKt: `elems` is empty"  
-  #=
-  et = eltype(elems)
-  D  = et.parameters[1]
-  L  = et.parameters[5]
-  N  = D*L 
-  =# 
-  N  = length(u[:,elems[1].nodes])
-  M  = (N+1)N÷2
-
-  Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
-  Threads.@threads for ii=1:nElems
-    Φ[ii] = getϕ(elems[ii], adiff.D2(u[:,elems[ii].nodes]))
-  end
-
-  makeϕrKt(Φ, elems, u)
+function makeϕrKt(elems::AbstractVector{<:AbstractCElem}, u::AbstractMatrix{T}) where {T}
+  return _assemble_ϕrKt(elems, u)
 end
 #
 #
@@ -438,15 +454,7 @@ function getδϕ(elem::C3DE{P}, u0::Array{T})  where {P,T}
   adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
 end
 
-function getδϕ(elems::Vector{<:CEElem}, u::Array{T,2}) where T
-  nElems = length(elems)
-  N      = length(u[:,elems[1].nodes])
-  M      = (N+1)N÷2
-
-  Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
-  Threads.@threads for ii=1:nElems
-    Φ[ii] = getδϕ(elems[ii], u[:,elems[ii].nodes])
-  end
-  Φ
+function getδϕ(elems::AbstractVector{<:AbstractCElem}, u::AbstractMatrix{T}) where {T}
+  return _getδϕ_all(elems, u)
 end
 
