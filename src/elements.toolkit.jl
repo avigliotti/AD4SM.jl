@@ -374,7 +374,7 @@ Return the 3×3 axisymmetric deformation gradient at Gauss point `ii`.
 
 `u` is a (2 × N_nodes) array with rows [u_r; u_z].
 """
-@inline function getF(elem::CASElem{P,M,T,N}, u::AbstractArray, ii::Integer) where {P,M,T,N}
+@inline function getF(elem::CASElem{P,M,T,N}, u::AbstractArray{D}, ii::Integer) where {P,M,T,N,D}
     ur = SVector{N}(u[1,:])          # radial displacements
     uz = SVector{N}(u[2,:])          # axial  displacements
     Nr = elem.∇N[1][ii]              # ∂N_a/∂r
@@ -383,12 +383,12 @@ Return the 3×3 axisymmetric deformation gradient at Gauss point `ii`.
     r  = elem.r_GP[ii]               # reference radial coordinate
 
     # hoop stretch:  (r + u_r)/r = 1 + Σ_a N_a u_r^a / r
-    Fθθ = one(eltype(ur)) + (N0 ⋅ ur) / r
+    Fθθ = one(D) + (N0 ⋅ ur) / r
 
-    return SMatrix{3,3}(
-        Nr⋅ur + 1,  Nr⋅uz,      zero(eltype(ur)),
-        Nz⋅ur,      Nz⋅uz + 1,  zero(eltype(ur)),
-        zero(eltype(ur)), zero(eltype(ur)), Fθθ
+    return SMatrix{3,3,D}(
+        Nr⋅ur + 1,  Nr⋅uz,      zero(D),
+        Nz⋅ur,      Nz⋅uz + 1,  zero(D),
+        zero(D),    zero(D),    Fθθ
     )
 end
 
