@@ -41,6 +41,11 @@ function get∇n(elem::CElem{D,P,M,<:Any,N}, n::AbstractArray{T}, ii::Integer) w
   end
   return SVector{D,T}(∇n)
 end
+function get∇n(elem::CASE{P,M,T,N}, n::AbstractVector, ii::Integer) where {P,M,T,N}
+    Nr = elem.∇N[1][ii]
+    Nz = elem.∇N[2][ii]
+    return SVector{3}(Nr ⋅ n, Nz ⋅ n, zero(eltype(n)))
+end
 """
 Compute the average of the gradient of the scalar field over the elment
 """
@@ -52,6 +57,8 @@ function get∇n(elem::CElem{D,P,M,<:Any,N}, n::AbstractArray{T}) where {D,P,M,N
   end
   return SVector{D,T}(∇n/elem.V)
 end
+
+
 """
 Compute determinant of deformation gradient J = det(F).
 """
