@@ -144,10 +144,10 @@ Fields:
 - `V`     : reference volume  (= ∫ 2π r dA over element)
 - `mat`   : material model
 """
-struct CASElem{P,M,T,N,O} <: AbstractASElem{P,M,T,N,O}
+struct CASElem{D,P,M,T,N,O} <: AbstractCElem{D,P,M,T,N,O}
   nodes :: Vector{<:Integer}
-  N0    :: NTuple{P, SVector{N,T}}
-  ∇N    :: NTuple{2, NTuple{P, SVector{N,T}}}
+  N     :: NTuple{P, SVector{N,T}}
+  ∇N    :: NTuple{D, NTuple{P, SVector{N,T}}}
   r_GP  :: NTuple{P, T}
   wgt   :: NTuple{P, T}
   V     :: T
@@ -167,7 +167,7 @@ const C1DP{P,M,T,N,O} = CPElem{1,P,M,T,N,O}
 const C2DP{P,M,T,N,O} = CPElem{2,P,M,T,N,O}
 const C3DP{P,M,T,N,O} = CPElem{3,P,M,T,N,O}
 
-const CAS{P,M,T,N,O} = CASElem{P,M,T,N,O}
+const CASE{P,M,T,N,O} = CASElem{2,P,M,T,N,O}
 
 const C1D = Union{C1DE,C1DP}
 const C2D = Union{C2DE,C2DP}
@@ -256,8 +256,6 @@ Create a 3D scalar-field element.
 """
 function C3DP(nodes, N0, Nx, Ny, Nz, wgt, V::T, mat::M, O::Int=1) where {M<:Material, T}
   P = length(wgt)
-  # M = typeof(mat)
-  # T = eltype(wgt)
   N = length(nodes)
   C3DP{P,M,T,N,O}(nodes,
                     ntuple(ii->SVector{N}(N0[ii]), P),
@@ -277,12 +275,12 @@ Low-level constructor that converts plain array-of-arrays into the
 fully typed `CASElem`.  All tuple-of-arrays arguments accept the same
 formats used by `C2DP`.
 """
-function CASElem(nodes, N0, Nr, Nz, r_GP, wgt, V, mat, ord=1)
+function CASE(nodes, N0, Nr, Nz, r_GP, wgt, V, mat, ord=1)
   P   = length(wgt)
   Nn  = length(N0[1])
   M   = typeof(mat)
   T   = eltype(wgt)
-  CASElem{P,M,T,Nn,ord}(
+  CASElem{2,P,M,T,Nn,ord}(
     nodes,
     ntuple(ii -> SVector{Nn,T}(N0[ii]),   P),
     ( ntuple(ii -> SVector{Nn,T}(Nr[ii]), P),

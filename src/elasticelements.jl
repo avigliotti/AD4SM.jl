@@ -180,7 +180,7 @@ end
 # ===========================================================================
 # elasticelements.axisym.jl
 # ---------------------------------------------------------------------------
-# Energy, residual and tangent stiffness for CASElem elements.
+# Energy, residual and tangent stiffness for CASE elements.
 #
 # KEY KINEMATIC FACTS (recap):
 #   DOFs per element : 2*N  (u_r^1..u_r^N, u_z^1..u_z^N  interleaved as
@@ -206,12 +206,12 @@ end
 # getϕ  (plain real — used for debugging / energy monitoring)
 # ---------------------------------------------------------------------------
 """
-    getϕ(elem::CASElem, u)
+    getϕ(elem::CASE, u)
 
 Evaluate the total strain energy of an axisymmetric element given the
 nodal displacement array `u` (2 × N_nodes, rows = [u_r; u_z]).
 """
-function getϕ(elem::CASElem{P,M,T,N,O}, u::AbstractArray{D}) where {P,M,T,N,O,D}
+function getϕ(elem::CASE{P,M,T,N,O}, u::AbstractArray{D}) where {P,M,T,N,O,D}
   ϕ = zero(D)
   @inbounds for ii in 1:P
     F   = getF(elem, u, ii)
@@ -221,13 +221,13 @@ function getϕ(elem::CASElem{P,M,T,N,O}, u::AbstractArray{D}) where {P,M,T,N,O,D
 end
 
 """
-    getϕ(elem::CASElem{P,M,T,N,O}, u0::AbstractArray{D}) where D<:adiff.D2
+    getϕ(elem::CASE{P,M,T,N,O}, u0::AbstractArray{D}) where D<:adiff.D2
 
 Optimized axisymmetric free-energy evaluation using local 3×3 kinematics at
 Gauss-point level and the `×` operator for chain-rule propagation back to the
 2N nodal DOFs.
 """
-function getϕ(elem::CASElem{P,M,T,N,O}, u0::AbstractArray{D}) where {P,M,T,N,O,D<:adiff.D2}
+function getϕ(elem::CASE{P,M,T,N,O}, u0::AbstractArray{D}) where {P,M,T,N,O,D<:adiff.D2}
   u0 = adiff.D1.(u0)
   ϕ  = zero(D)
   @inbounds for ii in 1:P
@@ -243,14 +243,14 @@ end
 # getδϕ  — D2 dual: energy + gradient (residual) + Hessian (stiffness)
 # ---------------------------------------------------------------------------
 """
-    getδϕ(elem::CASElem{P,M,T,N}, u0)
+    getδϕ(elem::CASE{P,M,T,N}, u0)
 
 Compute the element strain energy as an `adiff.D2` dual number with
 respect to the `2N` nodal DOFs `u0` (laid out as [ur1,uz1,ur2,uz2,...]).
 
 Returns `adiff.D2{2N, N*(2N+1), T}`.
 """
-function getδϕ(elem::CASElem{P_,M,T_,Nn,O}, u0::AbstractArray{T}) where {P_,M,T_,Nn,O,T}
+function getδϕ(elem::CASE{P_,M,T_,Nn,O}, u0::AbstractArray{T}) where {P_,M,T_,Nn,O,T}
 
   P     = length(elem.wgt)
   Ndofs = 2 * Nn                         # 2 DOFs per node (ur, uz)
@@ -348,7 +348,7 @@ end
 # makeϕrKt  — assemble global energy, residual and stiffness
 # ---------------------------------------------------------------------------
 """
-    makeϕrKt(elems::AbstractVector{<:CASElem}, u)
+    makeϕrKt(elems::AbstractVector{<:CASE}, u)
 
 Assemble the global strain energy `ϕ`, residual vector `r`, and tangent
 stiffness matrix `Kt` for an array of axisymmetric elements.
@@ -357,7 +357,7 @@ stiffness matrix `Kt` for an array of axisymmetric elements.
 
 Returns `(ϕ, r, Kt)` in the same format as the CEElem version.
 """
-function makeϕrKt(elems::AbstractVector{<:CASElem}, u::AbstractMatrix{T}) where T
+function makeϕrKt(elems::AbstractVector{<:CASE}, u::AbstractMatrix{T}) where T
 
   nElems = length(elems)
   @assert nElems > 0 "makeϕrKt: `elems` is empty"
@@ -383,11 +383,11 @@ end
 # Convenience: getσ for post-processing
 # ---------------------------------------------------------------------------
 """
-    getσ(elem::CASElem, u)
+    getσ(elem::CASE, u)
 
 Return the volume-averaged Cauchy stress tensor (3×3) for the element.
 """
-function getσ(elem::CASElem{P_,M,T_,Nn}, u::AbstractArray{T}) where {P_,M,T_,Nn,T}
+function getσ(elem::CASE{P_,M,T_,Nn}, u::AbstractArray{T}) where {P_,M,T_,Nn,T}
   P = length(elem.wgt)
   σ = @MMatrix zeros(T, 3, 3)
   u_s = SMatrix{2,Nn,T}(u[1:2,:])

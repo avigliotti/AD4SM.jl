@@ -351,7 +351,7 @@ end
 # ===========================================================================
 # elements.toolkit.axisym.jl
 # ---------------------------------------------------------------------------
-# getF  dispatch for CASElem
+# getF  dispatch for CASE
 #
 # The axisymmetric deformation gradient is 3×3 in cylindrical coordinates
 # (r, θ, z).  With the axis of symmetry along z and u = [u_r, u_z]:
@@ -368,13 +368,13 @@ end
 # ===========================================================================
 
 """
-    getF(elem::CASElem, u, ii)
+    getF(elem::CASE, u, ii)
 
 Return the 3×3 axisymmetric deformation gradient at Gauss point `ii`.
 
 `u` is a (2 × N_nodes) array with rows [u_r; u_z].
 """
-@inline function getF(elem::CASElem{P,M,T,N}, u::AbstractArray{D}, ii::Integer) where {P,M,T,N,D}
+@inline function getF(elem::CASE{P,M,T,N}, u::AbstractArray{D}, ii::Integer) where {P,M,T,N,D}
     ur = SVector{N}(u[1,:])          # radial displacements
     uz = SVector{N}(u[2,:])          # axial  displacements
     Nr = elem.∇N[1][ii]              # ∂N_a/∂r
@@ -393,7 +393,7 @@ Return the 3×3 axisymmetric deformation gradient at Gauss point `ii`.
 end
 
 # Volume-averaged F (used by getσ and diagnostics)
-function getF(elem::CASElem{P}, u::AbstractArray{T}) where {P,T}
+function getF(elem::CASE{P}, u::AbstractArray{T}) where {P,T}
     nN  = length(elem.nodes)
     u   = SMatrix{2,nN,T}(u[1:2,:])
     Favg = @MMatrix zeros(T, 3, 3)

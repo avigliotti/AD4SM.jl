@@ -314,8 +314,8 @@ function ASTria(nodes::Vector{<:Integer},
 
     N0, Nr, Nz, r_GP, wgt, V = _calculate_as_fields_as(N_fun, GPs, nodes, p0)
 
-    CASElem(nodes, tuple(N0...), tuple(Nr...), tuple(Nz...),
-            tuple(r_GP...), tuple(wgt...), V, mat, 1)
+    CASE(nodes, tuple(N0...), tuple(Nr...), tuple(Nz...),
+         tuple(r_GP...), tuple(wgt...), V, mat, 1)
 end
 
 
@@ -357,6 +357,6 @@ function ASQuad(nodes::Vector{<:Integer},
 
     N0, Nr, Nz, r_GP, wgt, V = _calculate_as_fields_as(N_fun, GPs, nodes, p0)
 
-    CASElem(nodes, tuple(N0...), tuple(Nr...), tuple(Nz...),
-            tuple(r_GP...), tuple(wgt...), V, mat, 1)
+    CASE(nodes, tuple(N0...), tuple(Nr...), tuple(Nz...),
+         tuple(r_GP...), tuple(wgt...), V, mat, 1)
 end
