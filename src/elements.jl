@@ -11,8 +11,9 @@ using LinearAlgebra:I,det
 import LinearAlgebra.×
 
 export AbstractElement, AbstractContinuumElem, AbstractCElem
-export CElem, CEElem, CPElem, C1DE, C2DE, C3DE, C1DP, C2DP, C3DP,
-       C1D, C2D, C3D, LagrangePoly
+export CElem, CEElem, CPElem, CASElem, 
+       C1DE, C2DE, C3DE, C1DP, C2DP, C3DP,
+       C1D, C2D, C3D, LagrangePoly, CASE
 export getϕ, getσ, getP, detJ, getF, ×, getV
 export get∇n
 export getI₁, getI₂, getĪ₁, getĪ₂
@@ -47,22 +48,6 @@ abstract type AbstractElement end
 abstract type AbstractContinuumElem <: AbstractElement end
 # Updated AbstractCElem to include Order parameter (O)
 abstract type AbstractCElem{D,P,M,T,N,O} <: AbstractContinuumElem end
-
-"""
-AbstractASElem{P,M,T,N,O}
-
-Abstract supertype for axisymmetric continuum elements.
-The reference mesh lives in the meridional (r,z) plane (2 DOFs/node),
-but the deformation gradient is always 3×3 (including the hoop stretch).
-
-Type parameters mirror AbstractCElem but D is implicit (always 2 in reference):
-- `P` : number of Gauss points
-- `M` : material type
-- `T` : numeric type
-- `N` : number of element nodes
-- `O` : element order  (1 = linear, 2 = quadratic, ...)
-"""
-abstract type AbstractASElem{P,M,T,N,O} <: AbstractContinuumElem end
 
 # ---------------------------------------------------------------------------
 # CEElem — Mechanical elements
@@ -131,14 +116,15 @@ struct CPElem{D,P,M,T,N,O} <: AbstractCElem{D,P,M,T,N,O}
 end
 
 """
-CASElem{P,M,T,N,O}
+CASElem{D,P,M,T,N,O}
 
 Axisymmetric continuum element.
 
 Fields:
+- `D`     : spatial dimension (2)
 - `nodes` : nodal connectivity (length N)
 - `N0`    : NTuple{P,SVector{N,T}}  — shape-function values at each GP
-- `∇N`    : NTuple{2,NTuple{P,SVector{N,T}}} — ∂N/∂r and ∂N/∂z at each GP
+- `∇N`    : NTuple{D,NTuple{P,SVector{N,T}}} — ∂N/∂r and ∂N/∂z at each GP
 - `r_GP`  : NTuple{P,T}  — reference radial coordinate at each GP
 - `wgt`   : NTuple{P,T}  — integration weights (= det(J)*2π*r_GP*w_ref)
 - `V`     : reference volume  (= ∫ 2π r dA over element)
