@@ -400,9 +400,8 @@ Return the 3×3 axisymmetric deformation gradient at Gauss point `ii`.
 end
 
 # Volume-averaged F (used by getσ and diagnostics)
-function getF(elem::CASE{P}, u::AbstractArray{T}) where {P,T}
-    nN  = length(elem.nodes)
-    u   = SMatrix{2,nN,T}(u[1:2,:])
+function getF(elem::CASE{P,<:Any,<:Any,N}, u::AbstractArray{T}) where {P,T,N}
+    u   = SMatrix{2,N,T}(u[1:2,:])
     Favg = @MMatrix zeros(T, 3, 3)
     @inbounds for ii in 1:P
         Favg .+= elem.wgt[ii] .* getF(elem, u, ii)

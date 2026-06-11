@@ -50,12 +50,7 @@ end
 function makeϕrKt(elems::AbstractVector{<:CEElem}, u::AbstractMatrix{T}) where T
   nElems = length(elems)
   @assert nElems > 0 "makeϕrKt: `elems` is empty"  
-  #=
-  et = eltype(elems)
-  D  = et.parameters[1]
-  L  = et.parameters[5]
-  N  = D*L 
-  =# 
+
   N  = length(u[:,elems[1].nodes])
   M  = (N+1)N÷2
 
@@ -216,25 +211,6 @@ function getϕ(elem::CASE{P,M,T,N,O}, u::AbstractArray{D}) where {P,M,T,N,O,D}
   @inbounds for ii in 1:P
     F   = getF(elem, u, ii)
     ϕ  += elem.wgt[ii] * getϕ(F, elem.mat)
-  end
-  return ϕ
-end
-
-"""
-    getϕ(elem::CASE{P,M,T,N,O}, u0::AbstractArray{D}) where D<:adiff.D2
-
-Optimized axisymmetric free-energy evaluation using local 3×3 kinematics at
-Gauss-point level and the `×` operator for chain-rule propagation back to the
-2N nodal DOFs.
-"""
-function getϕ(elem::CASE{P,M,T,N,O}, u0::AbstractArray{D}) where {P,M,T,N,O,D<:adiff.D2}
-  u0 = adiff.D1.(u0)
-  ϕ  = zero(D)
-  @inbounds for ii in 1:P
-    F    = getF(elem, u0, ii)
-    valF = adiff.val.(F)
-    δϕ   = getϕ(adiff.D2(valF), elem.mat)
-    ϕ   += elem.wgt[ii] * (δϕ × F)
   end
   return ϕ
 end

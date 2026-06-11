@@ -155,12 +155,12 @@ const C3DP{P,M,T,N,O} = CPElem{3,P,M,T,N,O}
 
 const CASE{P,M,T,N,O} = CASElem{2,P,M,T,N,O}
 
-const C1D = Union{C1DE,C1DP}
-const C2D = Union{C2DE,C2DP}
-const C3D = Union{C3DE,C3DP}
+const C1D{P,M,T,N,O} = Union{C1DE{P,M,T,N,O},C1DP{P,M,T,N,O}}
+const C2D{P,M,T,N,O} = Union{C2DE{P,M,T,N,O},C2DP{P,M,T,N,O}}
+const C3D{P,M,T,N,O} = Union{C3DE{P,M,T,N,O},C3DP{P,M,T,N,O}}
 
 # const CElem{D,P,M,T,N} = Union{CEElem{D,P,M,T,N}, CPElem{D,P,M,T,N}}
-const CElem = AbstractCElem
+const CElem{D,P,M,T,N,O} = AbstractCElem{D,P,M,T,N,O}
 
 # ---------------------------------------------------------------------------
 # Constructors for CEElem (Backward Compatible, defaults to O=1)
