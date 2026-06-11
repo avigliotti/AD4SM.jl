@@ -8,9 +8,9 @@ include("./elasticelements.2ndord.jl")
 # General CEElem energy integrator (works with CEElem/CPElem)
 function getϕ(elem::CEElem{<:Any,P}, u::Array{D}) where {P,D}
   ϕ = zero(D)
-  for ii=1:P
-    Fii = getF(elem, u, ii)
-    ϕ  += elem.wgt[ii]getϕ(Fii, elem.mat)
+  @inbounds for ii=1:P
+    F   = getF(elem, u, ii)
+    ϕ  += elem.wgt[ii]getϕ(F, elem.mat)
   end
   ϕ
 end
@@ -171,50 +171,6 @@ function getδϕ(elems::Vector{<:CEElem}, u::Array{T,2}) where T
   Φ
 end
 
-
-# ===========================================================================
-# elasticelements.axisym.jl
-# ---------------------------------------------------------------------------
-# Energy, residual and tangent stiffness for CASE elements.
-#
-# KEY KINEMATIC FACTS (recap):
-#   DOFs per element : 2*N  (u_r^1..u_r^N, u_z^1..u_z^N  interleaved as
-#                            [ur1, uz1, ur2, uz2, ...] matching the
-#                            global 2-row DOF layout u[1,:], u[2,:])
-#   F components     : 9   (3×3, column-major)
-#
-# Non-zero sensitivities  δF[dof_i, F_col]  for node a:
-#   dof layout:  ur^a → row 2(a-1)+1,   uz^a → row 2(a-1)+2
-#
-#   F[1,1] = ∂u_r/∂r + 1   → col 1   ∂/∂ur^a = Nr[a]
-#   F[2,1] = ∂u_z/∂r       → col 2   ∂/∂uz^a = Nr[a]
-#   F[1,2] = ∂u_r/∂z       → col 4   ∂/∂ur^a = Nz[a]
-#   F[2,2] = ∂u_z/∂z + 1   → col 5   ∂/∂uz^a = Nz[a]
-#   F[3,3] = u_r/r + 1     → col 9   ∂/∂ur^a = N0[a]/r
-#   (all other columns are zero for axisymmetric problems)
-#
-# Note: column index follows Julia column-major SMatrix{3,3} ordering:
-#   col 1 = F[:,1] = (F11,F21,F31)   col 4 = F[:,2] = (F12,F22,F32)  etc.
-# ===========================================================================
-
-# ---------------------------------------------------------------------------
-# getϕ  (plain real — used for debugging / energy monitoring)
-# ---------------------------------------------------------------------------
-"""
-    getϕ(elem::CASE, u)
-
-Evaluate the total strain energy of an axisymmetric element given the
-nodal displacement array `u` (2 × N_nodes, rows = [u_r; u_z]).
-"""
-function getϕ(elem::CASE{P,M,T,N,O}, u::AbstractArray{D}) where {P,M,T,N,O,D}
-  ϕ = zero(D)
-  @inbounds for ii in 1:P
-    F   = getF(elem, u, ii)
-    ϕ  += elem.wgt[ii] * getϕ(F, elem.mat)
-  end
-  return ϕ
-end
-
 # ---------------------------------------------------------------------------
 # getδϕ  — D2 dual: energy + gradient (residual) + Hessian (stiffness)
 # ---------------------------------------------------------------------------
@@ -318,42 +274,6 @@ function getδϕ(elem::CASE{P_,M,T_,Nn,O}, u0::AbstractArray{T}) where {P_,M,T_,
 
   return adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
 end
-
-
-# ---------------------------------------------------------------------------
-# makeϕrKt  — assemble global energy, residual and stiffness
-# ---------------------------------------------------------------------------
-"""
-    makeϕrKt(elems::AbstractVector{<:CASE}, u)
-
-Assemble the global strain energy `ϕ`, residual vector `r`, and tangent
-stiffness matrix `Kt` for an array of axisymmetric elements.
-
-`u` must be a (2 × n_nodes) displacement array (rows = [u_r; u_z]).
-
-Returns `(ϕ, r, Kt)` in the same format as the CEElem version.
-"""
-function makeϕrKt(elems::AbstractVector{<:CASE}, u::AbstractMatrix{T}) where T
-
-  nElems = length(elems)
-  @assert nElems > 0 "makeϕrKt: `elems` is empty"
-
-  # Element DOF count — same for every element in a homogeneous array
-  elem1  = elems[1]
-  Nn     = length(elem1.nodes)
-  Ndofs  = 2 * Nn
-  Mdofs  = (Ndofs + 1) * Ndofs ÷ 2
-
-  Φ = Vector{adiff.D2{Ndofs, Mdofs, T}}(undef, nElems)
-
-  Threads.@threads for ii in 1:nElems
-    Φ[ii] = getϕ(elems[ii], adiff.D2(u[:, elems[ii].nodes]))
-  end
-
-  # Reuse the existing sparse-assembly utility from elements.toolkit.jl
-  makeϕrKt(Φ, elems, u)
-end
-
 
 # ---------------------------------------------------------------------------
 # Convenience: getσ for post-processing
