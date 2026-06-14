@@ -2,7 +2,7 @@ __precompile__()
 
 module Materials
 
-export Material, Mat3D, Mat2D, Mat1D
+export Material, Mat3D, Mat2D, Mat1D, NoMat, NO_MAT
 export getϕ, getJ
 
 using LinearAlgebra, StaticArrays 
@@ -13,6 +13,10 @@ abstract type Material end
 abstract type Mat3D <: Material end
 abstract type Mat2D <: Material end
 abstract type Mat1D <: Material end
+
+# placeholder for no material
+struct NoMat <: Material end
+const NO_MAT = NoMat()
 
 # support for elastic materials
 include("elasticmaterials.jl")
