@@ -20,12 +20,12 @@ are applied here.
 # ===========================================================================
 
 """
-    Tria06P(nodes, p0; mat=Materials.Hooke(), bReduced=false)
+    Tria06P(nodes, p0; mat=Materials.NoMat(), bReduced=false)
 Constructs a 6-node quadratic triangular phase-field element.
 """
 function Tria06P(nodes::Vector{<:Integer}, 
                  p0::Vector{<:AbstractVector{T}};
-                 mat=Materials.Hooke(),
+                 mat=Materials.NoMat(),
                  bReduced::Bool=false) where T<:Number
 
     # Shape functions (same as Tria06)
@@ -51,12 +51,12 @@ function Tria06P(nodes::Vector{<:Integer},
 end
 
 """
-    Quad09P(nodes, p0; mat=Materials.Hooke(), bReduced=false)
+    Quad09P(nodes, p0; mat=Materials.NoMat(), bReduced=false)
 Constructs a 9-node quadratic phase-field quadrilateral.
 """
 function Quad09P(nodes::Vector{<:Integer}, 
                  p0::Vector{<:AbstractVector{T}};
-                 mat=Materials.Hooke(),
+                 mat=Materials.NoMat(),
                  bReduced::Bool=false) where T<:Number
 
     poly(ξ) = SVector(0.5*ξ*(ξ-1), (1-ξ^2), 0.5*ξ*(ξ+1))
@@ -78,12 +78,12 @@ function Quad09P(nodes::Vector{<:Integer},
 end
 
 """
-    Tet10P(nodes, p0; mat=Materials.Hooke(), bReduced=false)
+    Tet10P(nodes, p0; mat=Materials.NoMat(), bReduced=false)
 Constructs a 10-node quadratic phase-field tetrahedron.
 """
 function Tet10P(nodes::Vector{<:Integer}, 
                 p0::Vector{<:AbstractVector{T}};
-                mat=Materials.Hooke(),
+                mat=Materials.NoMat(),
                 bReduced::Bool=false) where T<:Number
 
   function N(ξ, η, ζ)
@@ -103,12 +103,12 @@ function Tet10P(nodes::Vector{<:Integer},
 end
 
 """
-    Hex27P(nodes, p0; mat=Materials.Hooke(), bReduced=false)
+    Hex27P(nodes, p0; mat=Materials.NoMat(), bReduced=false)
 Constructs a 27-node quadratic phase-field hexahedron.
 """
 function Hex27P(nodes::Vector{<:Integer}, 
                 p0::Vector{<:AbstractVector{T}};
-                mat=Materials.Hooke(),
+                mat=Materials.NoMat(),
                 bReduced::Bool=false) where T<:Number
 
     poly(ξ) = SVector(0.5*ξ*(ξ-1), (1-ξ^2), 0.5*ξ*(ξ+1))

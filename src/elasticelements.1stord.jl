@@ -1,12 +1,12 @@
 # constructors
 #
-function Rod(nodes, p0, A; mat=Materials.Hooke()) 
+function Rod(nodes, p0, A; mat=Materials.NoMat()) 
 
   r0  = p0[2]-p0[1] 
   l0  = norm(r0)
   Rod(nodes, r0, l0, A, mat)
 end
-function Beam(nodes, p0, t, w; mat=Materials.Hooke(1, 0.3), Nx = 5, Ny = 3)
+function Beam(nodes, p0, t, w; mat=Materials.NoMat(), Nx = 5, Ny = 3)
 
   lgwx = lgwt(Nx)
   lgwy = lgwt(Ny, a=-0.5, b=0.5)
@@ -26,7 +26,7 @@ end
 
 function Line(nodes::Vector{<:Integer}, 
               p0::Vector{<:AbstractVector{T}};
-              mat::M=Materials.Hooke1D(),
+              mat::M=Materials.NoMat(),
               bReduced::Bool=false) where {T<:Number, M<:Material}
   
   x1, x2 = p0[1], p0[2]
@@ -41,7 +41,7 @@ end
 
 function Tria03(nodes::Vector{<:Integer}, 
                 p0::Vector{<:AbstractVector{T}}; 
-                mat::M=Materials.Hooke(),
+                mat::M=Materials.NoMat(),
                 bReduced::Bool=false) where {T<:Number, M<:Material}
 
   N(ξ,η) = SVector(1-ξ-η, ξ, η)
@@ -57,7 +57,7 @@ end
 
 function Quad04(nodes::Vector{<:Integer}, 
                 p0::Vector{<:AbstractVector{T}};
-                mat::M=Materials.Hooke(), 
+                mat::M=Materials.NoMat(), 
                 bReduced::Bool=false) where {T<:Number, M<:Material}
 
   function N(ξ, η)
@@ -85,7 +85,7 @@ end
 
 function Tet04(nodes::Vector{<:Integer}, 
                p0::Vector{<:AbstractVector{T}};
-               mat::M=Materials.Hooke(),
+               mat::M=Materials.NoMat(),
                bReduced::Bool=false) where {T<:Number, M<:Material}
 
   N(ξ,η,ζ) = SVector(1-ξ-η-ζ, ξ, η, ζ)
@@ -109,7 +109,7 @@ end
 
 function Hex08(nodes::Vector{<:Integer}, 
                p0::Vector{<:AbstractVector{T}};
-               mat::M=Materials.Hooke(),
+               mat::M=Materials.NoMat(),
                bReduced::Bool=false) where {T<:Number, M<:Material}
 
   function N(ξ, η, ζ)
@@ -142,7 +142,7 @@ end
 
 function Wdg06(nodes::Vector{<:Integer}, 
                 p0::Vector{<:AbstractVector{T}};
-               mat::M=Materials.Hooke(),
+               mat::M=Materials.NoMat(),
                bReduced::Bool=false) where {T<:Number, M<:Material}
 
   N(ξ,η,ζ) = SVector((1-ζ)*(1-ξ-η), (1-ζ)*ξ, (1-ζ)*η,
@@ -231,8 +231,6 @@ function _calculate_mech_fields_3d(N::F, GPs, nodes::Vector, p0::Vector{<:Abstra
 end
 
 # ===========================================================================
-# elasticelements.1stord.axisym.jl
-# ---------------------------------------------------------------------------
 # First-order axisymmetric element constructors:  ASTria  and  ASQuad
 #
 # Both elements live in the meridional (r,z) plane.
@@ -293,7 +291,7 @@ end
 # ASTria  —  3-node linear triangle, 1-point centroid rule
 # ---------------------------------------------------------------------------
 """
-    ASTria(nodes, p0; mat=Materials.Hooke())
+    ASTria(nodes, p0; mat=Materials.NoMat())
 
 3-node linear axisymmetric triangular element (CST in the meridional plane).
 Uses 1-point centroid quadrature.
@@ -305,7 +303,7 @@ Arguments:
 """
 function ASTria(nodes::Vector{<:Integer},
                 p0::Vector{<:AbstractVector{T}};
-                mat::M = Materials.Hooke()) where {T<:Number, M<:Material}
+                mat::M = Materials.NoMat()) where {T<:Number, M<:Material}
 
     N_fun(ξ, η) = SVector(1-ξ-η, ξ, η)
 
@@ -323,7 +321,7 @@ end
 # ASQuad  —  4-node bilinear quadrilateral, 2×2 Gauss rule
 # ---------------------------------------------------------------------------
 """
-    ASQuad(nodes, p0; mat=Materials.Hooke(), bReduced=false)
+    ASQuad(nodes, p0; mat=Materials.NoMat(), bReduced=false)
 
 4-node bilinear axisymmetric quadrilateral element.
 Full integration uses a 2×2 Gauss rule; reduced integration uses 1 central point.
@@ -337,7 +335,7 @@ Arguments:
 """
 function ASQuad(nodes::Vector{<:Integer},
                 p0::Vector{<:AbstractVector{T}};
-                mat::M    = Materials.Hooke(),
+                mat::M    = Materials.NoMat(),
                 bReduced::Bool = false) where {T<:Number, M<:Material}
 
     function N_fun(ξ, η)

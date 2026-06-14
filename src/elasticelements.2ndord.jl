@@ -139,13 +139,13 @@ end
 # ===========================================================================
 
 """
-    Tria06(nodes, p0; mat=Materials.Hooke(), bReduced=false)
+    Tria06(nodes, p0; mat=Materials.NoMat(), bReduced=false)
 Constructs a 6-node quadratic triangular element.
 **Quadrature**: Uses a fixed 3-point rule (Strang).
 """
 function Tria06(nodes::Vector{<:Integer}, 
                 p0::Vector{<:AbstractVector{T}};
-                mat=Materials.Hooke(),
+                mat=Materials.NoMat(),
                 bReduced::Bool=false) where T<:Number
 
     # Shape functions: L1(2L1-1), 4L1L2, etc.
@@ -173,12 +173,12 @@ function Tria06(nodes::Vector{<:Integer},
 end
 
 """
-    Quad09(nodes, p0; mat=Materials.Hooke(), bReduced=false)
+    Quad09(nodes, p0; mat=Materials.NoMat(), bReduced=false)
 Constructs a 9-node quadratic Lagrangian quadrilateral.
 """
 function Quad09(nodes::Vector{<:Integer}, 
                 p0::Vector{<:AbstractVector{T}};
-                mat=Materials.Hooke(),
+                mat=Materials.NoMat(),
                 bReduced::Bool=false) where T<:Number
 
     # 1D Lagrange polynomials
@@ -205,12 +205,12 @@ function Quad09(nodes::Vector{<:Integer},
 end
 
 """
-    Quad08(nodes, p0; mat=Materials.Hooke(), bReduced=false)
+    Quad08(nodes, p0; mat=Materials.NoMat(), bReduced=false)
 Constructs an 8-node Serendipity quadratic quadrilateral.
 """
 function Quad08(nodes::Vector{<:Integer}, 
                 p0::Vector{<:AbstractVector{T}};
-                mat=Materials.Hooke(),
+                mat=Materials.NoMat(),
                 bReduced::Bool=false) where T<:Number
 
     # N_Quad08 is defined externally above
@@ -225,12 +225,12 @@ function Quad08(nodes::Vector{<:Integer},
 end
 
 """
-    Tet10(nodes, p0; mat=Materials.Hooke(), bReduced=false)
+    Tet10(nodes, p0; mat=Materials.NoMat(), bReduced=false)
 Constructs a 10-node quadratic tetrahedron.
 """
 function Tet10(nodes::Vector{<:Integer}, 
                p0::Vector{<:AbstractVector{T}};
-               mat=Materials.Hooke(),
+               mat=Materials.NoMat(),
                bReduced::Bool=false) where T<:Number
 
     # Barycentric shape functions
@@ -258,12 +258,12 @@ function Tet10(nodes::Vector{<:Integer},
 end
 
 """
-    Hex27(nodes, p0; mat=Materials.Hooke(), bReduced=false)
+    Hex27(nodes, p0; mat=Materials.NoMat(), bReduced=false)
 Constructs a 27-node quadratic Lagrange hexahedron.
 """
 function Hex27(nodes::Vector{<:Integer}, 
                p0::Vector{<:AbstractVector{T}};
-               mat=Materials.Hooke(),
+               mat=Materials.NoMat(),
                bReduced::Bool=false) where T<:Number
 
     poly(ξ) = SVector(0.5*ξ*(ξ-1), (1-ξ^2), 0.5*ξ*(ξ+1))
@@ -297,14 +297,14 @@ end
 # ===========================================================================
 
 """
-    ASTria06(nodes, p0; mat=Materials.Hooke())
+    ASTria06(nodes, p0; mat=Materials.NoMat())
 
 Constructs a 6-node quadratic axisymmetric triangular element.
 Uses the standard 3-point triangular quadrature rule.
 """
 function ASTria06(nodes::Vector{<:Integer},
                   p0::Vector{<:AbstractVector{T}};
-                  mat=Materials.Hooke()) where T<:Number
+                  mat=Materials.NoMat()) where T<:Number
 
     function N_fun(ξ, η)
         λ = (one(T) - ξ - η, ξ, η)
@@ -328,7 +328,7 @@ function ASTria06(nodes::Vector{<:Integer},
 end
 
 """
-    ASQuad08(nodes, p0; mat=Materials.Hooke(), bReduced=false)
+    ASQuad08(nodes, p0; mat=Materials.NoMat(), bReduced=false)
 
 Constructs an 8-node serendipity quadratic axisymmetric quadrilateral.
 Full integration uses the 3×3 tensor-product Gauss rule; reduced integration
@@ -336,7 +336,7 @@ uses the 2×2 rule.
 """
 function ASQuad08(nodes::Vector{<:Integer},
                   p0::Vector{<:AbstractVector{T}};
-                  mat=Materials.Hooke(),
+                  mat=Materials.NoMat(),
                   bReduced::Bool=false) where T<:Number
 
     GP_1d = get_gauss_rule_1d(bReduced)

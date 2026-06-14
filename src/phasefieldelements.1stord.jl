@@ -4,7 +4,7 @@
 
 function Tria03P(nodes::Vector{<:Integer}, 
                  p0::Vector{<:AbstractVector{T}};
-                 mat::M=Materials.Hooke(),
+                 mat::M=Materials.NoMat(),
                  bReduced::Bool=false) where {T<:Number, M<:Material}
   
   N(ξ,η) = SVector(1-ξ-η, ξ, η)
@@ -20,7 +20,7 @@ end
 
 function Quad04P(nodes::Vector{<:Integer}, 
                  p0::Vector{<:AbstractVector{T}};
-                 mat::M=Materials.Hooke(), 
+                 mat::M=Materials.NoMat(), 
                  bReduced::Bool=false) where {T<:Number, M<:Material}
 
   function N(ξ, η)
@@ -48,7 +48,7 @@ end
 
 function Tet04P(nodes::Vector{<:Integer}, 
                 p0::Vector{<:AbstractVector{T}};
-                mat::M=Materials.Hooke(),
+                mat::M=Materials.NoMat(),
                 bReduced::Bool=false) where {T<:Number, M<:Material}
 
   N(ξ,η,ζ) = SVector(1-ξ-η-ζ, ξ, η, ζ)
@@ -72,7 +72,7 @@ end
 
 function Hex08P(nodes::Vector{<:Integer}, 
                 p0::Vector{<:AbstractVector{T}};
-                mat::M=Materials.Hooke(),
+                mat::M=Materials.NoMat(),
                 bReduced::Bool=false) where {T<:Number, M<:Material}
 
   function N(ξ, η, ζ)
@@ -105,7 +105,7 @@ end
 
 function Wdg06P(nodes::Vector{<:Integer}, 
                 p0::Vector{<:AbstractVector{T}};
-                mat::M=Materials.Hooke(),
+                mat::M=Materials.NoMat(),
                 bReduced::Bool=false) where {T<:Number, M<:Material}
 
   N(ξ,η,ζ) = SVector((1-ζ)*(1-ξ-η), (1-ζ)*ξ, (1-ζ)*η,

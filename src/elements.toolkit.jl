@@ -356,22 +356,16 @@ end
 
 
 # ===========================================================================
-# elements.toolkit.axisym.jl
-# ---------------------------------------------------------------------------
 # getF  dispatch for CASE
 #
 # The axisymmetric deformation gradient is 3×3 in cylindrical coordinates
 # (r, θ, z).  With the axis of symmetry along z and u = [u_r, u_z]:
 #
-#   F = | ∂u_r/∂r + 1     ∂u_r/∂z       0           |
-#       | ∂u_z/∂r         ∂u_z/∂z + 1   0           |
+#   F = | ∂u_r/∂r + 1     ∂u_r/∂z       0            |
+#       | ∂u_z/∂r         ∂u_z/∂z + 1   0            |
 #       | 0               0             u_r/r_GP + 1 |
 #
 # where  u_r/r_GP  =  (Σ_a N_a u_r^a) / r_GP.
-#
-# Column-major storage of F (as used throughout AD4SM):
-#   index 1..9 = F[1,1], F[2,1], F[3,1], F[1,2], F[2,2], F[3,2],
-#                F[1,3], F[2,3], F[3,3]
 # ===========================================================================
 
 """
