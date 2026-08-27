@@ -99,11 +99,12 @@ end
 # 
 # functions for array of elements
 # 
-function makeϕrKt(elems::Vector{<:CPElem{D,P,M,S,N}} where {D,P,M,S}, u::Array{T}, d::Array{T}) where {N,T}
+function makeϕrKt(elems::Vector{<:CPElem{D,P,M,S,N}} where {P,M,S}, u::Array{T}, d::Array{T}) where {D,N,T}
   nElems = length(elems)
-  M      = (N+1)N÷2
+  G      = D*N      # number of gradient components
+  H      = (G+1)G÷2 # number of hessian components
 
-  Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)
+  Φ = Vector{adiff.D2{G,H,T}}(undef, nElems)
   Threads.@threads for ii=1:nElems
     Φ[ii] = getϕ(elems[ii], adiff.D2(u[:,elems[ii].nodes]), d[elems[ii].nodes])
   end
