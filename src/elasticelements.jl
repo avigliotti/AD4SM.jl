@@ -66,9 +66,9 @@ end
 # function getδϕ(elem::C3DE{P}, u0::Array{T})  where {P,T}  
 # evaluates the strain energy density as a dual D2 number 
 #
-getδϕ(elem::AbstractElement, u::Array{<:Number}) = getϕ(elem, adiff.D2(u))
+# getδϕ(elem::AbstractElement, u::Array{<:Number}) = getϕ(elem, adiff.D2(u))
 
-function getδϕ(elem::C3DE{P}, u0::Array{T})  where {P,T}
+function getδϕ(elem::C3DE{P,M,T,N,O} where {M,O}, u0::Array{T})  where {P,N,T}
   #
   # This implementation computes the D2 dual for the element internal energy.
   # It builds the sensitivity of F with respect to nodal DOFs (δF) using the
@@ -76,7 +76,9 @@ function getδϕ(elem::C3DE{P}, u0::Array{T})  where {P,T}
   # where each ∇N[*][ii] is a static-vector (SVector) or array with length nNodes.
   #
 
-  u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
+  u, v, w = SVector{N}(u0[1:3:end]), 
+            SVector{N}(u0[2:3:end]), 
+            SVector{N}(u0[3:3:end])
   nnode   = length(u)             # number of nodes
   Ndofs   = 3 * nnode             # total number of nodal displacement DOFs
   wgt     = elem.wgt
@@ -121,7 +123,7 @@ function getδϕ(elem::C3DE{P}, u0::Array{T})  where {P,T}
                       )
 
     # Evaluate constitutive D2 energy for F (material returns adiff.D2)
-    ϕ = getϕ(adiff.D2(adiff.val.(F)), elem.mat)::adiff.D2{9, 45, T}
+    ϕ = getϕ(adiff.D2(F), elem.mat)::adiff.D2{9, 45, T}
 
     # accumulate energy, gradient and (triangular) Hessian using δF mapping
     val += wgt[ii] * ϕ.v

@@ -222,7 +222,7 @@ function solvestep!(elems, uold, unew, ifreeu, icnstu;
 
       if nEqs == 0
         res              = fi[ifreeu]-fe[ifreeu]
-        res[:]         .-= Kt[ifreeu,icnstu]*Δucnst
+        res[:]          -= Kt[ifreeu,icnstu]*Δucnst
         # updt[:]          = qr(Kt[ifreeu,ifreeu])\res
         updt[:]          = lu(Kt[ifreeu,ifreeu])\res
         unew[ifreeu]    .= uold[ifreeu] .+ updt 
@@ -230,7 +230,7 @@ function solvestep!(elems, uold, unew, ifreeu, icnstu;
       else
         (vEqs,rEqs,KEqs) = makeϕrKt(eqns, uold, λ)
         resu             = fi[ifreeu]-fe[ifreeu]-rEqs[ifreeu,:]*λ
-        resu[:]        .-= (Kt[ifreeu,icnstu]-KEqs[ifreeu,icnstu])*Δucnst
+        resu[:]         -= (Kt[ifreeu,icnstu]-KEqs[ifreeu,icnstu])*Δucnst
         rese             = -vEqs
         res              = vcat(resu, rese)
 

@@ -171,18 +171,15 @@ end
 """
 Return scalar field value `d` at Gauss point `ii`.
 """
-@inline function get_d(elem::CPElem{D,P,M,T,N}, d::Vector{T}, ii::Integer) where {D,P,M,T,N}
-    return dot(elem.N[ii], SVector{N}(d[elem.nodes]))
-end
+@inline get_d(elem::CPElem, d::SVector, ii::Integer) = elem.N[ii]⋅d
 
 """
 Return scalar field gradient ∇d at Gauss point `ii`.
 """
-@inline function get_∇d(elem::CPElem{D,P,M,T,N}, d::Vector{T}, ii::Integer) where {D,P,M,T,N}
+@inline function get_∇d(elem::CPElem{D,P,M,T,N}, d::SVector, ii::Integer) where {D,P,M,T,N}
     ∇d = @MVector zeros(T, D)
-    nodal_d = SVector{N}(d[elem.nodes])
     @inbounds for jj in 1:D
-        ∇d[jj] = dot(elem.∇N[jj][ii], nodal_d)
+        ∇d[jj] = elem.∇N[jj][ii]⋅d
     end
     return SVector{D,T}(∇d)
 end
@@ -277,7 +274,7 @@ function ×(ϕ::adiff.D2{N,M,T},F::AbstractArray{adiff.D1{P,T}}) where {N,M,P,T}
     hess += ϕ.h[ii,jj]*(F[ii].g*F[jj].g + F[jj].g*F[ii].g)
   end  
   for ii=1:N
-    hess += ϕ.h[ii,ii]F[ii].g*F[ii].g
+    hess += ϕ.h[ii,ii]*(F[ii].g*F[ii].g)
   end
   adiff.D2(val, grad, hess)
 end

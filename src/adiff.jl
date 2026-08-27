@@ -21,13 +21,15 @@ end
 # Kronecker delta function
 δ(i, j, T)           = i == j ? one(T) : zero(T)
 
-# Helper functions to generate tuple expressions
-tupfy(f, N)          = :(@inbounds $(Expr(:tuple, [f(i) for i in 1:N]...)))
-tupfy2(f, N)         = :(@inbounds $(Expr(:tuple, [f(i, j) for j in 1:N for i in 1:j]...)))
+# Helper functions to generate SVector constructor expressions
+# tupfy  : builds SVector{N,T}(f(1), f(2), ..., f(N))
+# tupfy2 : builds SVector{M,T}(f(i,j) for j=1..N, i=1..j)  — lower-triangular, M=(N+1)*N/2
+tupfy(f, N)  = :(@inbounds SVector($(Expr(:tuple, [f(i) for i in 1:N]...))))
+tupfy2(f, N) = :(@inbounds SVector($(Expr(:tuple, [f(i, j) for j in 1:N for i in 1:j]...))))
 
 # Structures
 struct Grad{N, T}
-    v::NTuple{N, T}
+    v::SVector{N, T}
 end
 
 struct D1{N, T} <: Number
@@ -45,15 +47,16 @@ Duals               = Union{D1, D2}
 
 # Constructors
 @inline @generated zero(::Type{Grad{N, T}}) where {N, T} = :(Grad($(tupfy(i -> zero(T), N))))
-@inline zero(::Grad{N, T}) where {N, T} = zero(Grad{N, T})
+@inline zero(::Grad{N, T}) where {N, T}                  = zero(Grad{N, T})
 
-Grad(v::T) where T<:Number               = Grad(tuple(v))
-Grad(v::AbstractArray{T}) where T<:Number = Grad(tuple(v...))
-D2(v::T) where T<:Number                 = D2(v, Grad(one(T)), Grad(zero(T)))
-D1(v::T) where T<:Number                 = D1(v, Grad(one(T)))
-D2{N, M, T}(v::Number) where {N, M, T}   = D2{N, M, T}(T(v), zero(Grad{N, T}), zero(Grad{M, T}))
-D1{N, T}(v::Number) where {N, T}         = D1{N, T}(T(v), zero(Grad{N, T}))
-D2(v::T, g::Grad{N, T}) where {N, T}     = D2(v, g, zero(Grad{(N+1)*N÷2, T}))
+Grad(v::T) where T<:Number                = Grad(SVector{1, T}(v))
+Grad(v::AbstractArray{T}) where T<:Number = Grad(SVector{length(v), T}(v...))
+
+D2(v::T) where T<:Number                  = D2(v, Grad(one(T)), Grad(zero(T)))
+D1(v::T) where T<:Number                  = D1(v, Grad(one(T)))
+D2{N, M, T}(v::Number) where {N, M, T}    = D2{N, M, T}(T(v), zero(Grad{N, T}), zero(Grad{M, T}))
+D1{N, T}(v::Number) where {N, T}          = D1{N, T}(T(v), zero(Grad{N, T}))
+D2(v::T, g::Grad{N, T}) where {N, T}      = D2(v, g, zero(Grad{(N+1)*N÷2, T}))
 
 D2(x::AbstractArray{T}) where T<:Number = begin
     N    = length(x)
@@ -67,6 +70,76 @@ D1(x::AbstractArray{T}) where T<:Number = begin
     [D1(x, grad[ii]) for (ii, x) in enumerate(x)]
 end
 
+@inline @generated function D2(x::SMatrix{R,C,T}) where {R,C,T<:Number}
+    N = R*C
+    M = (N+1)*N÷2
+    D2_exprs = [:(D2(x[$k], seeds[$k], z0)) for k in 1:N]
+    return quote
+        seeds = init(Grad{$N, $T})
+        z0    = zero(Grad{$M, $T})
+        SMatrix{$R,$C}($(D2_exprs...))
+    end
+end
+
+@inline @generated function D2(x::SVector{N,T}) where {N,T<:Number}
+    M = (N+1)*N÷2
+    D2_exprs = [:(D2(x[$k], seeds[$k], z0)) for k in 1:N]
+    return quote
+        seeds = init(Grad{$N, $T})
+        z0    = zero(Grad{$M, $T})
+        SVector{$N}($(D2_exprs...))
+    end
+end
+
+@inline @generated function D1(x::SVector{N,T}) where {N,T<:Number}
+    D1_exprs = [:(D1(x[$k], seeds[$k])) for k in 1:N]
+    return quote
+        seeds = init(Grad{$N, $T})
+        SVector{$N}($(D1_exprs...))
+    end
+end
+
+@inline @generated function D1(x::SMatrix{R,C,T}) where {R,C,T<:Number}
+    N = R*C
+    D1_exprs = [:(D1(x[$k], seeds[$k])) for k in 1:N]
+    return quote
+        seeds = init(Grad{$N, $T})
+        SVector{$R,$C}($(D1_exprs...))
+    end
+end
+
+
+# seed(vals, seeds, z0)
+#
+# Zips a flat SVector{N,T} of real values with the corresponding NTuple of
+# Grad seeds (as returned by init) and a shared zero Hessian Grad z0, and
+# returns a fully seeded SVector{N, D2{N,M,T}}.
+#
+# This is the @generated replacement for the hand-unrolled:
+#
+#   SVector{13}(D2(vals[1],seeds[1],z0),
+#               D2(vals[2],seeds[2],z0), ...)
+#
+# The generated body emits a literal SVector(D2(...), D2(...), ...) expression
+# with N terms, identical to hand-unrolling, so the compiler sees a static
+# sequence of scalar stores with no loop, no ntuple closure overhead and no
+# heap allocation.
+#
+# Arguments
+#   vals  :: SVector{N,T}           — real values of the N intermediate vars
+#   seeds :: NTuple{N, Grad{N,T}}   — identity seed rows (output of init)
+#   z0    :: Grad{M,T}              — shared zero Hessian (M = (N+1)*N÷2)
+#
+@inline @generated function seed(vals  :: SVector{N,T},
+                                 seeds :: SVector{N, Grad{N,T}},
+                                 z0    :: Grad{M,T}) where {N,M,T}
+  # At specialisation time N, M, T are all known constants.
+  # Emit:  SVector{N,D2{N,M,T}}( D2(vals[1],seeds[1],z0),
+  #                               D2(vals[2],seeds[2],z0), ... )
+  D2_exprs = [:(D2(vals[$k], seeds[$k], z0)) for k in 1:N]
+  return :(SVector{$N, D2{$N,$M,$T}}($(D2_exprs...)))
+end
+
 # Conversion functions
 D1(x::D2)                              = D1(x.v, x.g)
 D2(x::D1{N, T}) where {N, T}           = D2{N, (N+1)*N÷2, T}(x.v, x.g, zero(Grad{(N+1)*N÷2, T}))
@@ -75,22 +148,24 @@ convert(::Type{<:Real}, x::D2)         = x.v
 length(::Grad{N}) where N              = N
 
 # Promotion rules
-promote_rule(::Type{D2{N, M, T}}, ::Type{D1{N}}) where {N, M, T} = D2{N, M, T}
+promote_rule(::Type{D2{N, M, T}}, ::Type{D1{N}})  where {N, M, T} = D2{N, M, T}
 promote_rule(::Type{D2{N, M, T}}, ::Type{<:Real}) where {N, M, T} = D2{N, M, T}
-promote_rule(::Type{D1{N, T}}, ::Type{<:Real}) where {N, T} = D1{N, T}
+promote_rule(::Type{D1{N, T}},    ::Type{<:Real}) where {N, T}    = D1{N, T}
 
 # Indexing
 @inline @propagate_inbounds getindex(x::Grad{N}, I...) where N = x.v[I...]
 @inline @propagate_inbounds getindex(x::Grad{N}, I, J) where N = ((I > J) && @swap(I, J); x.v[(J-1)*J÷2+I])
+
+# Seeding: column j of the N×N identity stored as Grad{N,T}
 @inline @generated init(::Type{Grad{N, T}}) where {N, T} = tupfy(j -> :(Grad($(tupfy(i -> δ(i, j, T), N)))), N)
 
-# Arithmetic operations on Grad
+# Arithmetic operations on Grad  (@generated — cost moved to compile time)
 @inline @generated +(x::Grad{N, T}, y::Grad{N, T}) where {N, T} = :(Grad{N, T}($(tupfy(i -> :(x[$i]+y[$i]), N))))
 @inline @generated -(x::Grad{N, T}, y::Grad{N, T}) where {N, T} = :(Grad{N, T}($(tupfy(i -> :(x[$i]-y[$i]), N))))
-@inline @generated -(y::Grad{N, T}) where {N, T}                = :(Grad{N, T}($(tupfy(i -> :( -y[$i]), N))))
-@inline @generated *(x::Number, y::Grad{N, T}) where {N, T}     = :(Grad{N, T}($(tupfy(i -> :(x*y[$i]), N))))
-@inline @generated *(y::Grad{N, T}, x::Number) where {N, T}     = :(Grad{N, T}($(tupfy(i -> :(x*y[$i]), N))))
-@inline @generated /(y::Grad{N, T}, x::Number) where {N, T}     = :(Grad{N, T}($(tupfy(i -> :(y[$i]/x), N))))
+@inline @generated -(y::Grad{N, T}) where {N, T}                = :(Grad{N, T}($(tupfy(i -> :(-y[$i]),      N))))
+@inline @generated *(x::Number, y::Grad{N, T}) where {N, T}     = :(Grad{N, T}($(tupfy(i -> :(x*y[$i]),    N))))
+@inline @generated *(y::Grad{N, T}, x::Number) where {N, T}     = :(Grad{N, T}($(tupfy(i -> :(x*y[$i]),    N))))
+@inline @generated /(y::Grad{N, T}, x::Number) where {N, T}     = :(Grad{N, T}($(tupfy(i -> :(y[$i]/x),    N))))
 @inline @generated *(x::Grad{N, T}, y::Grad{N, T}) where {N, T} = :(Grad{(N+1)*N÷2, T}($(tupfy2((i, j) -> :(x[$i]*y[$j]), N))))
 
 # Relational operators for Duals
@@ -154,23 +229,24 @@ promote_rule(::Type{D1{N, T}}, ::Type{<:Real}) where {N, T} = D1{N, T}
 # Data retrieving methods
 @inline D1eval(f, x)                    = f(D1(x))
 @inline D2eval(f, x)                    = f(D2(x))
-@inline val(x::Duals)                   = x.v
-@inline val(U::AbstractArray{Duals})    = [u.v for u in U]
-@inline grad(x::Real)                   = 0
-@inline grad(x::Duals)                  = [g for g in x.g.v]
-@inline hess(x::D1{N, T}) where {N, T}  = zeros(T, N, N)
-@inline hess(x::D2{N, M, T}) where {N, M, T} = [x.h[i, j] for i in 1:N, j in 1:N]
 
+@inline val(x::Duals)                          = x.v
+@inline val(U::AbstractArray{<:Duals})           = [u.v for u in U]
+@inline val(U::SMatrix{R,C,<:Duals}) where {R,C} = SMatrix{R,C}(ntuple(ii->U[ii].v, R*C))
+@inline val(U::SVector{N,<:Duals})   where N     = SVector{N}(ntuple(ii->U[ii].v, N))
+
+@inline grad(x::Real)                        = 0
+@inline grad(x::Duals)                       = Vector(x.g.v)
+@inline hess(x::D1{N, T}) where {N, T}       = zeros(T, N, N)
+@inline hess(x::D2{N, M, T}) where {N, M, T} = [x.h[i, j] for i in 1:N, j in 1:N]
 
 @inline min(x::Duals, y::Duals)   = x.v < y.v ? x : y
 @inline max(x::Duals, y::Duals)   = x.v > y.v ? x : y
 @inline eps(x::T) where T<:Duals  = T(eps(x.v))
 
 function svdvals(F::SMatrix{3,3,T}; tol=1e-24, ϵη=1e-30) where T <: Duals
-  # Smooth positive part: ~ max(x,0), but analytic
   @inline smoothplus(x, ϵ) = (x + sqrt(x*x + ϵ*ϵ)) / 2
 
-  # C = F'F, expanded explicitly
   f11,f12,f13 = F[1,1],F[1,2],F[1,3]
   f21,f22,f23 = F[2,1],F[2,2],F[2,3]
   f31,f32,f33 = F[3,1],F[3,2],F[3,3]
@@ -182,62 +258,42 @@ function svdvals(F::SMatrix{3,3,T}; tol=1e-24, ϵη=1e-30) where T <: Duals
   c13 = f11*f13 + f21*f23 + f31*f33
   c23 = f12*f13 + f22*f23 + f32*f33
 
-  # mean eigenvalue
   m = (c11 + c22 + c33) / 3
 
-  # deviatoric part B = C - m I
-  b11 = c11 - m
-  b22 = c22 - m
-  b33 = c33 - m
-  b12 = c12
-  b13 = c13
-  b23 = c23
+  b11 = c11 - m;  b22 = c22 - m;  b33 = c33 - m
+  b12 = c12;      b13 = c13;      b23 = c23
 
-  # p² = tr(B²)/6
   trB2 = b11*b11 + b22*b22 + b33*b33 + 2*(b12*b12 + b13*b13 + b23*b23)
-  p2 = trB2 / 6
+  p2   = trB2 / 6
 
-  η1 = m
-  η2 = m
-  η3 = m
+  η1 = m;  η2 = m;  η3 = m
 
   if p2 > tol
-    p = sqrt(p2)
+    p    = sqrt(p2)
     invp = inv(p)
 
-    # R = B/p
-    r11 = b11*invp
-    r22 = b22*invp
-    r33 = b33*invp
-    r12 = b12*invp
-    r13 = b13*invp
-    r23 = b23*invp
+    r11 = b11*invp;  r22 = b22*invp;  r33 = b33*invp
+    r12 = b12*invp;  r13 = b13*invp;  r23 = b23*invp
 
     detR = r11*(r22*r33 - r23*r23) -
-    r12*(r12*r33 - r13*r23) +
-    r13*(r12*r23 - r13*r22)
+           r12*(r12*r33 - r13*r23) +
+           r13*(r12*r23 - r13*r22)
 
-    # exact theory gives r in [-1,1]
     r = detR / 2
-
-    # numerical safeguard
-    # r = min(one(T), max(-one(T), r))
     r = min(one(T)-eps(r.v), max(-one(T)+eps(r.v), r))
 
-    ϕ = acos(r) / 3
-
+    ϕ     = acos(r) / 3
     two_p = 2p
-    η1 = m + two_p*cos(ϕ)
-    η2 = m + two_p*cos(ϕ + 2T(pi)/3)
-    η3 = m + two_p*cos(ϕ + 4T(pi)/3)
+    η1    = m + two_p*cos(ϕ)
+    η2    = m + two_p*cos(ϕ + 2T(pi)/3)
+    η3    = m + two_p*cos(ϕ + 4T(pi)/3)
   end
 
-  # protect sqrt from tiny negative roundoff
   η1 = smoothplus(η1, T(ϵη))
   η2 = smoothplus(η2, T(ϵη))
   η3 = smoothplus(η3, T(ϵη))
 
-  return @SVector [sqrt(η1), sqrt(η2), sqrt(η3)]
+  return SVector{3}(sqrt(η1), sqrt(η2), sqrt(η3))
 end
 
 end

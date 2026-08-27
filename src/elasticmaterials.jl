@@ -135,7 +135,7 @@ Returns the scalar energy density `ϕ`. For 2D plane problems some overloads
 reconstruct a compatible 3D deformation gradient (using `mat.K`) before
 computing invariants; this behaviour is documented per-overload in the source.
 """
-function getϕ(F::AbstractMatrix{<:Number}, mat::M where M <:HyperEla)
+function getϕ(F::AbstractArray{<:Number}, mat::M where M <:HyperEla)
   C = transpose(F)F
   if length(C) == 9
     (I1,I2,I3) = getInvariants(C)
@@ -145,7 +145,7 @@ function getϕ(F::AbstractMatrix{<:Number}, mat::M where M <:HyperEla)
   end
   getϕ(I1,I2,I3,mat)
 end
-function getϕ(F::AbstractMatrix{<:Number}, mat::Ogden)
+function getϕ(F::AbstractArray{<:Number}, mat::Ogden)
 
   α, μ, K = mat.α, mat.μ, mat.K
 
