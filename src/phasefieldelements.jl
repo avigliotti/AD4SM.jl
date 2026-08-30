@@ -225,8 +225,9 @@ end
 # 
 # functions for array of elements
 # 
-function makeϕrKt(elems::Vector{<:CPElem{D,P,M,S,N}} where {D,P,M,S}, u::Array{T}, d::Array{T}) where {N,T}
+function makeϕrKt(elems::Vector{<:CPElem{D,P,M,S,nN}} where {D,P,M,S}, u::Array{T}, d::Array{T}) where {nN,T}
   nElems = length(elems)
+  N      = nN*size(u,1)
   M      = (N+1)N÷2
 
   Φ = Vector{adiff.D2{N,M,T}}(undef, nElems)

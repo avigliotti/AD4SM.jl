@@ -69,7 +69,7 @@ Fields:
 - `mat`   : material model
 """
 struct CEElem{D,P,M,T,N} <: AbstractCElem{D,P,M,T,N}
-    nodes::Vector{I} where I
+    nodes::SVector{N,I} where I
     ∇N::NTuple{D,NTuple{P,SVector{N,T}}}
     wgt::NTuple{P,T}
     V::T
@@ -102,7 +102,7 @@ Fields:
 - `mat`   : material model
 """
 struct CPElem{D,P,M,T,N} <: AbstractCElem{D,P,M,T,N}
-    nodes::Vector{I} where I
+    nodes::SVector{N,I} where I
     N::NTuple{P,SVector{N,T}}
     ∇N::NTuple{D,NTuple{P,SVector{N,T}}}
     wgt::NTuple{P,T}
