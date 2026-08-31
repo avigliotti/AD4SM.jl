@@ -191,7 +191,7 @@ function _calculate_mech_fields_2d(N::F, GPs, nodes::Vector, p0::Vector{<:Abstra
         Nx[ii]  = grads[1, :]
         Ny[ii]  = grads[2, :]
         # FIX: Use standard `det` function
-        wgt[ii] = det(Jᵀ) * wii 
+        wgt[ii] = abs(det(Jᵀ)) * wii 
         V      += wgt[ii]
     end
     
@@ -222,7 +222,7 @@ function _calculate_mech_fields_3d(N::F, GPs, nodes::Vector, p0::Vector{<:Abstra
         Ny[ii]  = grads[2, :]
         Nz[ii]  = grads[3, :]
         # FIX: Use standard `det` function
-        wgt[ii] = det(Jᵀ) * wii
+        wgt[ii] = abs(det(Jᵀ)) * wii
         V      += wgt[ii]
     end
 
@@ -279,7 +279,7 @@ function _calculate_as_fields_as(N_fun, GPs, nodes, p0::Vector{<:AbstractVector{
         r_vec[ii]   = r_gp
 
         # Weight includes 2π r factor for the volume integral
-        wgt_vec[ii] = det(Jᵀ) * wii * 2T(π) * r_gp
+        wgt_vec[ii] = abs(det(Jᵀ)) * wii * 2T(π) * r_gp
         V          += wgt_vec[ii]
     end
 

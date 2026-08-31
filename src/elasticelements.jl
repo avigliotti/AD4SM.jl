@@ -293,7 +293,7 @@ function getσ(elem::CASE{P_,M,T_,Nn}, u::AbstractArray{T}) where {P_,M,T_,Nn,T}
     F   = getF(elem, u_s, ii)
     δϕ  = getϕ(adiff.D1(F), elem.mat)
     Pij = reshape(adiff.grad(δϕ), 3, 3)
-    J   = detJ(F)
+    J   = det(F)
     σ  .+= elem.wgt[ii] * (1/J) .* (Pij * F')
   end
   return SMatrix{3,3,T}(σ / elem.V)

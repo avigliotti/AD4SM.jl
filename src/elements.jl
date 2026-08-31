@@ -14,7 +14,7 @@ export AbstractElement, AbstractContinuumElem, AbstractCElem
 export CElem, CEElem, CPElem, CASElem, 
        C1DE, C2DE, C3DE, C1DP, C2DP, C3DP,
        C1D, C2D, C3D, LagrangePoly, CASE
-export getϕ, getσ, getP, detJ, getF, ×, getV
+export getϕ, getσ, getP, getF, ×, getV
 export get∇n
 export getI₁, getI₂, getĪ₁, getĪ₂
 
@@ -401,7 +401,7 @@ function LagrangePoly(nodes::Vector{<:Integer},
 
         Nx[i, j] = grads_phys[1, :]
         Ny[i, j] = grads_phys[2, :]
-        wgt[i, j] = detJ(J_mat) * wxi * weta
+        wgt[i, j] = det(J_mat) * wxi * weta
         Vol += wgt[i, j]
       end
     end
@@ -446,7 +446,7 @@ function LagrangePoly(nodes::Vector{<:Integer},
           Nx[i, j, k] = grads_phys[1, :]
           Ny[i, j, k] = grads_phys[2, :]
           Nz[i, j, k] = grads_phys[3, :]
-          wgt[i, j, k] = detJ(J_mat) * wxi * weta * wzeta
+          wgt[i, j, k] = det(J_mat) * wxi * weta * wzeta
           Vol += wgt[i, j, k]
         end
       end

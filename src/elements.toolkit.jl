@@ -117,7 +117,7 @@ function getσ(elem::CElem{D,P,M,S,N} where {P,S,M}, u::AbstractArray{T}, ii::In
   F  = getF(elem, u, ii)
   δϕ = getϕ(adiff.D1(F), elem.mat)
   P  = reshape(adiff.grad(δϕ), size(F))
-  J  = detJ(F)
+  J  = det(F)
 
   return 1/J*P*F'
 end
@@ -305,8 +305,8 @@ end
     # I₂=C₁₁C₂₂+C₁₁C₃₃+C₂₂C₃₃−C₁₂²−C₁₃²−C₂₃²
     C[1]C[5]+C[1]C[9]+C[5]C[9]-C[2]C[4]-C[3]C[7]-C[6]C[8]
 end
-@inline getĪ₁(F::Union{SMatrix{3,3}, SVector{9}}) = getI₁(F)/detJ(F)^(2/3)
-@inline getĪ₂(F::Union{SMatrix{3,3}, SVector{9}}) = getI₂(F)/detJ(F)^(4/3)
+@inline getĪ₁(F::Union{SMatrix{3,3}, SVector{9}}) = getI₁(F)/det(F)^(2/3)
+@inline getĪ₂(F::Union{SMatrix{3,3}, SVector{9}}) = getI₂(F)/det(F)^(4/3)
 
 function getĪ₁(elem::CElem{D,P} where D, u::AbstractArray{T}) where {P,T}
   Ī₁ = zero(T)
