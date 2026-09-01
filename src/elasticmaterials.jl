@@ -335,20 +335,3 @@ function get1stinvariants(F::AbstractMatrix{<:Number}, mat::Hooke1D)
   F[1], F[1]^2
 end
 
-#=
-detJ(F, mat::Hooke2D{T,:plane_stress} where T) = F[1]F[4]-F[2]F[3]
-detJ(elem::C2D{P,<:Hooke2D{T,:plane_strain}} where {P,T}, u::AbstractArray, ii::Integer) = detJ(getF(elem,u,ii))
-function detJ(elem::C2D{P,<:Hooke2D{T,:plane_stress}} where {P,T}, u::AbstractArray, ii::Integer)
-  
-  ν   = elem.mat.ν
-  F   = getF(elem, u, ii)
-  if elem.mat.small
-    F33 = -ν/(1-ν)*(F[1,1]+F[2,2]-2) + 1
-  else
-    E = (transpose(F)F-I)/2   # the Green-Lagrange strain tensor
-    F33 = sqrt(-ν/(1-ν)*(E[1,1]+E[2,2]-2) + 1)
-  end
-
-  return F33*detJ(getF(elem,u,ii))
-end
-=#
