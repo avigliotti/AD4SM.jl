@@ -74,7 +74,7 @@ Fields:
 - `mat`   : material model
 """
 struct CEElem{D,P,M,T,N,O} <: AbstractCElem{D,P,M,T,N,O}
-  nodes::Vector{I} where I
+  nodes::SVector{N,I} where I
   ∇N::NTuple{D,NTuple{P,SVector{N,T}}}
   wgt::NTuple{P,T}
   V::T
@@ -107,7 +107,7 @@ Fields:
 - `mat`   : material model
 """
 struct CPElem{D,P,M,T,N,O} <: AbstractCElem{D,P,M,T,N,O}
-  nodes::Vector{I} where I
+  nodes::SVector{N,I} where I
   N::NTuple{P,SVector{N,T}}
   ∇N::NTuple{D,NTuple{P,SVector{N,T}}}
   wgt::NTuple{P,T}
@@ -131,13 +131,13 @@ Fields:
 - `mat`   : material model
 """
 struct CASElem{D,P,M,T,N,O} <: AbstractCElem{D,P,M,T,N,O}
-  nodes :: Vector{<:Integer}
-  N     :: NTuple{P, SVector{N,T}}
-  ∇N    :: NTuple{D, NTuple{P, SVector{N,T}}}
-  r_GP  :: NTuple{P, T}
-  wgt   :: NTuple{P, T}
-  V     :: T
-  mat   :: M
+  nodes::SVector{<:Integer}
+  N::NTuple{P, SVector{N,T}}
+  ∇N::NTuple{D, NTuple{P, SVector{N,T}}}
+  r_GP::NTuple{P, T}
+  wgt::NTuple{P, T}
+  V::T
+  mat::M
 end
 
 # ---------------------------------------------------------------------------
@@ -173,8 +173,7 @@ function C1DE(nodes, Nx, wgt, V, mat, ord=1)
   P  = length(wgt)
   Nn = length(Nx[1])
   return CEElem{1,P,typeof(mat),eltype(wgt),Nn,ord}(
-                                                 
-                nodes,
+                SVector{Nn}(nodes),
                 (ntuple(ii -> SVector{Nn}(Nx[ii]), P),),
                 wgt, V, mat)
 end
@@ -186,7 +185,7 @@ function C2DE(nodes, Nx, Ny, wgt, V, mat, ord=1)
   P  = length(wgt)
   Nn = length(Nx[1])
   return CEElem{2,P,typeof(mat),eltype(wgt),Nn,ord}(
-                nodes,
+                SVector{Nn}(nodes),
                 (ntuple(ii -> SVector{Nn}(Nx[ii]), P),
                  ntuple(ii -> SVector{Nn}(Ny[ii]), P) ),
                 wgt, V, mat)
@@ -199,7 +198,7 @@ function C3DE(nodes, Nx, Ny, Nz, wgt, V, mat, ord=1)
   P = length(wgt)
   Nn = length(Nx[1])
   return CEElem{3,P,typeof(mat),eltype(wgt),Nn,ord}(
-                nodes,
+                SVector{Nn}(nodes),
                 ( ntuple(ii -> SVector{Nn}(Nx[ii]), P),
                  ntuple(ii -> SVector{Nn}(Ny[ii]), P),
                  ntuple(ii -> SVector{Nn}(Nz[ii]), P) ),
@@ -217,7 +216,7 @@ function C1DP(nodes, N, Nx, wgt, V, mat, ord=1)
   P = length(wgt)
   Nn = length(N[1])
   return CPElem{1,P,typeof(mat),eltype(wgt),Nn,ord}(
-                nodes,
+                SVector{Nn}(nodes),
                 ntuple(ii -> SVector{Nn}(N[ii]), P),
                 (ntuple(ii -> SVector{Nn}(Nx[ii]), P),),
                  wgt, V, mat)
@@ -230,7 +229,7 @@ function C2DP(nodes, N, Nx, Ny, wgt, V, mat, ord=1)
   P = length(wgt)
   Nn = length(N[1])
   return CPElem{2,P,typeof(mat),eltype(wgt),Nn,ord}(
-                nodes,
+                SVector{Nn}(nodes),
                 ntuple(ii -> SVector{Nn}(N[ii]), P),
                 ( ntuple(ii -> SVector{Nn}(Nx[ii]), P),
                 ntuple(ii -> SVector{Nn}(Ny[ii]), P) ),
@@ -243,12 +242,12 @@ Create a 3D scalar-field element.
 function C3DP(nodes, N0, Nx, Ny, Nz, wgt, V::T, mat::M, O::Int=1) where {M<:Material, T}
   P = length(wgt)
   N = length(nodes)
-  C3DP{P,M,T,N,O}(nodes,
-                    ntuple(ii->SVector{N}(N0[ii]), P),
-                    (ntuple(ii->SVector{N}(Nx[ii]), P),
-                     ntuple(ii->SVector{N}(Ny[ii]), P),
-                     ntuple(ii->SVector{N}(Nz[ii]), P) ),
-                    wgt, V, mat)
+  C3DP{P,M,T,N,O}(SVector{Nn}(nodes),
+                  ntuple(ii->SVector{N}(N0[ii]), P),
+                  (ntuple(ii->SVector{N}(Nx[ii]), P),
+                   ntuple(ii->SVector{N}(Ny[ii]), P),
+                   ntuple(ii->SVector{N}(Nz[ii]), P) ),
+                  wgt, V, mat)
 end
 
 # ---------------------------------------------------------------------------
@@ -267,7 +266,7 @@ function CASE(nodes, N0, Nr, Nz, r_GP, wgt, V, mat, ord=1)
   M   = typeof(mat)
   T   = eltype(wgt)
   CASElem{2,P,M,T,Nn,ord}(
-    nodes,
+    SVector{Nn}(nodes),
     ntuple(ii -> SVector{Nn,T}(N0[ii]),   P),
     ( ntuple(ii -> SVector{Nn,T}(Nr[ii]), P),
       ntuple(ii -> SVector{Nn,T}(Nz[ii]), P) ),
