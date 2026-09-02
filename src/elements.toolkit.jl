@@ -137,14 +137,14 @@ end
 """
 Return scalar field value `d` at Gauss point `ii`.
 """
-@inline function get_d(elem::CPElem{D,P,M,T,N}, d::Vector{T}, ii::Integer) where {D,P,M,T,N}
+@inline function get_d(elem::CPElem{D,P,M,U,N} where U, d::Vector{T}, ii::Integer) where {D,P,M,T,N}
     return dot(elem.N[ii], SVector{N}(d[elem.nodes]))
 end
 
 """
 Return scalar field gradient ∇d at Gauss point `ii`.
 """
-@inline function get_∇d(elem::CPElem{D,P,M,T,N}, d::Vector{T}, ii::Integer) where {D,P,M,T,N}
+@inline function get_∇d(elem::CPElem{D,P,M,U,N} where U, d::Vector{T}, ii::Integer) where {D,P,M,T,N}
     ∇d = @MVector zeros(T, D)
     nodal_d = SVector{N}(d[elem.nodes])
     @inbounds for jj in 1:D
@@ -156,8 +156,7 @@ end
 """
 Return scalar field value and gradient `(d, ∇d)` at Gauss point `ii`.
 """
-@inline function get_d_and_∇d(elem::CPElem{D,P,M,T,N}, d::SVector, ii::Integer) where {D,P,M,T,N}
-    # nodal_d = SVector{N}(d)
+@inline function get_d_and_∇d(elem::CPElem{D,P,M,U,N} where U, d::SVector{N,T}, ii::Integer) where {D,P,M,N,T}
     d_val = elem.N[ii]⋅d
     ∇d = @MVector zeros(T, D)
     @inbounds for jj in 1:D
@@ -171,7 +170,6 @@ function makeϕrKt(Φ::Vector{<:adiff.D2}, elems::Vector{<:AbstractContinuumElem
   N  = length(u) 
   Nt = 0
   for ϕ in Φ
-    # Nt += length(ϕ.g)*length(ϕ.g)
     Nt += length(ϕ.g.v)*length(ϕ.g.v)
   end
 
