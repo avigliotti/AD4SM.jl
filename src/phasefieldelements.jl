@@ -4,17 +4,6 @@ export makeϕrKt_d
 include("./phasefieldelements.1stord.jl")
 include("./phasefieldelements.2ndord.jl")
 
-# functions for phase field
-#
-# get the average of d over the element
-function getd(elem::CPElem{P}, d0::Vector{T}) where {P,T}
-  d       = zero(T)
-  for ii=1:P
-    d += elem.wgt[ii]*(elem.N[ii]⋅d0)
-  end  
-  d/elem.V
-end
-#
 # get free energy density for the elment without history
 function getϕ(elem::CPElem{D,P,M,T,N} where {D,M,T}, u0::AbstractArray, d0::AbstractArray) where {P,N}
 
@@ -135,46 +124,6 @@ function makeϕrKt_d(elems::Vector{<:CPElem{D,P,M,S,N}} where {D,P,M,S}, u::Arra
   end
   makeϕrKt(Φ, elems, d)
 end
-#
-#= getδϕu
-function getδϕu(elem::C3DP{P,<:PhaseField}, u0::Array{T}, d0::Array{T})  where {P,T}
-
-  u, v, w = u0[1:3:end], u0[2:3:end], u0[3:3:end]
-  N       = lastindex(u0)  
-  wgt     = elem.wgt
-  val     = zero(T)
-  grad    = zeros(T,N)
-  hess    = zeros(T,(N+1)N÷2)
-  δF      = zeros(T,N,9)
-
-  for ii=1:P
-    N,Nx,Ny,Nz = elem.N[ii],elem.Nx[ii],elem.Ny[ii],elem.Nz[ii]
-    δF[1:3:N,1] = δF[2:3:N,2] = δF[3:3:N,3] = Nx
-    δF[1:3:N,4] = δF[2:3:N,5] = δF[3:3:N,6] = Ny
-    δF[1:3:N,7] = δF[2:3:N,8] = δF[3:3:N,9] = Nz
-
-    F    = [Nx⋅u Ny⋅u Nz⋅u;
-            Nx⋅v Ny⋅v Nz⋅v;
-            Nx⋅w Ny⋅w Nz⋅w ] + I
-    d    = N⋅d0
-    ∇d   = [Nx⋅d0, Ny⋅d0, Nz⋅d0]
-    ϕ    = getϕ(adiff.D2(F), d, ∇d, elem.mat)::adiff.D2{9, 45, T}
-    val += wgt[ii]ϕ.v
-    for jj=1:9,i1=1:N
-      grad[i1] += wgt[ii]*ϕ.g[jj]*δF[i1,jj]
-      for kk=1:9,i2=1:i1
-        hess[(i1-1)i1÷2+i2] += wgt[ii]*ϕ.h[jj,kk]*δF[i1,jj]*δF[i2,kk]
-      end   
-    end
-  end
-
-  adiff.D2(val, adiff.Grad(grad), adiff.Grad(hess))
-end
-=#
-# getδϕd(elem::C3Ds{P,<:PhaseField}, u0::Array, d0::Array) where P = getϕ(elem, u0, adiff.D2(d0))
-# getδϕd(elem::C2Ds{P,<:PhaseField}, u0::Array, d0::Array) where P = getϕ(elem,u0,adiff.D2(d0))
-# getδϕd(elem::Rod{<:PhaseField}, u0::Array, d0::Array)                = getϕ(elem,u0,adiff.D2(d0))
-# getδϕu(elem::Rod{<:PhaseField}, u0::Array, d0::Array)               = getϕ(elem,adiff.D2(u0),d0)
 #
 function getd(elem::CPElem{<:Any,P}, d0::Array{T}) where {P,T}
   d       = zero(T)
