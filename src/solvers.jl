@@ -21,55 +21,44 @@ struct ConstEq
 end
 ConstEq(func, iDoFs) = ConstEq(func, iDoFs, adiff.D2)
 #
+
 function makeϕrKt(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64})
-
-  function split(N::Int64, p::Int64)
-    n    = Int64(floor(N/p))
-    nEls = ones(Int64, p)*n
-    nEls[1:N-p*n] .+= 1
-
-    slice = [ range(sum(nEls[1:ii-1])+1, length=nEls[ii])
-             for ii in 1:p]
-  end
-
-  nEqs   = length(eqns)
-  if p==1 || nEqs<=p
-    (veqs, reqs, Keqs) = makeϕrKt(eqns, u, λ, 1:nEqs)
-  else
-    nDoFs  = length(u)
-    veqs   = zeros(nEqs)
-    reqs   = spzeros(nDoFs, nEqs)
-    Keqs   = spzeros(nDoFs, nDoFs)
-    chunks = split(nEqs, Elements.p)
-    procs  = [@spawn makeϕrKt(eqns, u, λ, chunk)  for chunk in chunks]
-
-    for ii in 1:p 
-      retval  = fetch(procs[ii])
-      veqs .+= retval[1]
-      reqs .+= retval[2]
-      Keqs .+= retval[3]
-    end
-  end
-  (veqs, reqs, Keqs)
-end
-function makeϕrKt(eqns::Array{ConstEq}, u::Array{Float64}, λ::Array{Float64}, chunk)
-
   nEqs  = length(eqns)
   nDoFs = length(u)
 
-  veqs  = zeros(nEqs)
-  reqs  = spzeros(nDoFs, nEqs)
-  Keqs  = spzeros(nDoFs, nDoFs)
-
-  for ii ∈ chunk 
-    eqn               =  eqns[ii]
-    iDoFs             =  eqn.iDoFs
-    ϕ                 =  eqn.func(eqn.D(u[iDoFs]))
-    veqs[ii]          =  adiff.val(ϕ)
-    reqs[iDoFs,ii]    =  adiff.grad(ϕ)
-    Keqs[iDoFs,iDoFs] += λ[ii]adiff.hess(ϕ)
+  Φ = Vector{eqns[1].D}(undef, nEqs)
+  Threads.@threads for ii = 1:nEqs
+    eqn   = eqns[ii]
+    Φ[ii] = eqn.func(eqn.D(u[eqn.iDoFs]))
   end
-  (veqs, reqs, Keqs)  
+
+  # sizes for Keqs's triplets are known before evaluating Φ
+  nii = [length(eqn.iDoFs) for eqn in eqns]
+  Nt  = sum(n -> n*n, nii)
+
+  veqs = zeros(nEqs)
+  reqs = zeros(nDoFs, nEqs)          # dense: safe to fill per-column in parallel
+  I    = Vector{Int}(undef, Nt)
+  J    = Vector{Int}(undef, Nt)
+  V    = Vector{Float64}(undef, Nt)
+
+  offs = cumsum([0; nii.^2])         # per-equation write offset into I,J,V
+
+  Threads.@threads for ii = 1:nEqs
+    iDoFs           = eqns[ii].iDoFs
+    veqs[ii]        = adiff.val(Φ[ii])
+    reqs[iDoFs,ii] .= adiff.grad(Φ[ii])   # disjoint column per thread: safe
+
+    n      = nii[ii]
+    oneii  = ones(n)
+    idd    = offs[ii]+1 : offs[ii]+n*n     # disjoint slice per thread: safe
+    I[idd] = iDoFs * transpose(oneii)
+    J[idd] = oneii * transpose(iDoFs)
+    V[idd] = λ[ii] * adiff.hess(Φ[ii])
+  end
+
+  Keqs = dropzeros(sparse(I, J, V, nDoFs, nDoFs))
+  (veqs, reqs, Keqs)
 end
 
 """
