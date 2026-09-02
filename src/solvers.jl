@@ -9,10 +9,6 @@ import ..Elements.makeϕrKt
 
 export makeϕrKt, ConstEq, solve, solvestep!
 
-p = Int64(nworkers())
-function setp(x)
-  global p = Int64(x)
-end
 # structure for constraint eqs
 struct ConstEq
   func
