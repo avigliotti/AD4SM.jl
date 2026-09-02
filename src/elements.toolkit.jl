@@ -176,10 +176,11 @@ Return scalar field value `d` at Gauss point `ii`.
 """
 Return scalar field gradient ∇d at Gauss point `ii`.
 """
-@inline function get_∇d(elem::CPElem{D,P,M,T,N}, d::SVector, ii::Integer) where {D,P,M,T,N}
+@inline function get_∇d(elem::CPElem{D,P,M,U,N} where U, d::Vector{T}, ii::Integer) where {D,P,M,T,N}
     ∇d = @MVector zeros(T, D)
+    nodal_d = SVector{N}(d[elem.nodes])
     @inbounds for jj in 1:D
-        ∇d[jj] = elem.∇N[jj][ii]⋅d
+        ∇d[jj] = dot(elem.∇N[jj][ii], nodal_d)
     end
     return SVector{D,T}(∇d)
 end
@@ -187,7 +188,7 @@ end
 """
 Return scalar field value and gradient `(d, ∇d)` at Gauss point `ii`.
 """
-@inline function get_d_and_∇d(elem::CPElem{D,P,M,T,N}, d::SVector, ii::Integer) where {D,P,M,T,N}
+@inline function get_d_and_∇d(elem::CPElem{D,P,M,U,N} where U, d::SVector{N,T}, ii::Integer) where {D,P,M,N,T}
     d_val = elem.N[ii]⋅d
     ∇d = @MVector zeros(T, D)
     @inbounds for jj in 1:D
