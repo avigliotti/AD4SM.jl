@@ -1,7 +1,7 @@
 module Solvers
 
-using LinearAlgebra, Printf
-using Distributed, SparseArrays
+using LinearAlgebra, SparseArrays
+using Printf
  
 using ..adiff, ..Materials, ..Elements 
 
