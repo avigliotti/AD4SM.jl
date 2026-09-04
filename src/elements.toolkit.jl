@@ -30,21 +30,21 @@ get∇u(elems::Array{<:CElem}, u::AbstractArray) = [get∇u(elem, u[:,elem.nodes
 """
 Compute determinant of deformation gradient J = det(F).
 """
-@inline detJ(F::SMatrix{2,2,T}) where {T} = F[1,1]F[2,2] - F[1,2]F[2,1]
-@inline detJ(F::SMatrix{3,3,T}) where {T} = F[1,1]*(F[2,2]F[3,3]-F[2,3]F[3,2]) -
-                                            F[1,2]*(F[2,1]F[3,3]-F[2,3]F[3,1]) +
-                                            F[1,3]*(F[2,1]F[3,2]-F[2,2]F[3,1])
+@inline det(F::SMatrix{2,2,T}) where {T} = F[1,1]F[2,2] - F[1,2]F[2,1]
+@inline det(F::SMatrix{3,3,T}) where {T} = F[1,1]*(F[2,2]F[3,3]-F[2,3]F[3,2]) -
+                                           F[1,2]*(F[2,1]F[3,3]-F[2,3]F[3,1]) +
+                                           F[1,3]*(F[2,1]F[3,2]-F[2,2]F[3,1])
 
-detJ(elem::CElem, u::AbstractArray, ii::Integer) = detJ(getF(elem,u,ii))
-function detJ(elem::CElem{D,P,<:Any,<:Any,N}, u::AbstractArray{T}) where {D,P,T,N}
+det(elem::CElem, u::AbstractArray, ii::Integer) = det(getF(elem,u,ii))
+function det(elem::CElem{D,P,<:Any,<:Any,N}, u::AbstractArray{T}) where {D,P,T,N}
     u = SMatrix{D,N,T}(u[1:D,:])
     J = zero(T)
     for ii=1:P
-      J += elem.wgt[ii]detJ(elem, u, ii)
+      J += elem.wgt[ii]det(elem, u, ii)
     end
     return J/elem.V
 end
-detJ(elems::Array{<:CElem}, u::AbstractArray)  = [detJ(elem, u[:,elem.nodes]) for elem in elems]
+det(elems::Array{<:CElem}, u::AbstractArray)  = [det(elem, u[:,elem.nodes]) for elem in elems]
 
 """
 Compute the current volume
@@ -52,7 +52,7 @@ Compute the current volume
 @inline function getV(elem::CElem{D,P,M,T,N}, u::AbstractArray{T}) where {D,P,M,T,N}
     total = zero(T)
     @inbounds for ii in 1:P
-        total += elem.wgt[ii] * detJ(getF(elem, u, ii))
+        total += elem.wgt[ii] * det(getF(elem, u, ii))
     end
     return total
 end
@@ -83,7 +83,7 @@ function getσ(elem::CElem{D,P,M,S,N} where {P,S,M}, u::AbstractArray{T}, ii::In
   F  = getF(elem, u, ii)
   δϕ = getϕ(adiff.D1(F), elem.mat)
   P  = reshape(adiff.grad(δϕ), size(F))
-  J  = detJ(F)
+  J  = det(F)
 
   return 1/J*P*F'
 end

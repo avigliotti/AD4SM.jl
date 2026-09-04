@@ -7,11 +7,12 @@ import ..Materials.getϕ
 
 using StaticArrays, SparseArrays
 using LinearAlgebra:I,det
-import LinearAlgebra.×
+
+import LinearAlgebra:×,det
 
 export CElem, CEElem, CPElem, C1DE, C2DE, C3DE, C1DP, C2DP, C3DP,
        C1D, C2D, C3D
-export getϕ, getσ, getP, detJ, getF, ×, getV
+export getϕ, getσ, getP, det, getF, ×, getV
 # export I₁, I₂, Ī₁, Ī₂
 
 
@@ -114,9 +115,9 @@ end
 # Type aliases for convenience
 # ---------------------------------------------------------------------------
 
-const C1DE{P,M,T,N}  = CEElem{1,P,M,T,N}
-const C2DE{P,M,T,N}  = CEElem{2,P,M,T,N}
-const C3DE{P,M,T,N}  = CEElem{3,P,M,T,N}
+const C1DE{P,M,T,N} = CEElem{1,P,M,T,N}
+const C2DE{P,M,T,N} = CEElem{2,P,M,T,N}
+const C3DE{P,M,T,N} = CEElem{3,P,M,T,N}
 
 const C1DP{P,M,T,N} = CPElem{1,P,M,T,N}
 const C2DP{P,M,T,N} = CPElem{2,P,M,T,N}
@@ -126,7 +127,6 @@ const C1D{P,M,T,N} = Union{C1DE{P,M,T,N},C1DP{P,M,T,N}}
 const C2D{P,M,T,N} = Union{C2DE{P,M,T,N},C2DP{P,M,T,N}}
 const C3D{P,M,T,N} = Union{C3DE{P,M,T,N},C3DP{P,M,T,N}}
 
-# const CElem{D,P,M,T,N} = Union{CEElem{D,P,M,T,N}, CPElem{D,P,M,T,N}}
 const CElem = AbstractCElem
 
 # ---------------------------------------------------------------------------

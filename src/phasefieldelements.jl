@@ -45,7 +45,7 @@ function QuadP(nodes::Vector{<:Integer},
     N0[ii,jj]  = adiff.val.(Nij)
     Nx[ii,jj]  = Nxy[1,:]
     Ny[ii,jj]  = Nxy[2,:]
-    wgt[ii,jj] = detJ(J)*wξ*wη
+    wgt[ii,jj] = det(J)*wξ*wη
 
     A += wgt[ii,jj]
   end
@@ -84,7 +84,7 @@ function Hex08P(nodes::Vector{<:Integer},
     Nx[ii,jj,kk]  = Nxyz[1,:]
     Ny[ii,jj,kk]  = Nxyz[2,:]
     Nz[ii,jj,kk]  = Nxyz[3,:]
-    wgt[ii,jj,kk] = detJ(J)*wξ*wη*wζ
+    wgt[ii,jj,kk] = det(J)*wξ*wη*wζ
 
     V +=wgt[ii,jj,kk]
   end

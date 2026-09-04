@@ -71,7 +71,7 @@ function Quad(nodes::Vector{<:Integer},
     Nx[ii,jj]  = Nxy[1,:]
     Ny[ii,jj]  = Nxy[2,:]
     F          = SMatrix{2,2}(J)
-    wgt[ii,jj] = detJ(F)*wξ*wη
+    wgt[ii,jj] = det(F)*wξ*wη
 
     A += wgt[ii,jj]
   end
@@ -106,7 +106,7 @@ function Tet10(nodes::Vector{<:Integer},
     A  = hcat([[1,p[1],p[2],p[3],p[1]^2,p[2]^2,p[3]^2,p[2]p[3],p[1]p[3],p[1]p[2]] 
                for p in p0]...)
     C  = inv(A)
-    V  = detJ(A[1:4,1:4])/6
+    V  = det(A[1:4,1:4])/6
 
     Nx,Ny,Nz = zeros(10,4),zeros(10,4),zeros(10,4)
 
@@ -154,7 +154,7 @@ function Hex08(nodes::Vector{<:Integer},
     Ny[ii,jj,kk]  = Nxyz[2,:]
     Nz[ii,jj,kk]  = Nxyz[3,:]
     F             = SMatrix{3,3}(J)
-    wgt[ii,jj,kk] = detJ(F)*wξ*wη*wζ
+    wgt[ii,jj,kk] = det(F)*wξ*wη*wζ
 
     V +=wgt[ii,jj,kk]
   end
@@ -274,8 +274,7 @@ function ASQuad(nodes::Vector{<:Integer},
       Ny[ii,jj]  = Nxy[2,:]
       X0[ii,jj]  = p[1].v 
 
-      # wgt[ii,jj] = abs(detJ(J))*2π*p[1].v
-      wgt[ii,jj] = detJ(J)*2π*p[1].v
+      wgt[ii,jj] = det(J)*2π*p[1].v
 
       V +=wgt[ii,jj]
     end
