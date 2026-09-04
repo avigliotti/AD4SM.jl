@@ -127,7 +127,7 @@ const C1D{P,M,T,N} = Union{C1DE{P,M,T,N},C1DP{P,M,T,N}}
 const C2D{P,M,T,N} = Union{C2DE{P,M,T,N},C2DP{P,M,T,N}}
 const C3D{P,M,T,N} = Union{C3DE{P,M,T,N},C3DP{P,M,T,N}}
 
-const CElem = AbstractCElem
+const CElem{D,P,M,T,N} = AbstractCElem{D,P,M,T,N}
 
 # ---------------------------------------------------------------------------
 # Constructors for CEElem

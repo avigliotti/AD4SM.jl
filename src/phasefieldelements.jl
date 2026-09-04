@@ -7,7 +7,7 @@ using ..Materials:PhaseField
 # elements with support for phase field
 #
 function TriaP(nodes::Vector{<:Integer}, 
-              p0::Vector{Vector{T}} where T<:Number ;
+              p0::Vector{AbstractVector{T}} where T<:Number ;
               mat=Materials.Hooke())
   (N0,Nx,Ny,wgt,A) = begin
     (x1,x2,x3) = (p0[1][1],p0[2][1],p0[3][1])
@@ -23,7 +23,7 @@ function TriaP(nodes::Vector{<:Integer},
   C2DP(nodes,N0,Nx,Ny,wgt,A,mat) 
 end
 function QuadP(nodes::Vector{<:Integer}, 
-               p0::Vector{Vector{T}};
+               p0::Vector{AbstractVector{T}};
                GP=((-0.577350269189626, 1.0), (0.577350269189626, 1.0)), # √3/3
                mat=Materials.Hooke()) where T<:Number
   #r        = [-1, 1]*T(√3/3) #0.577350269189626 # √3/3
@@ -54,7 +54,7 @@ function QuadP(nodes::Vector{<:Integer},
 end
 QuadPR(nodes, p0;mat=Materials.Hooke()) = QuadP(nodes, p0, mat=mat, GP=((0.0,1.0),))
 function Hex08P(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}};
+                p0::Vector{AbstractVector{T}};
                 GP=((T(-0.577350269189626), one(T)), 
                     (T(0.577350269189626), one(T))), # √3/3
                 mat=Materials.Hooke()) where T<:Number
@@ -93,7 +93,7 @@ function Hex08P(nodes::Vector{<:Integer},
 end
 Hex08PR(nodes, p0;mat=Materials.Hooke()) = Hex08P(nodes, p0, mat=mat, GP=((0.0,1.0),))
 function Wdg06P(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}};
+                p0::Vector{AbstractVector{T}};
                 mat=Materials.Hooke())  where T<:Number
   N(ξ,η,ζ) = [(1-ζ)*(1-ξ-η), (1-ζ)*ξ, (1-ζ)*η,
               (1+ζ)*(1-ξ-η), (1+ζ)*ξ, (1+ζ)*η]/2
@@ -128,7 +128,7 @@ function Wdg06P(nodes::Vector{<:Integer},
        tuple(Nz...),tuple(wgt...),Vol,mat) 
 end
 function Tet04P(nodes::Vector{<:Integer}, 
-                p0::Vector{Vector{T}} where T<:Number;
+                p0::Vector{<:AbstractVector};
                 mat=Materials.Hooke())
   (V, N0, Nx, Ny, Nz) = begin
     A        = ones(4,4)
