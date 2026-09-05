@@ -8,6 +8,6 @@ include("solvers.jl")
 using  .adiff, .Solvers, .Materials, .Elements
 export adiff, Materials, Elements, Solvers
 
-VER = "0.0.7"
+VER = "0.2.1c"
 
 end # module
