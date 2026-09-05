@@ -142,16 +142,33 @@ Return scalar field value `d` at Gauss point `ii`.
 end
 
 """
-Return scalar field gradient ∇d at Gauss point `ii`.
+Compute the gradient of the scalar field at integration point ii
 """
-@inline function get_∇d(elem::CPElem{D,P,M,U,N} where U, d::Vector{T}, ii::Integer) where {D,P,M,T,N}
-    ∇d = @MVector zeros(T, D)
-    nodal_d = SVector{N}(d[elem.nodes])
-    @inbounds for jj in 1:D
-        ∇d[jj] = dot(elem.∇N[jj][ii], nodal_d)
-    end
-    return SVector{D,T}(∇d)
+function get∇d(elem::CElem{D,<:Any,<:Any,<:Any,N}, n::AbstractArray{T}, ii::Integer) where {D,N,T}
+  ∇n = @MVector zeros(T,D)
+  n  = SVector{N,T}(n)
+  @inbounds for jj=1:D
+    ∇n[jj] = elem.∇N[jj][ii]⋅n
+  end
+  return SVector{D,T}(∇n)
 end
+function get∇d(elem::CASE{<:Any,<:Any,<:Any}, n::AbstractVector{T}, ii::Integer) where T
+    Nr = elem.∇N[1][ii]
+    Nz = elem.∇N[2][ii]
+    return SVector{3}(Nr ⋅ n, Nz ⋅ n, zero(T))
+end
+"""
+Compute the average of the gradient of the scalar field over the elment
+"""
+function get∇d(elem::CElem{D,P,M,<:Any,N}, n::AbstractArray{T}) where {D,P,M,N,T}
+  ∇n = @MVector zeros(T,D)
+  n  = SVector{N,T}(n)
+  @inbounds for ii=1:P, jj=1:D
+    ∇n[jj] += elem.wgt[ii]*(elem.∇N[jj][ii]⋅n)
+  end
+  return SVector{D,T}(∇n/elem.V)
+end
+
 
 """
 Return scalar field value and gradient `(d, ∇d)` at Gauss point `ii`.
@@ -261,13 +278,105 @@ end
 # Invariants of C
 # ============================================================================
 
-@inline I₁(F::Union{SMatrix{3,3}, SVector{9}}) = (F[1]F[1]+F[2]F[2]+F[3]F[3]+
-                                                        F[4]F[4]+F[5]F[5]+F[6]F[6]+
-                                                        F[7]F[7]+F[8]F[8]+F[9]F[9])
-@inline I₂(F::Union{SMatrix{3,3}, SVector{9}}) = let C = F'F
+@inline getI₁(F::Union{SMatrix{3,3}, SVector{9}}) = (F[1]F[1]+F[2]F[2]+F[3]F[3]+
+                                                     F[4]F[4]+F[5]F[5]+F[6]F[6]+
+                                                     F[7]F[7]+F[8]F[8]+F[9]F[9])
+@inline getI₂(F::Union{SMatrix{3,3}, SVector{9}}) = let C = F'F
     # I₂=C₁₁C₂₂+C₁₁C₃₃+C₂₂C₃₃−C₁₂²−C₁₃²−C₂₃²
     C[1]C[5]+C[1]C[9]+C[5]C[9]-C[2]C[4]-C[3]C[7]-C[6]C[8]
 end
-@inline Ī₁(F::Union{SMatrix{3,3}, SVector{9}}) = I₁(F)/det(F)^(2/3)
-@inline Ī₂(F::Union{SMatrix{3,3}, SVector{9}}) = I₂(F)/det(F)^(4/3)
+@inline getĪ₁(F::Union{SMatrix{3,3}, SVector{9}}) = getI₁(F)/det(F)^(2/3)
+@inline getĪ₂(F::Union{SMatrix{3,3}, SVector{9}}) = getI₂(F)/det(F)^(4/3)
+
+function getĪ₁(elem::CElem{D,P} where D, u::AbstractArray{T}) where {P,T}
+  Ī₁ = zero(T)
+  @inbounds for ii=1:P
+    Ī₁ += elem.wgt[ii]getĪ₁(getF(elem, u, ii))
+  end
+  return Ī₁/elem.V
+end
+getĪ₁(elems::Array{<:Elements.CElem}, u::AbstractArray) = [getĪ₁(elem, u[:,elem.nodes]) for elem in elems]
+
+function getĪ₂(elem::CElem{D,P} where D, u::AbstractArray{T}) where {P,T}
+  Ī₂ = zero(T)
+  @inbounds for ii=1:P
+    Ī₂ += elem.wgt[ii]getĪ₂(getF(elem, u, ii))
+  end
+  return Ī₂/elem.V
+end
+getĪ₂(elems::Array{<:Elements.CElem}, u::AbstractArray) = [getĪ₂(elem, u[:,elem.nodes]) for elem in elems]
+
+"""
+    el2nodes(elems, J)
+
+Interpolate element-averaged J to nodes.
+"""
+function el2nodes(elems::Array{<:AbstractElement}, J::Array{T}) where T
+  @assert length(elems)==length(J) "elems and J must have the same length "
+  nNodes = 0
+  for elem in elems
+    nNodes = max(nNodes, elem.nodes...)
+  end
+
+  # Accumulate J values at each node
+  accum = [T[] for _ in 1:nNodes]
+
+  for (elem, J) in zip(elems, J)
+    for node in elem.nodes
+      push!(accum[node], J)
+    end
+  end
+
+  # Average
+  return [sum(vals) / length(vals) for vals in accum]
+end
+
+
+# ===========================================================================
+# getF  dispatch for CASE
+#
+# The axisymmetric deformation gradient is 3×3 in cylindrical coordinates
+# (r, θ, z).  With the axis of symmetry along z and u = [u_r, u_z]:
+#
+#   F = | ∂u_r/∂r + 1     ∂u_r/∂z       0            |
+#       | ∂u_z/∂r         ∂u_z/∂z + 1   0            |
+#       | 0               0             u_r/r_GP + 1 |
+#
+# where  u_r/r_GP  =  (Σ_a N_a u_r^a) / r_GP.
+# ===========================================================================
+
+"""
+    getF(elem::CASE, u, ii)
+
+Return the 3×3 axisymmetric deformation gradient at Gauss point `ii`.
+
+`u` is a (2 × N_nodes) array with rows [u_r; u_z].
+"""
+@inline function getF(elem::CASE{P,M,T,N}, u::AbstractArray{D}, ii::Integer) where {P,M,T,N,D}
+    ur = SVector{N}(u[1,:])          # radial displacements
+    uz = SVector{N}(u[2,:])          # axial  displacements
+    Nr = elem.∇N[1][ii]              # ∂N_a/∂r
+    Nz = elem.∇N[2][ii]              # ∂N_a/∂z
+    N0 = elem.N[ii]                  # N_a values at GP
+    r  = elem.r_GP[ii]               # reference radial coordinate
+
+    # hoop stretch:  (r + u_r)/r = 1 + Σ_a N_a u_r^a / r
+    Fθθ = one(D) + (N0 ⋅ ur) / r
+
+    return SMatrix{3,3,D}(
+        Nr⋅ur + 1,  Nr⋅uz,      zero(D),
+        Nz⋅ur,      Nz⋅uz + 1,  zero(D),
+        zero(D),    zero(D),    Fθθ
+    )
+end
+
+# Volume-averaged F (used by getσ and diagnostics)
+function getF(elem::CASE{P,<:Any,<:Any,N}, u::AbstractArray{T}) where {P,T,N}
+    u   = SMatrix{2,N,T}(u[1:2,:])
+    Favg = @MMatrix zeros(T, 3, 3)
+    @inbounds for ii in 1:P
+        Favg .+= elem.wgt[ii] .* getF(elem, u, ii)
+    end
+    SMatrix{3,3,T}(Favg / elem.V)
+end
 

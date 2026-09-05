@@ -4,16 +4,18 @@ module Elements
 
 using ..AD4SM.adiff
 import ..Materials.getϕ
+using ..Materials
 
 using StaticArrays, SparseArrays
 using LinearAlgebra:I,det
 
 import LinearAlgebra:×,det
 
+export AbstractElement, AbstractContinuumElem, AbstractCElem
 export CElem, CEElem, CPElem, C1DE, C2DE, C3DE, C1DP, C2DP, C3DP,
-       C1D, C2D, C3D
-export getϕ, getσ, getP, det, getF, ×, getV
-# export I₁, I₂, Ī₁, Ī₂
+       C1D, C2D, C3D, CASE, CASElem
+export getϕ, getσ, getP, det, getF, ×, getV, get∇d
+export getI₁, getI₂, getĪ₁, getĪ₂
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +113,31 @@ struct CPElem{D,P,M,T,N} <: AbstractCElem{D,P,M,T,N}
     mat::M
 end
 
+"""
+CASElem{D,P,M,T,N}
+
+Axisymmetric continuum element.
+
+Fields:
+- `D`     : spatial dimension (2)
+- `nodes` : nodal connectivity (length N)
+- `N0`    : NTuple{P,SVector{N,T}}  — shape-function values at each GP
+- `∇N`    : NTuple{D,NTuple{P,SVector{N,T}}} — ∂N/∂r and ∂N/∂z at each GP
+- `r_GP`  : NTuple{P,T}  — reference radial coordinate at each GP
+- `wgt`   : NTuple{P,T}  — integration weights (= det(J)*2π*r_GP*w_ref)
+- `V`     : reference volume  (= ∫ 2π r dA over element)
+- `mat`   : material model
+"""
+struct CASElem{D,P,M,T,N} <: AbstractCElem{D,P,M,T,N}
+  nodes::SVector{<:Integer}
+  N::NTuple{P, SVector{N,T}}
+  ∇N::NTuple{D, NTuple{P, SVector{N,T}}}
+  r_GP::NTuple{P, T}
+  wgt::NTuple{P, T}
+  V::T
+  mat::M
+end
+
 # ---------------------------------------------------------------------------
 # Type aliases for convenience
 # ---------------------------------------------------------------------------
@@ -122,6 +149,8 @@ const C3DE{P,M,T,N} = CEElem{3,P,M,T,N}
 const C1DP{P,M,T,N} = CPElem{1,P,M,T,N}
 const C2DP{P,M,T,N} = CPElem{2,P,M,T,N}
 const C3DP{P,M,T,N} = CPElem{3,P,M,T,N}
+
+const CASE{P,M,T,N} = CASElem{2,P,M,T,N}
 
 const C1D{P,M,T,N} = Union{C1DE{P,M,T,N},C1DP{P,M,T,N}}
 const C2D{P,M,T,N} = Union{C2DE{P,M,T,N},C2DP{P,M,T,N}}
@@ -216,6 +245,32 @@ function C3DP(nodes, N, Nx, Ny, Nz, wgt, V, mat)
           ntuple(ii -> SVector{Nn}(Ny[ii]), P),
           ntuple(ii -> SVector{Nn}(Nz[ii]), P) ),
         wgt, V, mat)
+end
+
+# ---------------------------------------------------------------------------
+# Constructor helper  CASELEM(nodes, N0, Nr, Nz, r_GP, wgt, V, mat, ord=1)
+# ---------------------------------------------------------------------------
+"""
+    CASElem(nodes, N0, Nr, Nz, r_GP, wgt, V, mat)
+
+Low-level constructor that converts plain array-of-arrays into the
+fully typed `CASElem`.  All tuple-of-arrays arguments accept the same
+formats used by `C2DP`.
+"""
+function CASE(nodes, N0, Nr, Nz, r_GP, wgt, V, mat)
+  P   = length(wgt)
+  Nn  = length(N0[1])
+  M   = typeof(mat)
+  T   = eltype(wgt)
+  CASElem{2,P,M,T,Nn}(
+    SVector{Nn}(nodes),
+    ntuple(ii -> SVector{Nn,T}(N0[ii]),   P),
+    ( ntuple(ii -> SVector{Nn,T}(Nr[ii]), P),
+      ntuple(ii -> SVector{Nn,T}(Nz[ii]), P) ),
+    ntuple(ii -> T(r_GP[ii]), P),
+    ntuple(ii -> T(wgt[ii]),  P),
+    T(V),
+    mat)
 end
 
 include("./elements.toolkit.jl")
