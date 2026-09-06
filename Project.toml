@@ -1,6 +1,6 @@
 name = "AD4SM"
 uuid = "7861f83d-ce22-4070-aa20-44578e274a9b"
-version = "v0.2.1-rc1"
+version = "v0.2.1"
 authors = ["andrea <andrea.vigliotti@gmail.com>"]
 
 [deps]
