@@ -1,3 +1,8 @@
+# AD4SM v0.2.1 Release Notes
+
+Fixed some bugs in 2D Phase Field elements creation
+
+
 # AD4SM v0.2.0 Release Notes
 
 
